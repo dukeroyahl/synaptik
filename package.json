@@ -1,0 +1,39 @@
+{
+  "name": "synaptik",
+  "version": "1.0.0",
+  "description": "🧠 Where Ideas Connect - A project management and mindmapping application",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\" \"npm run mcp:dev\"",
+    "client:dev": "cd client && npm run dev",
+    "server:dev": "cd server && npm run dev",
+    "mcp:dev": "cd mcp-server && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start",
+    "mcpbuild": "cd mcp-server && npm run build",
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install",
+    "mongo:start": "brew services start mongodb-community",
+    "mongo:stop": "brew services stop mongodb-community",
+    "mongo:status": "brew services list | grep mongodb",
+    "mongo:connect": "mongosh synaptik",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f mongodb",
+    "import:taskwarrior": "node scripts/import-taskwarrior.js",
+    "import:taskwarrior:force": "node scripts/import-taskwarrior.js --force"
+  },
+  "keywords": [
+    "project-management",
+    "mindmap",
+    "productivity",
+    "task-management"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
