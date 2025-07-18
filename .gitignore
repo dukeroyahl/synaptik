@@ -3,79 +3,21 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# Environment variables
+# Production builds
+/client/dist/
+/client/build/
+/server/build/
+/mcp-server/dist/
+
+# Environment files
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# Build outputs
-dist/
-build/
-*.tsbuildinfo
-
-# Logs
-logs/
-*.log
-synaptik.log
-
-# Runtime data
-pids/
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage/
-*.lcov
-
-# Dependency directories
-jspm_packages/
-
-# Optional npm cache directory
-.npm
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
-
-# next.js build output
-.next
-
-# nuxt.js build output
-.nuxt
-
-# vuepress build output
-.vuepress/dist
-
-# Serverless directories
-.serverless
-
-# FuseBox cache
-.fusebox/
-
-# DynamoDB Local files
-.dynamodb/
-
-# TernJS port file
-.tern-port
-
-# Stores VSCode versions used for testing VSCode extensions
-.vscode-test
-
-# IDEs
+# IDE files
 .vscode/
 .idea/
 *.swp
@@ -91,61 +33,61 @@ jspm_packages/
 ehthumbs.db
 Thumbs.db
 
-# MongoDB data
-data/db/
-*.db
+# Logs
+*.log
+logs/
+synaptik.log
 
-# Test files
-test-mongodb.js
-test_task.js
+# Runtime files
+*.pid
+.synaptik.pid
 
-# Docker volumes
-docker-data/
+# Docker
+.dockerignore
 
-# MCP server builds
-mcp-server/dist/
+# Gradle
+.gradle/
+/server/.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
 
-# Client build
-client/dist/
+# Java
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
 
-# Server build
-server/dist/
+# TypeScript
+*.tsbuildinfo
+
+# Coverage
+coverage/
+*.lcov
 
 # Temporary files
 tmp/
 temp/
 
-# Lock files (keep package-lock.json for deterministic builds)
-# yarn.lock
+# Database
+*.db
+*.sqlite
+*.sqlite3
 
-# Local development files
-.local/
-local/
+# Cache
+.cache/
+.npm/
+.yarn/
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Database backups
-*.sql
-*.dump
-
-# SSL certificates
-*.pem
-*.key
-*.crt
+# Test artifacts
+/server/build/reports/
+/client/coverage/
 
 # Backup files
-*.bak
 *.backup
-
-# Archive files
-*.zip
-*.tar.gz
-*.rar
+*.bak

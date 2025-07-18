@@ -11,7 +11,7 @@ import axios from "axios";
 import { z } from "zod";
 
 // Configuration
-const API_BASE_URL = process.env.SYNAPTIK_API_URL || "http://localhost:3001/api";
+const API_BASE_URL = process.env.SYNAPTIK_API_URL || "http://localhost:8080/api";
 
 // Task types and schemas
 const TaskSchema = z.object({
