@@ -10,7 +10,6 @@
     "mcp:dev": "cd mcp-server && npm run dev",
     "build": "cd client && npm run build",
     "build:server": "cd server && ./gradlew clean build",
-    "start": "cd server && ./gradlew quarkusRun",
     "mcpbuild": "cd mcp-server && npm run build",
     "install:all": "npm install && cd client && npm install && cd ../mcp-server && npm install",
     "mongo:start": "brew services start mongodb-community",
@@ -25,7 +24,7 @@
     "docker:full:down": "docker-compose -f config/docker-compose.full.yml down",
     "docker:full:logs": "docker-compose -f config/docker-compose.full.yml logs -f",
     "setup": "./scripts/synaptik.sh setup",
-    "dev": "./scripts/synaptik.sh dev",
+    "start": "./scripts/synaptik.sh start",
     "stop": "./scripts/synaptik.sh stop",
     "status": "./scripts/synaptik.sh status"
   },

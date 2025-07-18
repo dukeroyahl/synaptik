@@ -1,31 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid } from '@mui/material';
 import Calendar from '../components/Calendar';
-import GoogleCalendarAuth from '../components/GoogleCalendarAuth';
-import GoogleCalendarSync from '../components/GoogleCalendarSync';
 import { Task } from '../types';
 
 const CalendarView: React.FC = () => {
   const [taskDetails, setTaskDetails] = useState<Task | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [isGoogleCalendarAuthenticated, setIsGoogleCalendarAuthenticated] = useState(false);
-  const [tasks, setTasks] = useState<Task[]>([]);
 
   useEffect(() => {
-    fetchTasks();
+    // Calendar view now focuses only on local task display
   }, []);
-
-  const fetchTasks = async () => {
-    try {
-      const response = await fetch('/api/tasks');
-      if (response.ok) {
-        const result = await response.json();
-        setTasks(result.data || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch tasks:', error);
-    }
-  };
 
   const handleTaskSelect = async (taskId: string) => {
     try {
@@ -60,24 +44,12 @@ const CalendarView: React.FC = () => {
         Task Calendar
       </Typography>
       <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-        View your tasks by due date and sync with Google Calendar
+        View your tasks by due date
       </Typography>
 
       <Grid container spacing={3}>
-        <Grid item xs={12} md={8}>
+        <Grid item xs={12}>
           <Calendar onTaskSelect={handleTaskSelect} />
-        </Grid>
-        
-        <Grid item xs={12} md={4}>
-          <GoogleCalendarAuth 
-            onAuthChange={setIsGoogleCalendarAuthenticated} 
-          />
-          
-          <GoogleCalendarSync
-            tasks={tasks}
-            onSyncComplete={fetchTasks}
-            isAuthenticated={isGoogleCalendarAuthenticated}
-          />
         </Grid>
       </Grid>
 

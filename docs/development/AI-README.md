@@ -119,7 +119,7 @@ server/src/main/java/com/synaptik/
 #### Routing Structure
 ```
 / (Dashboard)           # Task overview and analytics
-/calendar              # Calendar view with Google Calendar sync
+/calendar              # Calendar view for task scheduling
 /matrix                # Eisenhower Matrix for prioritization
 /projects              # Project management interface
 /mindmaps              # Visual project organization

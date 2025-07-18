@@ -10,7 +10,7 @@ set -e  # Exit on any error
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SYNAPTIK_PATH="$SCRIPT_DIR"
+SYNAPTIK_PATH="$(cd "$SCRIPT_DIR/.." && pwd)"  # Go up one level to project root
 LOG_FILE="$SYNAPTIK_PATH/synaptik.log"
 PID_FILE="$SYNAPTIK_PATH/.synaptik.pid"
 
@@ -112,7 +112,7 @@ check_requirements() {
         echo_status "$GREEN" "$CHECK" "MongoDB found"
     elif command_exists brew && brew list mongodb-community >/dev/null 2>&1; then
         echo_status "$GREEN" "$CHECK" "MongoDB (via Homebrew) found"
-    elif command_exists docker && [ -f "$SYNAPTIK_PATH/docker-compose.yml" ]; then
+    elif command_exists docker && [ -f "$SYNAPTIK_PATH/config/docker-compose.yml" ]; then
         echo_status "$BLUE" "$INFO" "Docker available - MongoDB will be started via docker-compose"
     else
         echo_status "$YELLOW" "$WARNING" "MongoDB not found - will need to be installed or use Docker"
@@ -142,9 +142,11 @@ setup_mongodb() {
     echo_header "${DATABASE} MongoDB Setup"
     
     # Check if docker-compose.yml exists and use it
-    if [ -f "$SYNAPTIK_PATH/docker-compose.yml" ] && command_exists docker; then
+    if [ -f "$SYNAPTIK_PATH/config/docker-compose.yml" ] && command_exists docker; then
         echo_status "$BLUE" "$INFO" "Starting MongoDB via docker-compose..."
+        cd "$SYNAPTIK_PATH/config"
         docker-compose up -d
+        cd "$SYNAPTIK_PATH"
         echo_status "$GREEN" "$CHECK" "MongoDB started via Docker Compose"
         return 0
     fi

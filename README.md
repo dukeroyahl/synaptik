@@ -51,9 +51,7 @@ Synaptik is a comprehensive task management application that combines the power 
 - **📝 Annotations**: Rich task history and notes
 
 ### Modern Web Features
-- **🗓️ Google Calendar Sync**: Bidirectional synchronization with your calendar
-- **🎨 Beautiful Interface**: Material Design with dark/light themes
-- **📱 Responsive Design**: Works seamlessly on desktop, tablet, and mobile
+- ** Responsive Design**: Works seamlessly on desktop, tablet, and mobile
 - **⚡ Real-time Updates**: Live synchronization across all devices
 - **🔍 Powerful Search**: Full-text search across tasks and projects
 - **📊 Visual Analytics**: Charts, graphs, and productivity insights
@@ -329,8 +327,6 @@ QUARKUS_LOG_LEVEL=INFO
 ```bash
 VITE_API_BASE_URL=http://localhost:8080
 VITE_PORT=5173
-VITE_GOOGLE_CLIENT_ID=your_google_client_id
-VITE_GOOGLE_API_KEY=your_google_api_key
 ```
 
 ### TaskWarrior Integration
@@ -461,7 +457,6 @@ cd client && rm -rf node_modules && npm install
 - [x] MCP server for AI integration
 
 ### Phase 2: Enhanced Features 🚧
-- [ ] Google Calendar bidirectional sync
 - [ ] Advanced project management
 - [ ] D3.js mindmap visualization
 - [ ] Real-time collaboration
