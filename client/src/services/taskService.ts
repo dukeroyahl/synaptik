@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient'
+import { API_BASE_URL } from '../config'
 import { Task } from '../types'
 
 export type TaskAction = 'start' | 'stop' | 'done' | 'delete'
@@ -82,8 +83,21 @@ export class TaskService {
   }
 
   async captureTask(text: string): Promise<Task> {
-    const response = await apiClient.post<Task>(`${this.basePath}/capture`, { text })
-    return response.data
+    // Use direct fetch for plain text content-type
+    const response = await fetch(`${API_BASE_URL}${this.basePath}/capture`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain'
+      },
+      body: text
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Failed to capture task: ${response.statusText}`)
+    }
+    
+    const result = await response.json()
+    return result
   }
 
   // Filtered queries for common use cases

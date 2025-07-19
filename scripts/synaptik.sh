@@ -296,12 +296,16 @@ start_dev() {
     echo "$SYNAPTIK_PID" > "$PID_FILE"
     
     echo_status "$GREEN" "$CHECK" "Synaptik started with PID: $SYNAPTIK_PID"
+    echo_status "$BLUE" "$INFO" "Services starting in background... This may take 30-60 seconds"
     echo_status "$BLUE" "$INFO" "Waiting for services to initialize..."
     sleep 5
     
     # Check if services are responding
     local retries=0
-    while [ $retries -lt 30 ]; do
+    local max_retries=30
+    echo_status "$BLUE" "$INFO" "Checking if services are starting... (max wait: ${max_retries} attempts)"
+    
+    while [ $retries -lt $max_retries ]; do
         if check_port 8080 && check_port 5173; then
             echo_status "$GREEN" "$CHECK" "All services are running!"
             echo ""
@@ -314,11 +318,20 @@ start_dev() {
             echo -e "${CYAN}${INFO} Logs are being written to: $LOG_FILE${NC}"
             return 0
         fi
+        
+        # Show progress every 5 attempts
+        if [ $((retries % 5)) -eq 0 ] && [ $retries -gt 0 ]; then
+            local remaining=$((max_retries - retries))
+            echo_status "$BLUE" "$INFO" "Still waiting for services to start... ($remaining attempts remaining)"
+        fi
+        
         sleep 2
         retries=$((retries + 1))
     done
     
     echo_status "$RED" "$CROSS" "Services failed to start properly. Check logs: $LOG_FILE"
+    echo_status "$BLUE" "$INFO" "You can run './synaptik.sh logs' to see recent logs"
+    echo_status "$BLUE" "$INFO" "Or run 'tail -f $LOG_FILE' to follow logs in real-time"
     return 1
 }
 
@@ -367,24 +380,29 @@ stop_services() {
     # Stop main process
     if [ -f "$PID_FILE" ]; then
         SYNAPTIK_PID=$(cat "$PID_FILE")
-        if ps -p "$SYNAPTIK_PID" > /dev/null; then
+        if [ -n "$SYNAPTIK_PID" ] && kill -0 "$SYNAPTIK_PID" 2>/dev/null; then
             echo_status "$BLUE" "$INFO" "Stopping Synaptik (PID: $SYNAPTIK_PID)"
-            kill -15 "$SYNAPTIK_PID"
+            kill -15 "$SYNAPTIK_PID" 2>/dev/null || true
             sleep 3
-            if ps -p "$SYNAPTIK_PID" > /dev/null; then
+            if kill -0 "$SYNAPTIK_PID" 2>/dev/null; then
                 echo_status "$YELLOW" "$WARNING" "Process still running, using force kill"
-                kill -9 "$SYNAPTIK_PID"
+                kill -9 "$SYNAPTIK_PID" 2>/dev/null || true
             fi
         fi
-        rm "$PID_FILE"
+        rm -f "$PID_FILE"
     fi
     
     # Kill any remaining processes on relevant ports
     for port in 8080 5173 3001; do
-        PORT_PID=$(lsof -ti:$port 2>/dev/null)
-        if [ -n "$PORT_PID" ]; then
+        PORT_PID=$(lsof -ti:$port 2>/dev/null | head -1)
+        if [ -n "$PORT_PID" ] && [ "$PORT_PID" != "" ]; then
             echo_status "$BLUE" "$INFO" "Killing process on port $port (PID: $PORT_PID)"
-            kill -15 "$PORT_PID" 2>/dev/null || kill -9 "$PORT_PID" 2>/dev/null
+            kill -15 "$PORT_PID" 2>/dev/null || true
+            sleep 1
+            # Check if still running and force kill if needed
+            if kill -0 "$PORT_PID" 2>/dev/null; then
+                kill -9 "$PORT_PID" 2>/dev/null || true
+            fi
         fi
     done
     

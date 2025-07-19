@@ -21,9 +21,6 @@ dependencies {
     // Validation
     implementation 'io.quarkus:quarkus-hibernate-validator'
     
-    // Security
-    implementation 'io.quarkus:quarkus-smallrye-jwt'
-    
     // OpenAPI
     implementation 'io.quarkus:quarkus-smallrye-openapi'
     

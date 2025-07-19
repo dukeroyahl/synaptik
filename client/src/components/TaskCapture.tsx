@@ -39,18 +39,18 @@ const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
       const response = await fetch('/api/tasks/capture', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'text/plain'
         },
-        body: JSON.stringify({ input: input.trim() })
+        body: input.trim()
       })
 
       const result = await response.json()
 
       if (response.ok) {
-        setMessage({ type: 'success', text: result.message })
+        setMessage({ type: 'success', text: 'Task captured successfully!' })
         setInput('')
         if (onTaskCaptured) {
-          onTaskCaptured(result.data)
+          onTaskCaptured(result)
         }
       } else {
         setMessage({ type: 'error', text: result.error || 'Failed to capture task' })

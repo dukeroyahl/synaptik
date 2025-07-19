@@ -39,6 +39,7 @@ const Dashboard = memo(() => {
   const [availableAssignees, setAvailableAssignees] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const [statusFilter, setStatusFilter] = useState<'pending' | 'completed' | 'overdue' | 'today' | 'all'>('pending')
+  const [refreshCounter, setRefreshCounter] = useState(0)
   
   // Quick filters state
   const [projectFilter, setProjectFilter] = useState<string>('')
@@ -55,13 +56,16 @@ const Dashboard = memo(() => {
       const result = await response.json();
       
       if (response.ok) {
+        // Backend returns array directly, not wrapped
+        const tasks = Array.isArray(result) ? result : [];
+        
         // Extract unique assignees from tasks
-        const assignees = result.data
+        const assignees = tasks
           .filter((task: any) => task.assignee)
           .map((task: any) => task.assignee as string);
         
         // Extract unique projects from tasks
-        const projects = result.data
+        const projects = tasks
           .filter((task: any) => task.project)
           .map((task: any) => task.project as string);
         
@@ -82,6 +86,7 @@ const Dashboard = memo(() => {
   const handleTaskCaptured = useCallback(() => {
     // This will trigger refresh in child components
     fetchAssignees();
+    setRefreshCounter(prev => prev + 1);
   }, [fetchAssignees]);
 
   const clearAllQuickFilters = useCallback(() => {
@@ -375,6 +380,7 @@ const Dashboard = memo(() => {
 
               {activeTab === 0 && (
                 <TaskList 
+                  key={`active-${refreshCounter}`}
                   filter={activeFilter as 'pending' | 'active' | 'overdue' | 'today' | 'completed' | 'all'} 
                   onTaskUpdate={handleTaskCaptured}
                   assigneeFilter={combinedAssigneeFilter}
@@ -384,6 +390,7 @@ const Dashboard = memo(() => {
               )}
               {activeTab === 1 && (
                 <TaskList 
+                  key={`completed-${refreshCounter}`}
                   filter="completed" 
                   onTaskUpdate={handleTaskCaptured}
                   assigneeFilter={combinedAssigneeFilter}

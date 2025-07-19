@@ -77,7 +77,7 @@ const TaskList: React.FC<TaskListProps> = memo(({
       const result = await response.json()
       
       if (response.ok) {
-        setTasks(result.data || [])
+        setTasks(Array.isArray(result) ? result : [])
       }
     } catch (error) {
       if (import.meta.env.DEV) {
@@ -118,12 +118,21 @@ const TaskList: React.FC<TaskListProps> = memo(({
         throw new Error(`HTTP ${response.status}: ${errorText}`)
       }
       
-      const result = await response.json()
+      // Handle different response types
+      let result = null
+      if (action === 'delete') {
+        // Delete returns 204 No Content, no JSON body
+        result = { success: true }
+      } else {
+        result = await response.json()
+      }
 
       if (response.ok) {
         await fetchTasks() // Refresh the list
         if (onTaskUpdate) {
-          onTaskUpdate(result.data)
+          // For delete operations, pass a dummy task object to trigger refresh
+          const updateData = action === 'delete' ? { id: taskId } : (result.data || result)
+          onTaskUpdate(updateData)
         }
       }
     } catch (error) {
