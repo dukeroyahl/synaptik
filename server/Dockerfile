@@ -14,12 +14,12 @@ COPY src/ src/
 RUN gradle build -x test --no-daemon
 
 # Production stage
-FROM openjdk:21-jre-slim
+FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
 # Install curl for health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache curl
 
 # Copy the built application
 COPY --from=builder /app/build/quarkus-app/ ./
@@ -33,6 +33,6 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8080/q/health || exit 1
+    CMD curl -f http://localhost:8080/health || exit 1
 
 CMD ["java", "-jar", "quarkus-run.jar"]

@@ -1,14 +1,18 @@
 # Build stage
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-RUN npm ci --only=production
 
-# Copy source code
+# Copy source code first (before install to avoid cache issues)
 COPY . .
+
+# Clean everything and install fresh
+RUN rm -rf node_modules package-lock.json && \
+    npm cache clean --force && \
+    npm install --force
 
 # Build the application
 RUN npm run build

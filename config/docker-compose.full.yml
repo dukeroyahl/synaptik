@@ -23,7 +23,7 @@ services:
   # Java/Quarkus Backend
   server:
     build:
-      context: ./server
+      context: ../server
       dockerfile: Dockerfile
     container_name: synaptik-server
     restart: unless-stopped
@@ -42,7 +42,7 @@ services:
     networks:
       - synaptik-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/q/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -50,7 +50,7 @@ services:
   # React Frontend
   client:
     build:
-      context: ./client
+      context: ../client
       dockerfile: Dockerfile
     container_name: synaptik-client
     restart: unless-stopped
@@ -84,24 +84,6 @@ services:
         condition: service_healthy
     networks:
       - synaptik-network
-
-  # MCP Server (for AI integration)
-  mcp-server:
-    build:
-      context: ./mcp-server
-      dockerfile: Dockerfile
-    container_name: synaptik-mcp-server
-    restart: unless-stopped
-    environment:
-      SYNAPTIK_API_URL: http://server:8080/api
-      NODE_ENV: production
-    depends_on:
-      server:
-        condition: service_healthy
-    networks:
-      - synaptik-network
-    volumes:
-      - ./mcp-server/dist:/app/dist:ro
 
 volumes:
   mongodb_data:
