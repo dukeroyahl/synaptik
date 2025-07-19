@@ -1,6 +1,8 @@
 # Development Docker Compose - MongoDB only
 # For full application deployment, use: docker-compose -f docker-compose.full.yml up
 
+name: synaptik-dev
+
 services:
   mongodb:
     image: mongo:7.0

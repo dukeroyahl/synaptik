@@ -1,3 +1,5 @@
+name: synaptik
+
 services:
   # MongoDB Database
   mongodb:
