@@ -56,13 +56,8 @@ jobs:
 
     - name: Run backend tests
       working-directory: ./server
-      run: ./gradlew test
-      env:
-        MONGODB_URI: mongodb://admin:password@localhost:27017/synaptik?authSource=admin
-
-    - name: Generate test report
-      working-directory: ./server
-      run: ./gradlew jacocoTestReport
+      run: |
+        ./gradlew test 
 
   # Frontend Tests
   frontend-test:
