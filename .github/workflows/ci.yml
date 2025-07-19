@@ -64,13 +64,6 @@ jobs:
       working-directory: ./server
       run: ./gradlew jacocoTestReport
 
-    - name: Upload test results
-      uses: actions/upload-artifact@v3
-      if: always()
-      with:
-        name: backend-test-results
-        path: server/build/reports/
-
   # Frontend Tests
   frontend-test:
     name: Frontend Tests
@@ -103,13 +96,6 @@ jobs:
       working-directory: ./client
       run: npm test -- --coverage --watchAll=false
 
-    - name: Upload coverage reports
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./client/coverage/lcov.info
-        flags: frontend
-
-  # MCP Server Tests
   mcp-test:
     name: MCP Server Tests
     runs-on: ubuntu-latest
@@ -232,9 +218,3 @@ jobs:
         ignore-unfixed: true
         format: 'sarif'
         output: 'trivy-results.sarif'
-
-    - name: Upload Trivy scan results
-      uses: github/codeql-action/upload-sarif@v2
-      if: always()
-      with:
-        sarif_file: 'trivy-results.sarif'
