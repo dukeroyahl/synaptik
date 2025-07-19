@@ -280,11 +280,12 @@ const TaskList: React.FC<TaskListProps> = memo(({
               return dueDate.getTime() === tomorrow.getTime();
             case 'this-week':
               return dueDate >= today && dueDate < nextWeek;
-            case 'next-week':
+            case 'next-week': {
               const nextWeekStart = new Date(nextWeek);
               const nextWeekEnd = new Date(nextWeek);
               nextWeekEnd.setDate(nextWeekEnd.getDate() + 7);
               return dueDate >= nextWeekStart && dueDate < nextWeekEnd;
+            }
             case 'this-month':
               return dueDate >= today && dueDate < thisMonth;
             case 'overdue':
