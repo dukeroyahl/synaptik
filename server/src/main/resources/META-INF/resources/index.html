@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Synaptik Server</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .api-links {
+            margin: 20px 0;
+        }
+        .api-links a {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px 20px;
+            background-color: #007cba;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .api-links a:hover {
+            background-color: #005a8b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 Synaptik Server</h1>
+        <p>Welcome to the Synaptik task management and mindmapping server.</p>
+        
+        <div class="api-links">
+            <h3>API Endpoints:</h3>
+            <a href="/q/health">Health Check</a>
+            <a href="/q/openapi">OpenAPI Spec</a>
+            <a href="/q/swagger-ui">Swagger UI</a>
+            <a href="/api/tasks">Tasks API</a>
+            <a href="/api/projects">Projects API</a>
+            <a href="/api/mindmaps">Mindmaps API</a>
+        </div>
+        
+        <div>
+            <h3>Status:</h3>
+            <p>✅ Server is running</p>
+            <p>📊 API documentation available via Swagger UI</p>
+            <p>🔄 Health checks enabled</p>
+        </div>
+    </div>
+</body>
+</html>

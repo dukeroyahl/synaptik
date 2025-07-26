@@ -2,7 +2,7 @@
   "name": "synaptik-mcp-server",
   "description": "MCP server for Synaptik task management system",
   "author": "Synaptik Team",
-  "homepage": "https://github.com/your-org/synaptik",
+  "homepage": "https://github.com/Dukeroyahl/synaptik",
   "license": "MIT",
   "runtime": "node",
   "entrypoint": "dist/index.js",

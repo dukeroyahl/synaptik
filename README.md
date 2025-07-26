@@ -50,7 +50,7 @@ Get Synaptik running in minutes using Docker Desktop - no additional software in
 ### One-Command Setup
 ```bash
 # Clone and start with Docker
-git clone https://github.com/roudra/synaptik.git
+git clone https://github.com/Dukeroyahl/synaptik.git
 cd synaptik
 
 # Start all services with Docker Compose
@@ -208,6 +208,6 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 **Built with ❤️ by the Synaptik team**
 
-[Report Bug](https://github.com/roudra/synaptik/issues) • [Request Feature](https://github.com/roudra/synaptik/issues) • [Documentation](WIKI.md) • [Dev Documentation](DEVELOPMENT.md)
+[Report Bug](https://github.com/Dukeroyahl/synaptik/issues) • [Request Feature](https://github.com/Dukeroyahl/synaptik/issues) • [Documentation](WIKI.md) • [Dev Documentation](DEVELOPMENT.md)
 
 </div>

@@ -43,7 +43,7 @@ npm run docker:up
 
 ### 1. Clone and Install Dependencies
 ```bash
-git clone https://github.com/roudra/synaptik.git
+git clone https://github.com/Dukeroyahl/synaptik.git
 cd synaptik
 
 # Install all dependencies

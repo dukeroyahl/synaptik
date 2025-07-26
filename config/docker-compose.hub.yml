@@ -1,5 +1,13 @@
 name: synaptik
 
+# Docker Compose configuration using published Docker Hub images
+# Usage: 
+#   1. Update DOCKERHUB_USERNAME below with your Docker Hub username
+#   2. Run: docker-compose -f config/docker-compose.hub.yml up -d
+
+# CHANGE THIS: Replace 'yourusername' with your actual Docker Hub username
+x-dockerhub-username: &dockerhub-username "yourusername"
+
 services:
   # MongoDB Database
   mongodb:
@@ -22,11 +30,9 @@ services:
       timeout: 5s
       retries: 5
 
-  # Java/Quarkus Backend
+  # Java/Quarkus Backend (from Docker Hub)
   server:
-    build:
-      context: ../server
-      dockerfile: Dockerfile
+    image: *dockerhub-username/synaptik-server:latest
     container_name: synaptik-server
     restart: unless-stopped
     ports:
@@ -49,11 +55,9 @@ services:
       timeout: 10s
       retries: 5
 
-  # React Frontend
+  # React Frontend (from Docker Hub)
   client:
-    build:
-      context: ../client
-      dockerfile: Dockerfile
+    image: *dockerhub-username/synaptik-client:latest
     container_name: synaptik-client
     restart: unless-stopped
     ports:
@@ -69,11 +73,9 @@ services:
       timeout: 10s
       retries: 3
 
-  # MCP Server for AI Integration
+  # MCP Server for AI Integration (from Docker Hub)
   mcp-server:
-    build:
-      context: ../mcp-server
-      dockerfile: Dockerfile
+    image: *dockerhub-username/synaptik-mcp-server:latest
     container_name: synaptik-mcp-server
     restart: unless-stopped
     ports:

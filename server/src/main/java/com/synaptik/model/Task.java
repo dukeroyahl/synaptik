@@ -1,6 +1,5 @@
 package com.synaptik.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.quarkus.mongodb.panache.common.MongoEntity;
 // Collection indexes will be created programmatically or via MongoDB scripts
 // import io.quarkus.mongodb.panache.common.CollectionIndex;

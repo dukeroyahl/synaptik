@@ -12,7 +12,7 @@ dependencies {
     implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
     
     // Core Quarkus
-    implementation 'io.quarkus:quarkus-resteasy-reactive-jackson'
+    implementation 'io.quarkus:quarkus-rest-jackson'
     implementation 'io.quarkus:quarkus-arc'
     
     // MongoDB
@@ -30,7 +30,8 @@ dependencies {
     // Health
     implementation 'io.quarkus:quarkus-smallrye-health'
     
-    // CORS is built into resteasy-reactive, no separate extension needed
+    // MCP Server with SSE transport - updated for Quarkus 3.24.5
+    implementation 'io.quarkiverse.mcp:quarkus-mcp-server-sse:1.4.0'
     
     // Testing
     testImplementation 'io.quarkus:quarkus-junit5'

@@ -14,7 +14,7 @@ Get up and running with Synaptik in minutes!
 ### 1. Clone and Setup
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/synaptik.git
+git clone https://github.com/Dukeroyahl/synaptik.git
 cd synaptik
 
 # Run automatic setup
@@ -102,13 +102,13 @@ npm run install:all
 - Read the [Contributing Guide](../../CONTRIBUTING.md)
 - Check out [Deployment Options](../deployment/DEPLOYMENT.md)
 - Explore [API Documentation](../api/)
-- Join our [Community Discussions](https://github.com/your-username/synaptik/discussions)
+- Join our [Community Discussions](https://github.com/Dukeroyahl/synaptik/discussions)
 
 ## 🆘 Need Help?
 
 - **Documentation**: Check `docs/` directory
-- **Issues**: [GitHub Issues](https://github.com/your-username/synaptik/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-username/synaptik/discussions)
+- **Issues**: [GitHub Issues](https://github.com/Dukeroyahl/synaptik/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Dukeroyahl/synaptik/discussions)
 
 ---
 

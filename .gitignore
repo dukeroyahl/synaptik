@@ -79,6 +79,10 @@ temp/
 *.sqlite
 *.sqlite3
 
+# MongoDB persistent data (keep structure, ignore content)
+config/data/mongodb/*
+!config/data/.gitkeep
+
 # Cache
 .cache/
 .npm/

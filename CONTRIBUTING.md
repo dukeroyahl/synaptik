@@ -33,7 +33,7 @@ This project adheres to a Code of Conduct. By participating, you are expected to
 ### Quick Setup
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/synaptik.git
+git clone https://github.com/Dukeroyahl/synaptik.git
 cd synaptik
 
 # Run initial setup
