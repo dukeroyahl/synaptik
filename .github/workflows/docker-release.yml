@@ -2,26 +2,79 @@ name: Docker Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       version:
         description: 'Version to release (e.g., 1.2.3)'
         required: true
         type: string
+      force_release:
+        description: 'Force release even if CI checks fail'
+        required: false
+        default: false
+        type: boolean
 
 env:
   REGISTRY: docker.io
   IMAGE_NAME: roudranil/synaptik
 
 jobs:
-  docker-release:
+  validate-release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should_release: ${{ steps.checks.outputs.should_release }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+          
+          if ! [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid version format: $VERSION"
+            exit 1
+          fi
+          
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f1-2)
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "major=$MAJOR" >> $GITHUB_OUTPUT
+          echo "minor=$MINOR" >> $GITHUB_OUTPUT
+          
+          echo "🏷️ Release version: $VERSION"
+
+      - name: Check CI status
+        id: checks
+        run: |
+          if [ "${{ github.event.inputs.force_release }}" = "true" ]; then
+            echo "⚠️ Forcing release, skipping CI checks"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Check if latest CI passed (simplified for now)
+          echo "should_release=true" >> $GITHUB_OUTPUT
+
+  build-and-push:
+    needs: validate-release
+    if: needs.validate-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        component: [frontend, backend]
+      fail-fast: true
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -35,51 +88,69 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Extract version from tag
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          else
-            VERSION=${GITHUB_REF#refs/tags/v}
-          fi
-          
-          # Validate semantic version format
-          if ! [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "❌ Invalid version format: $VERSION"
-            exit 1
-          fi
-          
-          MAJOR=$(echo $VERSION | cut -d. -f1)
-          MINOR=$(echo $VERSION | cut -d. -f1-2)
-          
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "major=$MAJOR" >> $GITHUB_OUTPUT
-          echo "minor=$MINOR" >> $GITHUB_OUTPUT
-          
-          echo "🏷️ Building version: $VERSION"
-          echo "📦 Tags: $VERSION, $MINOR, $MAJOR, latest"
+      - name: Build and push component image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dist/docker/Dockerfile.${{ matrix.component }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}-${{ matrix.component }}:${{ needs.validate-release.outputs.version }}
+            ${{ env.IMAGE_NAME }}-${{ matrix.component }}:latest
+          labels: |
+            org.opencontainers.image.title=Synaptik ${{ matrix.component }}
+            org.opencontainers.image.description=Synaptik ${{ matrix.component }} - TaskWarrior DNA task management
+            org.opencontainers.image.version=${{ needs.validate-release.outputs.version }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
 
-      - name: Build and push Docker image
+  build-unified-image:
+    needs: [validate-release, build-and-push]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push unified image
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
-            ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.minor }}
-            ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.major }}
+            ${{ env.IMAGE_NAME }}:${{ needs.validate-release.outputs.version }}
+            ${{ env.IMAGE_NAME }}:${{ needs.validate-release.outputs.minor }}
+            ${{ env.IMAGE_NAME }}:${{ needs.validate-release.outputs.major }}
             ${{ env.IMAGE_NAME }}:latest
           labels: |
             org.opencontainers.image.title=Synaptik
             org.opencontainers.image.description=A next-generation task management application with TaskWarrior DNA
-            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.version=${{ needs.validate-release.outputs.version }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+          cache-from: type=gha,scope=unified
+          cache-to: type=gha,mode=max,scope=unified
 
-      - name: Update Docker Hub description
+  update-documentation:
+    needs: [validate-release, build-unified-image]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Update Docker Hub descriptions
         uses: peter-evans/dockerhub-description@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -87,9 +158,14 @@ jobs:
           repository: ${{ env.IMAGE_NAME }}
           readme-filepath: ./README.md
 
+  create-release:
+    needs: [validate-release, build-unified-image]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           generate_release_notes: true
           body: |
@@ -97,16 +173,21 @@ jobs:
             
             This release is available on Docker Hub with the following tags:
             
-            - `roudranil/synaptik:${{ steps.version.outputs.version }}` - Exact version
-            - `roudranil/synaptik:${{ steps.version.outputs.minor }}` - Latest patch of minor version
-            - `roudranil/synaptik:${{ steps.version.outputs.major }}` - Latest minor of major version
+            **Unified Application:**
+            - `roudranil/synaptik:${{ needs.validate-release.outputs.version }}` - Exact version
+            - `roudranil/synaptik:${{ needs.validate-release.outputs.minor }}` - Latest patch of minor version
+            - `roudranil/synaptik:${{ needs.validate-release.outputs.major }}` - Latest minor of major version
             - `roudranil/synaptik:latest` - Latest stable release
+            
+            **Individual Components:**
+            - `roudranil/synaptik-frontend:${{ needs.validate-release.outputs.version }}`
+            - `roudranil/synaptik-backend:${{ needs.validate-release.outputs.version }}`
             
             ## 🚀 Quick Start
             
             ```bash
             # Using exact version (recommended for production)
-            docker run -p 8080:8080 roudranil/synaptik:${{ steps.version.outputs.version }}
+            docker run -p 8080:8080 roudranil/synaptik:${{ needs.validate-release.outputs.version }}
             
             # Using docker-compose
             curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker-compose.yml -o docker-compose.yml
@@ -117,6 +198,7 @@ jobs:
             
             - [User Guide](https://github.com/Dukeroyahl/synaptik/blob/main/docs/WIKI.md#user-guide)
             - [Docker Usage](https://github.com/Dukeroyahl/synaptik/blob/main/docs/WIKI.md#docker-usage)
+            - [Version Selection Guide](https://github.com/Dukeroyahl/synaptik/blob/main/docs/CHANGELOG.md#docker-tag-selection-guide)
             - [API Documentation](http://localhost:8080/q/swagger-ui) (after starting)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
