@@ -16,7 +16,7 @@ on:
       force_deploy:
         description: 'Force deployment even if no changes detected'
         required: false
-        default: 'false'
+        default: false
         type: boolean
 
 env:
@@ -110,7 +110,7 @@ jobs:
     - name: Update Docker Hub description
       uses: peter-evans/dockerhub-description@v3
       with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
         repository: ${{ env.IMAGE_NAME }}
         short-description: "Synaptik Backend - Task management with TaskWarrior DNA and natural language capture"
