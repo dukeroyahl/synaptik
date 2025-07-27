@@ -128,9 +128,6 @@ temp/
 *.sqlite
 *.sqlite3
 
-# Build and runtime data
-dist/
-
 # ===========================
 # CACHE
 # ===========================
