@@ -53,19 +53,20 @@ Get Synaptik running in minutes using Docker Desktop - no additional software in
 git clone https://github.com/Dukeroyahl/synaptik.git
 cd synaptik
 
-# Start all services with Docker Compose
-docker-compose -f config/docker-compose.full.yml up -d
+# Build and deploy with production Docker setup
+./scripts/docker-build.sh
+docker-compose -f docker/docker-compose.production.yml up -d
 ```
 
 ### Access Your Application
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:8080
-- **API Documentation**: http://localhost:8080/q/swagger-ui
-- **Health Check**: http://localhost:8080/q/health
+- **Web App**: http://localhost (UI, API, MongoDB all-in-one)
+- **API Documentation**: http://localhost/q/swagger-ui
+- **Health Check**: http://localhost/health
+- **MCP Server**: http://localhost/mcp (for Claude Desktop)
 
 ### Stop Services
 ```bash
-docker-compose -f config/docker-compose.full.yml down
+docker-compose -f docker/docker-compose.production.yml down
 ```
 
 ---
@@ -76,18 +77,17 @@ Connect Synaptik with Claude Desktop for AI-powered task management:
 
 ### Quick MCP Setup
 ```bash
-# Build the MCP server
-npm run mcpbuild
+# Start Synaptik with Docker (includes MCP server)
+./scripts/docker-build.sh
+docker-compose -f docker/docker-compose.production.yml up -d
 
 # Add to Claude Desktop config (~/.config/claude/claude_desktop_config.json)
 {
   "mcpServers": {
     "synaptik": {
-      "command": "node",
-      "args": ["/path/to/synaptik/mcp-server/dist/index.js"],
-      "env": {
-        "SYNAPTIK_API_URL": "http://localhost:8080/api"
-      }
+      "command": "curl",
+      "args": ["-N", "-H", "Accept: text/event-stream", "http://localhost/mcp"],
+      "env": {}
     }
   }
 }
@@ -104,11 +104,11 @@ npm run mcpbuild
 ```
 synaptik/
 ├── 📁 client/              # React frontend (TypeScript + Vite)
-├── 📁 server/              # Java backend (Quarkus + MongoDB)
-├── 📁 mcp-server/          # AI integration server (Node.js)
-├── 📁 config/              # Docker Compose configurations
+├── 📁 server/              # Java backend (Quarkus + MongoDB + MCP)
+├── 📁 docker/              # Docker configurations and builds
 ├── 📁 docs/                # Documentation
-└── 📁 scripts/             # Management utilities
+├── 📁 scripts/             # Build and deployment utilities
+└── 📁 dist/                # Runtime data (MongoDB, logs)
 ```
 
 ## 🔌 API Highlights
@@ -117,22 +117,22 @@ synaptik/
 
 #### Create Task with TaskWarrior Syntax
 ```bash
-curl -X POST http://localhost:8080/api/tasks/capture \
+curl -X POST http://localhost/api/tasks/capture \
   -H "Content-Type: text/plain" \
   -d "Buy groceries due:tomorrow priority:high +shopping"
 ```
 
 #### List Pending Tasks
 ```bash
-curl http://localhost:8080/api/tasks?status=pending
+curl http://localhost/api/tasks?status=pending
 ```
 
 #### Start Working on Task
 ```bash
-curl -X POST http://localhost:8080/api/tasks/{id}/start
+curl -X POST http://localhost/api/tasks/{id}/start
 ```
 
-📚 **Full API documentation**: http://localhost:8080/q/swagger-ui
+📚 **Full API documentation**: http://localhost/q/swagger-ui
 
 ## 📚 Documentation
 

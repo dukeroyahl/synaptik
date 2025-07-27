@@ -1,2 +1,0 @@
-# Keep this directory in git but ignore data files
-# The mongodb subdirectory will contain persistent database files

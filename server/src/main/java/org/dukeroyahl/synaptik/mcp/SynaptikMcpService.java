@@ -1,28 +1,29 @@
 package org.dukeroyahl.synaptik.mcp;
 
-import org.dukeroyahl.synaptik.dto.ProjectCreateRequest;
-import org.dukeroyahl.synaptik.dto.TaskCreateRequest;
-import org.dukeroyahl.synaptik.dto.TaskUpdateRequest;
-import org.dukeroyahl.synaptik.domain.Project;
-import org.dukeroyahl.synaptik.domain.Task;
-import org.dukeroyahl.synaptik.domain.TaskPriority;
-import org.dukeroyahl.synaptik.domain.TaskStatus;
-import org.dukeroyahl.synaptik.service.MindmapService;
-import org.dukeroyahl.synaptik.service.ProjectService;
-import org.dukeroyahl.synaptik.service.TaskService;
-import org.dukeroyahl.synaptik.util.TaskWarriorParser;
-import io.quarkiverse.mcp.server.Tool;
-import io.quarkiverse.mcp.server.ToolArg;
-import io.smallrye.mutiny.Uni;
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
-import org.bson.types.ObjectId;
-
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.bson.types.ObjectId;
+import org.dukeroyahl.synaptik.domain.Project;
+import org.dukeroyahl.synaptik.domain.Task;
+import org.dukeroyahl.synaptik.domain.TaskPriority;
+import org.dukeroyahl.synaptik.domain.TaskStatus;
+import org.dukeroyahl.synaptik.dto.ProjectCreateRequest;
+import org.dukeroyahl.synaptik.dto.TaskCreateRequest;
+import org.dukeroyahl.synaptik.dto.TaskUpdateRequest;
+import org.dukeroyahl.synaptik.service.MindmapService;
+import org.dukeroyahl.synaptik.service.ProjectService;
+import org.dukeroyahl.synaptik.service.TaskService;
+import org.dukeroyahl.synaptik.util.TaskWarriorParser;
+
+import io.quarkiverse.mcp.server.Tool;
+import io.quarkiverse.mcp.server.ToolArg;
+import io.smallrye.mutiny.Uni;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 @ApplicationScoped
 public class SynaptikMcpService {
@@ -47,16 +48,14 @@ public class SynaptikMcpService {
             @ToolArg(description = "Filter tasks due after this date (ISO format)") String dueAfter,
             @ToolArg(description = "Limit number of results") Integer limit,
             @ToolArg(description = "Sort by field (title, due, priority, etc.)") String sortBy,
-            @ToolArg(description = "Sort order (asc, desc)") String sortOrder
-    ) {
+            @ToolArg(description = "Sort order (asc, desc)") String sortOrder) {
         return taskService.getAllTasks()
                 .map(tasks -> formatTasksResponse(tasks, "All tasks retrieved successfully"));
     }
 
     @Tool(description = "Get a specific task by ID")
     public Uni<String> getTask(
-            @ToolArg(description = "Task ID") String id
-    ) {
+            @ToolArg(description = "Task ID") String id) {
         return taskService.getTaskById(new ObjectId(id))
                 .map(task -> formatTaskResponse(task, "Task retrieved successfully"));
     }
@@ -72,42 +71,41 @@ public class SynaptikMcpService {
             @ToolArg(description = "Due date (ISO format)") String dueDate,
             @ToolArg(description = "Wait until date (ISO format)") String waitUntil,
             @ToolArg(description = "Task tags (comma-separated)") String tags,
-            @ToolArg(description = "Task dependencies (comma-separated task IDs)") String depends
-    ) {
+            @ToolArg(description = "Task dependencies (comma-separated task IDs)") String depends) {
         TaskCreateRequest request = new TaskCreateRequest();
         request.title = title;
         request.description = description;
-        
+
         if (status != null) {
             request.status = TaskStatus.valueOf(status.toUpperCase());
         }
         if (priority != null) {
             request.priority = TaskPriority.valueOf(priority.toUpperCase());
         }
-        
+
         request.project = project;
         request.assignee = assignee;
-        
+
         if (dueDate != null) {
             request.dueDate = LocalDateTime.parse(dueDate, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         }
         if (waitUntil != null) {
             request.waitUntil = LocalDateTime.parse(waitUntil, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         }
-        
+
         if (tags != null) {
             request.tags = Arrays.asList(tags.split(","));
         }
 
         Task task = request.toTask();
-        
+
         // Handle dependencies separately since DTOs don't support them
         if (depends != null) {
             task.depends = Arrays.stream(depends.split(","))
                     .map(ObjectId::new)
                     .collect(Collectors.toList());
         }
-        
+
         return taskService.createTask(task)
                 .map(createdTask -> formatTaskResponse(createdTask, "Task created successfully"));
     }
@@ -124,82 +122,76 @@ public class SynaptikMcpService {
             @ToolArg(description = "Due date (ISO format)") String dueDate,
             @ToolArg(description = "Wait until date (ISO format)") String waitUntil,
             @ToolArg(description = "Task tags (comma-separated)") String tags,
-            @ToolArg(description = "Task dependencies (comma-separated task IDs)") String depends
-    ) {
+            @ToolArg(description = "Task dependencies (comma-separated task IDs)") String depends) {
         TaskUpdateRequest request = new TaskUpdateRequest();
         request.title = title;
         request.description = description;
-        
+
         if (status != null) {
             request.status = TaskStatus.valueOf(status.toUpperCase());
         }
         if (priority != null) {
             request.priority = TaskPriority.valueOf(priority.toUpperCase());
         }
-        
+
         request.project = project;
         request.assignee = assignee;
-        
+
         if (dueDate != null) {
             request.dueDate = LocalDateTime.parse(dueDate, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         }
         if (waitUntil != null) {
             request.waitUntil = LocalDateTime.parse(waitUntil, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         }
-        
+
         if (tags != null) {
             request.tags = Arrays.asList(tags.split(","));
         }
 
         Task updates = request.toTask();
-        
+
         // Handle dependencies separately since DTOs don't support them
         if (depends != null) {
             updates.depends = Arrays.stream(depends.split(","))
                     .map(ObjectId::new)
                     .collect(Collectors.toList());
         }
-        
+
         return taskService.updateTask(new ObjectId(id), updates)
                 .map(task -> formatTaskResponse(task, "Task updated successfully"));
     }
 
     @Tool(description = "Delete a task")
     public Uni<String> deleteTask(
-            @ToolArg(description = "Task ID") String id
-    ) {
+            @ToolArg(description = "Task ID") String id) {
         return taskService.deleteTask(new ObjectId(id))
                 .map(result -> "Task deleted successfully: " + id);
     }
 
     @Tool(description = "Mark a task as completed")
     public Uni<String> markTaskDone(
-            @ToolArg(description = "Task ID") String id
-    ) {
+            @ToolArg(description = "Task ID") String id) {
         return taskService.markTaskDone(new ObjectId(id))
                 .map(task -> formatTaskResponse(task, "Task marked as completed"));
     }
 
     @Tool(description = "Start a task (set status to active)")
     public Uni<String> startTask(
-            @ToolArg(description = "Task ID") String id
-    ) {
+            @ToolArg(description = "Task ID") String id) {
         return taskService.startTask(new ObjectId(id))
                 .map(task -> formatTaskResponse(task, "Task started"));
     }
 
     @Tool(description = "Stop an active task (set status to pending)")
     public Uni<String> stopTask(
-            @ToolArg(description = "Task ID") String id
-    ) {
+            @ToolArg(description = "Task ID") String id) {
         return taskService.stopTask(new ObjectId(id))
                 .map(task -> formatTaskResponse(task, "Task stopped"));
     }
 
     @Tool(description = "Create a task using TaskWarrior-style quick capture syntax")
     public Uni<String> quickCapture(
-            @ToolArg(description = "TaskWarrior-style task input (e.g., 'Buy groceries due:tomorrow +shopping priority:H')") String input
-    ) {
+            @ToolArg(description = "TaskWarrior-style task input (e.g., 'Buy groceries due:tomorrow +shopping priority:H')") String input) {
         Task task = TaskWarriorParser.parseTaskWarriorInput(input);
         return taskService.createTask(task)
                 .map(createdTask -> formatTaskResponse(createdTask, "Task captured successfully"));
@@ -245,8 +237,7 @@ public class SynaptikMcpService {
     public Uni<String> createProject(
             @ToolArg(description = "Project name") String name,
             @ToolArg(description = "Project description") String description,
-            @ToolArg(description = "Project color") String color
-    ) {
+            @ToolArg(description = "Project color") String color) {
         ProjectCreateRequest request = new ProjectCreateRequest();
         request.name = name;
         request.description = description;
@@ -272,8 +263,7 @@ public class SynaptikMcpService {
                         taskService.getTasksByStatus(TaskStatus.COMPLETED),
                         taskService.getOverdueTasks(),
                         taskService.getTodayTasks(),
-                        projectService.getAllProjects()
-                )
+                        projectService.getAllProjects())
                 .asTuple()
                 .map(tuple -> {
                     List<Task> pending = tuple.getItem1();
@@ -291,30 +281,26 @@ public class SynaptikMcpService {
                     dashboard.append("• Completed: ").append(completed.size()).append(" tasks\n");
                     dashboard.append("• Overdue: ").append(overdue.size()).append(" tasks\n");
                     dashboard.append("• Due Today: ").append(today.size()).append(" tasks\n\n");
-                    
+
                     dashboard.append("📁 PROJECTS: ").append(projects.size()).append(" total\n\n");
-                    
+
                     if (!overdue.isEmpty()) {
                         dashboard.append("⚠️ OVERDUE TASKS:\n");
-                        overdue.forEach(task -> 
-                            dashboard.append("• ").append(task.title).append(" (Due: ").append(task.dueDate).append(")\n")
-                        );
+                        overdue.forEach(task -> dashboard.append("• ").append(task.title).append(" (Due: ")
+                                .append(task.dueDate).append(")\n"));
                         dashboard.append("\n");
                     }
-                    
+
                     if (!today.isEmpty()) {
                         dashboard.append("📅 TODAY'S TASKS:\n");
-                        today.forEach(task -> 
-                            dashboard.append("• ").append(task.title).append(" [").append(task.status).append("]\n")
-                        );
+                        today.forEach(task -> dashboard.append("• ").append(task.title).append(" [").append(task.status)
+                                .append("]\n"));
                         dashboard.append("\n");
                     }
-                    
+
                     if (!active.isEmpty()) {
                         dashboard.append("🔥 ACTIVE TASKS:\n");
-                        active.forEach(task -> 
-                            dashboard.append("• ").append(task.title).append("\n")
-                        );
+                        active.forEach(task -> dashboard.append("• ").append(task.title).append("\n"));
                     }
 
                     return dashboard.toString();
@@ -322,7 +308,8 @@ public class SynaptikMcpService {
     }
 
     private String formatTaskResponse(Task task, String message) {
-        return String.format("%s:\n\nID: %s\nTitle: %s\nDescription: %s\nStatus: %s\nPriority: %s\nUrgency: %.1f\nDue: %s\nProject: %s\nAssignee: %s\nTags: %s\nCreated: %s\nModified: %s",
+        return String.format(
+                "%s:\n\nID: %s\nTitle: %s\nDescription: %s\nStatus: %s\nPriority: %s\nUrgency: %.1f\nDue: %s\nProject: %s\nAssignee: %s\nTags: %s\nCreated: %s\nModified: %s",
                 message,
                 task.id.toString(),
                 task.title,
@@ -335,8 +322,7 @@ public class SynaptikMcpService {
                 task.assignee != null ? task.assignee : "N/A",
                 task.tags != null ? String.join(", ", task.tags) : "None",
                 task.createdAt != null ? task.createdAt.toString() : "N/A",
-                task.updatedAt != null ? task.updatedAt.toString() : "N/A"
-        );
+                task.updatedAt != null ? task.updatedAt.toString() : "N/A");
     }
 
     private String formatTasksResponse(List<Task> tasks, String message) {
@@ -346,7 +332,7 @@ public class SynaptikMcpService {
 
         StringBuilder response = new StringBuilder();
         response.append(message).append(" (").append(tasks.size()).append(" tasks):\n\n");
-        
+
         for (Task task : tasks) {
             response.append("• ").append(task.title);
             response.append(" [").append(task.status).append("]");
@@ -358,12 +344,13 @@ public class SynaptikMcpService {
             }
             response.append("\n");
         }
-        
+
         return response.toString();
     }
 
     private String formatProjectResponse(Project project, String message) {
-        return String.format("%s:\n\nID: %s\nName: %s\nDescription: %s\nStatus: %s\nProgress: %.0f%%\nCreated: %s\nModified: %s",
+        return String.format(
+                "%s:\n\nID: %s\nName: %s\nDescription: %s\nStatus: %s\nProgress: %.0f%%\nCreated: %s\nModified: %s",
                 message,
                 project.id.toString(),
                 project.name,
@@ -371,8 +358,7 @@ public class SynaptikMcpService {
                 project.status,
                 project.progress,
                 project.createdAt != null ? project.createdAt.toString() : "N/A",
-                project.updatedAt != null ? project.updatedAt.toString() : "N/A"
-        );
+                project.updatedAt != null ? project.updatedAt.toString() : "N/A");
     }
 
     private String formatProjectsResponse(List<Project> projects, String message) {
@@ -382,14 +368,14 @@ public class SynaptikMcpService {
 
         StringBuilder response = new StringBuilder();
         response.append(message).append(" (").append(projects.size()).append(" projects):\n\n");
-        
+
         for (Project project : projects) {
             response.append("• ").append(project.name);
             response.append(" [").append(project.status).append("]");
             response.append(" (").append(project.progress).append("% complete)");
             response.append("\n");
         }
-        
+
         return response.toString();
     }
 
@@ -400,10 +386,10 @@ public class SynaptikMcpService {
 
         StringBuilder response = new StringBuilder();
         response.append(message).append(" (").append(mindmaps.size()).append(" mindmaps):\n\n");
-        
+
         // For now, just show count since mindmap structure may vary
         response.append("Available mindmaps: ").append(mindmaps.size());
-        
+
         return response.toString();
     }
 }
