@@ -1,7 +1,8 @@
-# 📚 Synaptik Wiki
+# 📚 Synaptik Documentation
 
 ## 👥 User Guide
 - [🚀 Quick Start](#quick-start) - Get up and running 
+- [🐳 Docker Usage](#docker-usage) - Using published Docker images with semantic versioning
 - [🤖 AI Integration](#ai-integration) - Claude Desktop setup
 - [🚨 Troubleshooting](#troubleshooting) - Common issues
 
@@ -18,7 +19,149 @@
 
 ## Quick Start
 
-Use the install script or manual Docker Compose setup as described in the main [README.md](README.md).
+Use the install script or manual Docker Compose setup as described in the main [README.md](../README.md).
+
+## 🐳 Docker Usage
+
+### 🏷️ Available Tags
+
+Synaptik follows semantic versioning (SemVer) for Docker images. Each release creates multiple tags:
+
+| Tag Pattern | Example | Description | When to Use |
+|-------------|---------|-------------|-------------|
+| `latest` | `roudranil/synaptik:latest` | Always the newest stable release | Development, testing |
+| `X.Y.Z` | `roudranil/synaptik:1.2.3` | Exact version, never changes | Production (recommended) |
+| `X.Y` | `roudranil/synaptik:1.2` | Latest patch of minor version | Stable with security updates |
+| `X` | `roudranil/synaptik:1` | Latest minor of major version | Major version compatibility |
+
+### Production Recommendations
+
+**✅ Recommended for Production:**
+```bash
+# Pin to exact version
+docker run -p 8080:8080 roudranil/synaptik:1.2.3
+```
+
+**⚠️ Use with Caution:**
+```bash
+# Gets patch updates automatically
+docker run -p 8080:8080 roudranil/synaptik:1.2
+```
+
+**❌ Not Recommended for Production:**
+```bash
+# Can break with major updates
+docker run -p 8080:8080 roudranil/synaptik:latest
+```
+
+### Quick Start Examples
+
+#### Single Container
+```bash
+# Latest version (development)
+docker run -d \
+  --name synaptik \
+  -p 8080:8080 \
+  -v ~/.synaptik:/opt/synaptik \
+  roudranil/synaptik:latest
+
+# Specific version (production)
+docker run -d \
+  --name synaptik \
+  -p 8080:8080 \
+  -v ~/.synaptik:/opt/synaptik \
+  roudranil/synaptik:1.2.3
+```
+
+#### Docker Compose
+
+**Development (docker-compose.yml):**
+```yaml
+version: '3.8'
+services:
+  synaptik:
+    image: roudranil/synaptik:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ~/.synaptik:/opt/synaptik
+```
+
+**Production (docker-compose.prod.yml):**
+```yaml
+version: '3.8'
+services:
+  synaptik:
+    image: roudranil/synaptik:1.2.3  # Pin to specific version
+    ports:
+      - "8080:8080"
+    volumes:
+      - ~/.synaptik:/opt/synaptik
+    restart: unless-stopped
+```
+
+### Updating Versions
+
+#### Check Available Versions
+```bash
+# List all available tags
+curl -s https://registry.hub.docker.com/v2/repositories/roudranil/synaptik/tags/ | jq -r '.results[].name' | sort -V
+
+# Or visit: https://hub.docker.com/r/roudranil/synaptik/tags
+```
+
+#### Update to New Version
+```bash
+# Stop current container
+docker stop synaptik
+docker rm synaptik
+
+# Pull new version
+docker pull roudranil/synaptik:1.3.0
+
+# Start with new version
+docker run -d \
+  --name synaptik \
+  -p 8080:8080 \
+  -v ~/.synaptik:/opt/synaptik \
+  roudranil/synaptik:1.3.0
+```
+
+#### Update with Docker Compose
+```bash
+# Update image tag in docker-compose.yml
+# Then:
+docker-compose pull
+docker-compose up -d
+```
+
+### Multi-Architecture Support
+
+Synaptik Docker images support multiple architectures:
+- `linux/amd64` (Intel/AMD 64-bit)
+- `linux/arm64` (ARM 64-bit, Apple Silicon, ARM servers)
+
+Docker automatically pulls the correct architecture for your system.
+
+### Understanding Version Numbers
+
+Synaptik uses semantic versioning: `MAJOR.MINOR.PATCH`
+
+- **MAJOR**: Breaking changes, incompatible API changes
+- **MINOR**: New features, backward compatible
+- **PATCH**: Bug fixes, backward compatible
+
+#### Example Version Timeline
+```
+1.0.0 → 1.0.1 → 1.0.2 → 1.1.0 → 1.1.1 → 2.0.0
+ │       │       │       │       │       │
+ │       │       │       │       │       └─ Breaking changes
+ │       │       │       │       └─ Bug fix
+ │       │       │       └─ New features
+ │       │       └─ Bug fix
+ │       └─ Bug fix
+ └─ Initial release
+```
 
 ## 🏗️ Architecture Overview
 
@@ -643,7 +786,7 @@ synaptik/
 │   │   ├── types/                # TypeScript type definitions
 │   │   └── utils/                # Utility functions
 ├── 📁 server/                    # Java/Quarkus backend
-│   ├── src/main/java/org/dukeroyahl/synaptik/
+│   ├── src/main/java/org/roudranil/synaptik/
 │   │   ├── domain/               # Entity models
 │   │   ├── dto/                  # Data Transfer Objects
 │   │   ├── resource/             # REST endpoints (JAX-RS)
@@ -779,8 +922,8 @@ SYNAPTIK_LOGS_DIR=/path/to/your/logs
 ```
 
 #### Docker Images
-- **Backend**: `dukeroyahl/synaptik-backend:latest`
-- **Frontend**: `dukeroyahl/synaptik-frontend:latest`
+- **Backend**: `roudranil/synaptik-backend:latest`
+- **Frontend**: `roudranil/synaptik-frontend:latest`
 - **Database**: `mongo:7.0`
 
 ### 🏥 Health Checks & Monitoring
