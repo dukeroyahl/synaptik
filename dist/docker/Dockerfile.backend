@@ -1,0 +1,37 @@
+# Multi-stage build for Synaptik Backend
+FROM gradle:8.14-jdk21-alpine AS backend-builder
+
+WORKDIR /app/server
+COPY server/gradle ./gradle
+COPY server/build.gradle server/settings.gradle server/gradle.properties ./
+COPY server/gradlew ./
+RUN chmod +x gradlew
+
+# Copy source and build
+COPY server/src ./src
+RUN ./gradlew clean build -x test
+
+# Runtime image
+FROM eclipse-temurin:21-jre-alpine
+
+# Install necessary packages
+RUN apk add --no-cache curl bash
+
+# Create application user
+RUN addgroup -g 1001 synaptik && adduser -D -u 1001 -G synaptik synaptik
+
+# Copy application
+COPY --from=backend-builder /app/server/build/quarkus-app /opt/synaptik/
+RUN chown -R synaptik:synaptik /opt/synaptik
+
+# Switch to non-root user
+USER synaptik
+WORKDIR /opt/synaptik
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/q/health || exit 1
+
+EXPOSE 8080
+
+CMD ["java", "-jar", "quarkus-run.jar"]
