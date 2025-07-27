@@ -1,58 +1,99 @@
-# Dependencies
+# ===========================
+# DEPENDENCIES
+# ===========================
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Production builds
+# ===========================
+# PRODUCTION BUILDS
+# ===========================
 /client/dist/
 /client/build/
 /server/build/
 /mcp-server/dist/
 
-# Environment files
+# ===========================
+# ENVIRONMENT FILES
+# ===========================
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# IDE files
-.vscode/
+# ===========================
+# IDE FILES
+# ===========================
+# IntelliJ IDEA
 .idea/
+*.ipr
+*.iml
+*.iws
+/shelf/
+/workspace.xml
+/httpRequests/
+/mavenHomeManager.xml
+/dataSources/
+/dataSources.local.xml
+
+# Visual Studio Code
+.vscode/
+.factorypath
+
+# Eclipse
+.project
+.classpath
+.settings/
+bin/
+
+# NetBeans
+nb-configuration.xml
+
+# Vim
 *.swp
 *.swo
 *~
 
-# OS generated files
+# ===========================
+# OS GENERATED FILES
+# ===========================
+# macOS
 .DS_Store
 .DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
+
+# Windows
 ehthumbs.db
 Thumbs.db
 
-# Logs
+# ===========================
+# LOGS
+# ===========================
 *.log
 logs/
 synaptik.log
 
-# Runtime files
+# ===========================
+# RUNTIME FILES
+# ===========================
 *.pid
 .synaptik.pid
 
-# Docker
-.dockerignore
-
-# Gradle
+# ===========================
+# GRADLE
+# ===========================
 .gradle/
-/server/.gradle/
 gradle-app.setting
 !gradle-wrapper.jar
 !gradle-wrapper.properties
 
-# Java
+# ===========================
+# JAVA
+# ===========================
 *.class
 *.jar
 *.war
@@ -63,31 +104,119 @@ gradle-app.setting
 *.rar
 hs_err_pid*
 
-# TypeScript
+# ===========================
+# JAVASCRIPT/TYPESCRIPT
+# ===========================
 *.tsbuildinfo
 
-# Coverage
+# ===========================
+# COVERAGE
+# ===========================
 coverage/
 *.lcov
 
-# Temporary files
+# ===========================
+# TEMPORARY FILES
+# ===========================
 tmp/
 temp/
 
-# Database
+# ===========================
+# DATABASE
+# ===========================
 *.db
 *.sqlite
 *.sqlite3
 
-# Cache
+# Build and runtime data
+dist/
+
+# ===========================
+# CACHE
+# ===========================
 .cache/
 .npm/
 .yarn/
 
-# Test artifacts
-/server/build/reports/
-/client/coverage/
+# ===========================
+# DOCKER
+# ===========================
+.dockerignore
 
-# Backup files
+# ===========================
+# QUARKUS
+# ===========================
+/.quarkus/cli/plugins/
+
+# ===========================
+# TLS CERTIFICATES
+# ===========================
+.certs/
+
+# ===========================
+# PATCH FILES
+# ===========================
+*.orig
+*.rej
+
+# ===========================
+# AI AGENTS & ASSISTANTS
+# ===========================
+# Claude/Anthropic
+.claude/
+claude-*
+.anthropic/
+
+# OpenAI
+.openai/
+openai-*
+
+# GitHub Copilot
+.copilot/
+
+# Cursor AI
+.cursor/
+
+# Codeium
+.codeium/
+
+# AI model outputs
+ai-outputs/
+ai-generated/
+*.ai-output
+
+# AI conversation logs
+conversation-*.json
+chat-*.json
+ai-session-*.log
+
+# AI configuration files (may contain API keys)
+ai-config.json
+.ai-config
+assistant-config.*
+
+# Local AI models and weights
+models/
+*.gguf
+*.bin
+*.safetensors
+*.pt
+*.pth
+
+# Vector databases and embeddings
+embeddings/
+vectordb/
+chroma/
+pinecone/
+*.faiss
+
+# AI agent memory and context
+agent-memory/
+context-store/
+memory-*.json
+
+# ===========================
+# BACKUP FILES
+# ===========================
 *.backup
 *.bak

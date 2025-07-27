@@ -8,5 +8,4 @@ pluginManagement {
         id "${quarkusPluginId}" version "${quarkusPluginVersion}"
     }
 }
-
-rootProject.name='synaptik-server'
+rootProject.name='server'

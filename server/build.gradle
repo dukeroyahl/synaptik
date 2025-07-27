@@ -10,49 +10,28 @@ repositories {
 
 dependencies {
     implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
-    
-    // Core Quarkus
-    implementation 'io.quarkus:quarkus-resteasy-reactive-jackson'
-    implementation 'io.quarkus:quarkus-arc'
-    
-    // MongoDB
+    implementation 'io.quarkus:quarkus-rest-jackson'
     implementation 'io.quarkus:quarkus-mongodb-panache'
-    
-    // Validation
     implementation 'io.quarkus:quarkus-hibernate-validator'
-    
-    // OpenAPI
     implementation 'io.quarkus:quarkus-smallrye-openapi'
-    
-    // Metrics
-    implementation 'io.quarkus:quarkus-micrometer-registry-prometheus'
-    
-    // Health
+    implementation 'io.quarkiverse.mcp:quarkus-mcp-server-sse:1.4.0'
     implementation 'io.quarkus:quarkus-smallrye-health'
-    
-    // CORS is built into resteasy-reactive, no separate extension needed
-    
-    // Testing
+    implementation 'io.quarkus:quarkus-arc'
     testImplementation 'io.quarkus:quarkus-junit5'
     testImplementation 'io.rest-assured:rest-assured'
 }
 
-group 'com.synaptik'
+group 'org.dukeroyahl.synaptik'
 version '1.0.0'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
 }
 
 test {
     systemProperty "java.util.logging.manager", "org.jboss.logmanager.LogManager"
-    useJUnitPlatform()
 }
-
 compileJava {
     options.encoding = 'UTF-8'
     options.compilerArgs << '-parameters'
