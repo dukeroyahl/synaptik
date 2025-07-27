@@ -7,14 +7,14 @@
 [![Java](https://img.shields.io/badge/Java-21+-orange.svg)](https://openjdk.java.net/)
 [![Quarkus](https://img.shields.io/badge/Quarkus-3.6+-blue.svg)](https://quarkus.io/)
 [![React](https://img.shields.io/badge/React-18+-61DAFB.svg)](https://reactjs.org/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://hub.docker.com/r/roudranil/synaptik)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://hub.docker.com/r/dukeroyahl/synaptik)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **A next-generation task management application with TaskWarrior DNA and natural language task capture**
 
 ![Synaptik Application](https://via.placeholder.com/800x400/2D3748/FFFFFF?text=Synaptik+Dashboard+Screenshot)
 
-[🚀 Quick Start](#-quick-start) • [📖 Wiki](WIKI.md) • [🤝 Contributing](CONTRIBUTING.md) • [📦 Docker Hub](https://hub.docker.com/r/roudranil/synaptik)
+[🚀 Quick Start](#-quick-start) • [📖 Wiki](WIKI.md) • [🤝 Contributing](CONTRIBUTING.md) • [📦 Docker Hub](https://hub.docker.com/r/dukeroyahl/synaptik)
 
 </div>
 
@@ -31,13 +31,13 @@ Get Synaptik running in just 3 simple commands:
 
 **Option 1: Super Quick Install**
 ```bash
-curl -sSL https://raw.githubusercontent.com/roudranil/synaptik/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/install.sh | bash
 ```
 
 **Option 2: Manual Install**
 ```bash
 # Step 1: Download configuration
-curl -sSL https://raw.githubusercontent.com/roudranil/synaptik/main/dist/docker-compose.yml -o docker-compose.yml
+curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker-compose.yml -o docker-compose.yml
 
 # Step 2: Create data directories and start
 mkdir -p ~/.synaptik/{data,logs} && docker-compose up -d

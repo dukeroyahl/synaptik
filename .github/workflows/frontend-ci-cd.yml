@@ -23,7 +23,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: roudranil/synaptik-frontend
+  IMAGE_NAME: dukeroyahl/synaptik-frontend
 
 jobs:
   test:

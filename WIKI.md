@@ -686,7 +686,7 @@ synaptik/
 **Setup**
 ```bash
 # Super quick install
-curl -sSL https://raw.githubusercontent.com/roudranil/synaptik/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/install.sh | bash
 
 # Or manual setup
 mkdir -p ~/.synaptik/{data,logs} && docker-compose up -d
@@ -723,13 +723,13 @@ docker-compose up -d
 
 **Super Quick (1 command)**
 ```bash
-curl -sSL https://raw.githubusercontent.com/roudranil/synaptik/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/install.sh | bash
 ```
 
 **Manual Install (3 commands)**
 ```bash
 # Step 1: Download configuration
-curl -sSL https://raw.githubusercontent.com/roudranil/synaptik/main/dist/docker-compose.yml -o docker-compose.yml
+curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker-compose.yml -o docker-compose.yml
 
 # Step 2: Create data directories and start
 mkdir -p ~/.synaptik/{data,logs} && docker-compose up -d
@@ -743,7 +743,7 @@ mkdir -p ~/.synaptik/{data,logs} && docker-compose up -d
 
 ```bash
 # Download development config
-curl -sSL https://raw.githubusercontent.com/roudranil/synaptik/main/dist/docker-compose.dev.yml -o docker-compose.dev.yml
+curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker-compose.dev.yml -o docker-compose.dev.yml
 
 # Start development environment (builds from source)
 docker-compose -f docker-compose.dev.yml up -d
@@ -779,8 +779,8 @@ SYNAPTIK_LOGS_DIR=/path/to/your/logs
 ```
 
 #### Docker Images
-- **Backend**: `roudranil/synaptik-backend:latest`
-- **Frontend**: `roudranil/synaptik-frontend:latest`
+- **Backend**: `dukeroyahl/synaptik-backend:latest`
+- **Frontend**: `dukeroyahl/synaptik-frontend:latest`
 - **Database**: `mongo:7.0`
 
 ### 🏥 Health Checks & Monitoring
