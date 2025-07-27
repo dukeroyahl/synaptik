@@ -41,12 +41,12 @@ Get Synaptik running in just 3 simple commands:
 
 ### Installation Options
 
-**Option 1: Super Quick Install (Latest Version)**
+**Option 1: Super Quick Install (Recommended for Users)**
 ```bash
 curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/install.sh | bash
 ```
 
-**Option 2: Manual Install (Latest Version)**
+**Option 2: Manual Install (Stable Version for Users)**
 ```bash
 # Step 1: Download configuration
 curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker-compose.yml -o docker-compose.yml
@@ -55,14 +55,23 @@ curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker
 mkdir -p ~/.synaptik/{data,logs} && docker-compose up -d
 ```
 
-**Option 3: Production Install (Pinned Version)**
+**Option 3: Development Install (For Developers)**
 ```bash
-# Download production configuration with pinned versions
-curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker-compose.prod.yml -o docker-compose.yml
+# Download development configuration (builds from source)
+curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker-compose.dev.yml -o docker-compose.dev.yml
 
-# Edit the version in docker-compose.yml to your desired version
+# Start development environment with hot reload
+mkdir -p ~/.synaptik/{data,logs} && docker-compose -f docker-compose.dev.yml up -d
+```
+
+**Option 4: Production Install (For Production Deployments)**
+```bash
+# Download production configuration with resource limits
+curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker-compose.prod.yml -o docker-compose.prod.yml
+
+# Edit the version in docker-compose.prod.yml to your desired version
 # Then start the application
-mkdir -p ~/.synaptik/{data,logs} && docker-compose up -d
+mkdir -p ~/.synaptik/{data,logs} && docker-compose -f docker-compose.prod.yml up -d
 ```
 
 ### 🏷️ Version Selection

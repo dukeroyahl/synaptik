@@ -1,90 +1,42 @@
 version: '3.8'
 
-services:
-  # MongoDB Database
-  mongodb:
-    image: mongo:7.0
-    container_name: synaptik-mongodb
-    restart: unless-stopped
-    environment:
-      MONGO_INITDB_DATABASE: synaptik
-    volumes:
-      # Persistent MongoDB data in user's home directory
-      - ${SYNAPTIK_DATA_DIR:-${HOME}/.synaptik/data}:/data/db
-      - ${SYNAPTIK_LOGS_DIR:-${HOME}/.synaptik/logs}/mongodb:/var/log/mongodb
-    ports:
-      - "27017:27017"  # Expose for development/debugging (optional)
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    networks:
-      - synaptik-network
+# Main Docker Compose - Uses pinned versions for stability
+# This is what users should use to try Synaptik
 
-  # Backend API Server
-  backend:
-    image: dukeroyahl/synaptik-backend:latest
+services:
+  synaptik-backend:
+    image: roudranil/synaptik:1.0.0  # Pin to specific version for stability
     container_name: synaptik-backend
-    restart: unless-stopped
-    environment:
-      # Application Configuration
-      - QUARKUS_HTTP_PORT=8080
-      - QUARKUS_LOG_LEVEL=INFO
-      - QUARKUS_MONGODB_CONNECTION_STRING=mongodb://mongodb:27017/synaptik
-      
-      # Performance Tuning
-      - JAVA_OPTS=-Xmx512m -Xms256m
-      
-      # Security (change in production!)
-      - SYNAPTIK_SECRET_KEY=change-me-in-production
-    volumes:
-      # Application logs
-      - ${SYNAPTIK_LOGS_DIR:-${HOME}/.synaptik/logs}/backend:/opt/synaptik/logs
     ports:
       - "8080:8080"
-    depends_on:
-      mongodb:
-        condition: service_healthy
+    environment:
+      - QUARKUS_PROFILE=prod
+      - QUARKUS_DATASOURCE_JDBC_URL=jdbc:h2:file:/opt/synaptik/data/synaptik;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+      - QUARKUS_LOG_FILE_PATH=/opt/synaptik/logs/synaptik.log
+      - QUARKUS_LOG_LEVEL=INFO
+    volumes:
+      - ~/.synaptik/data:/opt/synaptik/data
+      - ~/.synaptik/logs:/opt/synaptik/logs
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/q/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
-    networks:
-      - synaptik-network
+      start_period: 40s
 
-  # Frontend Web App
-  frontend:
-    image: dukeroyahl/synaptik-frontend:latest
+  synaptik-frontend:
+    image: nginx:alpine
     container_name: synaptik-frontend
-    restart: unless-stopped
-    volumes:
-      # Nginx logs
-      - ${SYNAPTIK_LOGS_DIR:-${HOME}/.synaptik/logs}/nginx:/var/log/nginx
     ports:
       - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      backend:
+      synaptik-backend:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    networks:
-      - synaptik-network
+    restart: unless-stopped
 
-# Networks
 networks:
-  synaptik-network:
+  default:
     name: synaptik-network
-    driver: bridge
-
-# Volumes (commented out - using bind mounts to home directory)
-# volumes:
-#   synaptik_data:
-#   synaptik_logs:
