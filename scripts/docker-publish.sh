@@ -1,88 +1,91 @@
 #!/bin/bash
 
-# Docker Hub Publishing Script for Synaptik
-# Usage: ./scripts/docker-publish.sh [version] [dockerhub-username]
-# Example: ./scripts/docker-publish.sh v1.0.0 yourusername
-
+# Synaptik Docker Publish Script
 set -e
 
-# Configuration
-VERSION=${1:-latest}
-DOCKERHUB_USERNAME=${2:-""}
-PROJECT_NAME="synaptik"
+echo "🐳 Publishing Synaptik Docker Image..."
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
+YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${BLUE}🐳 Synaptik Docker Hub Publishing Script${NC}"
-echo "============================================"
+# Configuration
+DOCKER_USERNAME=${DOCKER_USERNAME:-"dukeroyahl"}
+IMAGE_NAME="synaptik"
+REGISTRY=${REGISTRY:-"docker.io"}
 
-# Check if Docker Hub username is provided
-if [ -z "$DOCKERHUB_USERNAME" ]; then
-    echo -e "${RED}❌ Error: Docker Hub username required${NC}"
-    echo "Usage: $0 [version] [dockerhub-username]"
-    echo "Example: $0 v1.0.0 yourusername"
-    exit 1
-fi
+# Get version from package.json or use input
+VERSION=${1:-$(node -p "require('./package.json').version" 2>/dev/null || echo "latest")}
+FULL_IMAGE_NAME="${REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}"
+
+echo -e "${BLUE}📋 Publish Configuration:${NC}"
+echo -e "  Registry: ${GREEN}${REGISTRY}${NC}"
+echo -e "  Image: ${GREEN}${FULL_IMAGE_NAME}:${VERSION}${NC}"
+echo -e "  Also tagging as: ${GREEN}${FULL_IMAGE_NAME}:latest${NC}"
+echo ""
 
 # Check if Docker is running
-if ! docker info > /dev/null 2>&1; then
-    echo -e "${RED}❌ Error: Docker is not running${NC}"
+if ! docker info >/dev/null 2>&1; then
+    echo -e "${RED}❌ Docker is not running. Please start Docker Desktop.${NC}"
     exit 1
 fi
 
-echo -e "${YELLOW}📝 Configuration:${NC}"
-echo "  Version: $VERSION"
-echo "  Docker Hub Username: $DOCKERHUB_USERNAME"
-echo "  Project: $PROJECT_NAME"
-echo ""
+# Check if user is logged in to Docker registry
+if ! docker info 2>/dev/null | grep -q "Username"; then
+    echo -e "${YELLOW}⚠️  Not logged in to Docker registry.${NC}"
+    echo -e "${BLUE}Please run: docker login${NC}"
+    exit 1
+fi
 
-# Login to Docker Hub
-echo -e "${BLUE}🔐 Logging into Docker Hub...${NC}"
-docker login
+# Build the image using new docker folder structure
+echo -e "${YELLOW}📦 Building image...${NC}"
+docker build -f ./docker/Dockerfile -t "${FULL_IMAGE_NAME}:${VERSION}" .
 
-echo ""
-echo -e "${BLUE}🏗️  Building and pushing images...${NC}"
+# Tag the image for latest if not already latest
+if [ "${VERSION}" != "latest" ]; then
+    echo -e "${YELLOW}🏷️  Tagging as latest...${NC}"
+    docker tag "${FULL_IMAGE_NAME}:${VERSION}" "${FULL_IMAGE_NAME}:latest"
+fi
 
-# Function to build and push image
-build_and_push() {
-    local component=$1
-    local context=$2
-    local image_name="$DOCKERHUB_USERNAME/$PROJECT_NAME-$component"
-    
-    echo -e "${YELLOW}📦 Building $component...${NC}"
-    docker build -t "$image_name:$VERSION" -t "$image_name:latest" "$context"
-    
-    echo -e "${YELLOW}🚀 Pushing $component...${NC}"
-    docker push "$image_name:$VERSION"
-    docker push "$image_name:latest"
-    
-    echo -e "${GREEN}✅ $component published successfully${NC}"
+# Push the specific version
+echo -e "${YELLOW}📤 Pushing ${FULL_IMAGE_NAME}:${VERSION}...${NC}"
+docker push "${FULL_IMAGE_NAME}:${VERSION}"
+
+# Push latest tag
+if [ "${VERSION}" != "latest" ]; then
+    echo -e "${YELLOW}📤 Pushing ${FULL_IMAGE_NAME}:latest...${NC}"
+    docker push "${FULL_IMAGE_NAME}:latest"
+fi
+
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}✅ Successfully published Docker image!${NC}"
     echo ""
-}
-
-# Build and push each component
-build_and_push "server" "./server"
-build_and_push "client" "./client"
-build_and_push "mcp-server" "./mcp-server"
-
-echo -e "${GREEN}🎉 All images published successfully!${NC}"
-echo ""
-echo -e "${BLUE}📋 Published Images:${NC}"
-echo "  • $DOCKERHUB_USERNAME/$PROJECT_NAME-server:$VERSION"
-echo "  • $DOCKERHUB_USERNAME/$PROJECT_NAME-client:$VERSION"
-echo "  • $DOCKERHUB_USERNAME/$PROJECT_NAME-mcp-server:$VERSION"
-echo ""
-echo -e "${BLUE}🔗 Docker Hub URLs:${NC}"
-echo "  • https://hub.docker.com/r/$DOCKERHUB_USERNAME/$PROJECT_NAME-server"
-echo "  • https://hub.docker.com/r/$DOCKERHUB_USERNAME/$PROJECT_NAME-client"
-echo "  • https://hub.docker.com/r/$DOCKERHUB_USERNAME/$PROJECT_NAME-mcp-server"
-echo ""
-echo -e "${YELLOW}💡 Next steps:${NC}"
-echo "  1. Update docker-compose files to use published images"
-echo "  2. Test deployment with: docker-compose -f config/docker-compose.hub.yml up -d"
-echo "  3. Share your Docker Hub repository URLs with others"
+    echo -e "${BLUE}📊 Published Images:${NC}"
+    echo -e "  • ${GREEN}${FULL_IMAGE_NAME}:${VERSION}${NC}"
+    if [ "${VERSION}" != "latest" ]; then
+        echo -e "  • ${GREEN}${FULL_IMAGE_NAME}:latest${NC}"
+    fi
+    echo ""
+    echo -e "${BLUE}🚀 Quick Start Commands:${NC}"
+    echo ""
+    echo -e "${YELLOW}Pull and run:${NC}"
+    echo "  docker run -d --name synaptik-app \\"
+    echo "    -p 80:80 \\"
+    echo "    -v \$HOME/.synaptik/data:/data/db \\"
+    echo "    -v \$HOME/.synaptik/logs:/var/log/synaptik \\"
+    echo "    --restart unless-stopped \\"
+    echo "    ${FULL_IMAGE_NAME}:${VERSION}"
+    echo ""
+    echo -e "${YELLOW}Using Docker Compose:${NC}"
+    echo "  # Update docker-compose.production.yml to use:"
+    echo "  # image: ${FULL_IMAGE_NAME}:${VERSION}"
+    echo "  docker-compose -f ./docker/docker-compose.production.yml up -d"
+    echo ""
+    echo -e "${GREEN}🎉 Ready for deployment!${NC}"
+else
+    echo -e "${RED}❌ Failed to publish Docker image!${NC}"
+    exit 1
+fi

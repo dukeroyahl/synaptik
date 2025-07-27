@@ -7,200 +7,69 @@
 [![Java](https://img.shields.io/badge/Java-21+-orange.svg)](https://openjdk.java.net/)
 [![Quarkus](https://img.shields.io/badge/Quarkus-3.6+-blue.svg)](https://quarkus.io/)
 [![React](https://img.shields.io/badge/React-18+-61DAFB.svg)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178C6.svg)](https://www.typescriptlang.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-7+-47A248.svg)](https://www.mongodb.com/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://hub.docker.com/r/dukeroyahl/synaptik)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**A next-generation task management application that bridges the gap between powerful CLI tools and modern web interfaces**
+**A next-generation task management application with AI integration**
 
-[🚀 Quick Docker Setup](#-quick-docker-setup) • [📖 Documentation](#-documentation) • [🛠️ Development](DEVELOPMENT.md) • [📚 Wiki](WIKI.md)
+![Synaptik Application](https://via.placeholder.com/800x400/2D3748/FFFFFF?text=Synaptik+Dashboard+Screenshot)
+
+[🚀 Quick Start](#-quick-start) • [📖 Wiki](WIKI.md) • [🤝 Contributing](CONTRIBUTING.md) • [📦 Docker Hub](https://hub.docker.com/r/dukeroyahl/synaptik)
 
 </div>
 
 ---
 
-## 🌟 Overview
+## 🚀 Quick Start
 
-Synaptik combines the power of TaskWarrior with modern web technologies and AI integration. Built with Java 21 + Quarkus backend, React 18 frontend, and native AI integration through Model Context Protocol.
-
-### ✨ Key Highlights
-
-- **🧠 TaskWarrior DNA**: Natural language task capture - `"Buy groceries due:tomorrow +shopping priority:high"`
-- **⚡ Modern Stack**: Java 21 + Quarkus reactive backend with React 18 frontend
-- **🤖 AI-First**: Native Claude integration through Model Context Protocol (MCP)
-- **� Responsive**: Beautiful Material Design with dark/light themes
-- **� Real-time**: Live synchronization and reactive updates
-
-## 🎯 Core Features
-
-- **� Smart Dashboard** with productivity analytics
-- **🎯 Intelligent Prioritization** using TaskWarrior's urgency algorithm  
-- **📅 Advanced Scheduling** with due dates and time blocking
-- **🏷️ Flexible Organization** through tags, projects, and filtering
-- **🗺️ Visual Mindmaps** for project visualization
-- **🤖 AI Integration** for voice commands and smart suggestions
-
-## 🚀 Quick Docker Setup
-
-Get Synaptik running in minutes using Docker Desktop - no additional software installation required!
+Get Synaptik running in 30 seconds with Docker:
 
 ### Prerequisites
 - **Docker Desktop** - [Download here](https://www.docker.com/products/docker-desktop/)
 
 ### One-Command Setup
 ```bash
-# Clone and start with Docker
-git clone https://github.com/Dukeroyahl/synaptik.git
-cd synaptik
-
-# Build and deploy with production Docker setup
-./scripts/docker-build.sh
-docker-compose -f docker/docker-compose.production.yml up -d
+# Pull and run from Docker Hub
+docker run -d \
+  --name synaptik \
+  -p 80:80 \
+  -v $HOME/.synaptik/data:/data/db \
+  -v $HOME/.synaptik/logs:/var/log/synaptik \
+  --restart unless-stopped \
+  dukeroyahl/synaptik:latest
 ```
 
 ### Access Your Application
-- **Web App**: http://localhost (UI, API, MongoDB all-in-one)
+- **Web App**: http://localhost
 - **API Documentation**: http://localhost/q/swagger-ui
 - **Health Check**: http://localhost/health
 - **MCP Server**: http://localhost/mcp (for Claude Desktop)
-
-### Stop Services
-```bash
-docker-compose -f docker/docker-compose.production.yml down
-```
+- **Data Location**: `~/.synaptik/` (in your home directory)
 
 ---
 
-## 🤖 AI Integration
+## 📖 Documentation
 
-Connect Synaptik with Claude Desktop for AI-powered task management:
+### 👥 For Users
+- **[Wiki - User Guide](WIKI.md#user-guide)** - Complete user documentation
+- **[Docker Usage Guide](docs/deployment/DOCKER_HUB_USAGE.md)** - Using published Docker images
+- **[Quick Start Tutorial](WIKI.md#quick-start)** - Get started in minutes
 
-### Quick MCP Setup
-```bash
-# Start Synaptik with Docker (includes MCP server)
-./scripts/docker-build.sh
-docker-compose -f docker/docker-compose.production.yml up -d
+### 💻 For Contributors  
+- **[Wiki - Developer Guide](WIKI.md#developer-guide)** - Technical documentation
+- **[Contributing Guidelines](CONTRIBUTING.md)** - How to contribute
+- **[Development Setup](DEVELOPMENT.md)** - Local development environment
 
-# Add to Claude Desktop config (~/.config/claude/claude_desktop_config.json)
-{
-  "mcpServers": {
-    "synaptik": {
-      "command": "curl",
-      "args": ["-N", "-H", "Accept: text/event-stream", "http://localhost/mcp"],
-      "env": {}
-    }
-  }
-}
-```
+---
 
-### AI Capabilities
-- **Natural Language Tasks**: "Create a task to review PR due tomorrow with high priority"
-- **Smart Filtering**: "Show me all overdue tasks in the work project"
-- **Quick Actions**: "Mark all today's completed tasks as done"
-- **Project Management**: "Create a new project for website redesign"
+## 🎯 What is Synaptik?
 
-## 📁 Project Structure
+Synaptik combines **TaskWarrior's power** with **modern web technologies** and **AI integration**:
 
-```
-synaptik/
-├── 📁 client/              # React frontend (TypeScript + Vite)
-├── 📁 server/              # Java backend (Quarkus + MongoDB + MCP)
-├── 📁 docker/              # Docker configurations and builds
-├── 📁 docs/                # Documentation
-├── 📁 scripts/             # Build and deployment utilities
-└── 📁 dist/                # Runtime data (MongoDB, logs)
-```
-
-## 🔌 API Highlights
-
-### Quick Examples
-
-#### Create Task with TaskWarrior Syntax
-```bash
-curl -X POST http://localhost/api/tasks/capture \
-  -H "Content-Type: text/plain" \
-  -d "Buy groceries due:tomorrow priority:high +shopping"
-```
-
-#### List Pending Tasks
-```bash
-curl http://localhost/api/tasks?status=pending
-```
-
-#### Start Working on Task
-```bash
-curl -X POST http://localhost/api/tasks/{id}/start
-```
-
-📚 **Full API documentation**: http://localhost/q/swagger-ui
-
-## 📚 Documentation
-
-- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Complete local development setup
-- **[WIKI.md](WIKI.md)** - Comprehensive project documentation  
-- **[MCP Server Guide](mcp-server/README.md)** - AI integration details
-- **[API Documentation](http://localhost:8080/q/swagger-ui)** - Interactive API explorer
-
-## 🛠️ Development
-
-For local development with native tools (Java, Node.js, MongoDB):
-
-```bash
-# See DEVELOPMENT.md for complete setup
-npm run setup  # Automated setup
-npm run dev    # Start development servers
-```
-
-**Requirements**: Java 21+, Node.js 18+, MongoDB
-
-📖 **See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed local setup**
-
-## 🤝 Contributing
-
-We welcome contributions! 
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Commit changes (`git commit -m 'feat: add amazing feature'`)
-5. Push to branch (`git push origin feature/amazing-feature`)
-6. Open a Pull Request
-
-📋 **See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines**
-
-## 🗺️ Roadmap
-
-### ✅ Current Release
-- TaskWarrior-inspired task management
-- Java/Quarkus reactive backend
-- React frontend with Material-UI
-- MongoDB integration  
-- MCP server for AI integration
-
-### 🚧 Next Release
-- Real-time collaboration
-- Advanced project management
-- D3.js mindmap visualization
-- Mobile responsive improvements
-
-### 🔮 Future
-- Native mobile apps
-- Team management features
-- Advanced analytics dashboard
-- Workflow automation engine
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **TaskWarrior** - Inspiration for task management principles
-- **Quarkus** - Modern Java framework for cloud-native applications
-- **React** - Frontend framework
-- **Material-UI** - Component library
-- **MongoDB** - Database solution
-- **Model Context Protocol** - AI integration standard
+- 🧠 **TaskWarrior DNA**: Natural language task capture
+- ⚡ **Modern Stack**: Java 21 + Quarkus + React 18
+- 🤖 **AI-First**: Native Claude integration via MCP
+- 📊 **Smart Analytics**: Productivity insights and dashboards
 
 ---
 
@@ -208,6 +77,6 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 **Built with ❤️ by the Synaptik team**
 
-[Report Bug](https://github.com/Dukeroyahl/synaptik/issues) • [Request Feature](https://github.com/Dukeroyahl/synaptik/issues) • [Documentation](WIKI.md) • [Dev Documentation](DEVELOPMENT.md)
+[📖 Wiki](WIKI.md) • [🐳 Docker Hub](https://hub.docker.com/r/dukeroyahl/synaptik) • [📝 Issues](https://github.com/dukeroyahl/synaptik/issues) • [🤝 Contributing](CONTRIBUTING.md)
 
 </div>

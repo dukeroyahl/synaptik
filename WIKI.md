@@ -1,6 +1,32 @@
 # 📚 Synaptik Wiki
 
-*Comprehensive documentation for the Synaptik task management application*
+Welcome to the Synaptik documentation hub! Choose your path:
+
+## 👥 User Guide
+
+**New to Synaptik?** Start here for complete user documentation.
+
+- [🚀 Quick Start](#quick-start) - Get up and running in minutes
+- [📖 User Manual](#user-manual) - Complete feature guide
+- [🤖 AI Integration](#ai-integration) - Claude Desktop setup
+- [💡 Tips & Tricks](#tips-and-tricks) - Power user features
+- [🚨 Troubleshooting](#troubleshooting) - Common issues and solutions
+
+## 💻 Developer Guide
+
+**Want to contribute?** Technical documentation for developers.
+
+- [🛠️ Development Setup](DEVELOPMENT.md) - Local environment setup
+- [🤝 Contributing Guidelines](CONTRIBUTING.md) - How to contribute
+- [🏗️ Architecture Overview](#architecture) - System design
+- [🔌 API Documentation](#api-documentation) - REST API reference
+- [📋 Testing Guide](#testing) - How to test your changes
+
+---
+
+# User Guide
+
+## Quick Start
 
 ## 🏗️ Architecture Overview
 

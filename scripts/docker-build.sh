@@ -23,12 +23,25 @@ echo ""
 
 # Create data directories if they don't exist
 echo -e "${YELLOW}📂 Setting up data directories...${NC}"
-mkdir -p dist/data/mongodb dist/data/logs
-chmod 755 dist/data/mongodb dist/data/logs
+if [ ! -d "dist/data/mongodb" ] || [ -z "$(ls -A dist/data/mongodb 2>/dev/null)" ]; then
+    mkdir -p dist/data/mongodb
+    chmod 755 dist/data/mongodb
+    echo -e "  Created: dist/data/mongodb"
+else
+    echo -e "  Exists (with data): dist/data/mongodb"
+fi
+
+if [ ! -d "dist/data/logs" ] || [ -z "$(ls -A dist/data/logs 2>/dev/null)" ]; then
+    mkdir -p dist/data/logs
+    chmod 755 dist/data/logs
+    echo -e "  Created: dist/data/logs"
+else
+    echo -e "  Exists (with data): dist/data/logs"
+fi
 
 # Build the Docker image
 echo -e "${YELLOW}🔨 Building Docker image...${NC}"
-docker build -f docker/Dockerfile -t "${IMAGE_NAME}" .
+docker build -f ./docker/Dockerfile -t "${IMAGE_NAME}" .
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ Build successful!${NC}"
@@ -36,13 +49,13 @@ if [ $? -eq 0 ]; then
     echo -e "${BLUE}🚀 Quick Start Commands:${NC}"
     echo ""
     echo -e "${YELLOW}Option 1: Using Docker Compose (Recommended)${NC}"
-    echo "  docker-compose -f docker/docker-compose.production.yml up -d"
+    echo "  docker-compose -f ./docker/docker-compose.production.yml up -d"
     echo ""
     echo -e "${YELLOW}Option 2: Using Docker directly${NC}"
     echo "  docker run -d --name synaptik-app \\"
     echo "    -p 80:80 \\"
-    echo "    -v \$(pwd)/dist/data/mongodb:/data/db \\"
-    echo "    -v \$(pwd)/dist/data/logs:/var/log/synaptik \\"
+    echo "    -v \$HOME/.synaptik/data:/data/db \\"
+    echo "    -v \$HOME/.synaptik/logs:/var/log/synaptik \\"
     echo "    --restart unless-stopped \\"
     echo "    ${IMAGE_NAME}"
     echo ""

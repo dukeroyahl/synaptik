@@ -12,9 +12,10 @@ services:
       - "8080:8080"      # Direct API access (optional)
     volumes:
       # Persistent MongoDB data - CRITICAL for data persistence
-      - synaptik_data:/data/db
+      # Override with: SYNAPTIK_DATA_DIR=./your-data-folder docker-compose up
+      - ${SYNAPTIK_DATA_DIR:-${HOME}/.synaptik/data}:/data/db
       # Persistent logs
-      - synaptik_logs:/var/log/synaptik
+      - ${SYNAPTIK_LOGS_DIR:-${HOME}/.synaptik/logs}:/var/log/synaptik
     environment:
       # Application Configuration
       - QUARKUS_HTTP_PORT=8080
@@ -43,22 +44,6 @@ services:
         reservations:
           memory: 512M
           cpus: '0.5'
-
-# Named volumes for data persistence
-volumes:
-  synaptik_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ../dist/data/mongodb  # Host directory for MongoDB data
-  
-  synaptik_logs:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./dist/data/logs     # Host directory for application logs
 
 # Networks
 networks:
