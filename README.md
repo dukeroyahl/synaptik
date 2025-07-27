@@ -7,14 +7,14 @@
 [![Java](https://img.shields.io/badge/Java-21+-orange.svg)](https://openjdk.java.net/)
 [![Quarkus](https://img.shields.io/badge/Quarkus-3.6+-blue.svg)](https://quarkus.io/)
 [![React](https://img.shields.io/badge/React-18+-61DAFB.svg)](https://reactjs.org/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://hub.docker.com/r/dukeroyahl/synaptik)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://hub.docker.com/r/roudranil/synaptik)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**A next-generation task management application with AI integration**
+**A next-generation task management application with TaskWarrior DNA and natural language task capture**
 
 ![Synaptik Application](https://via.placeholder.com/800x400/2D3748/FFFFFF?text=Synaptik+Dashboard+Screenshot)
 
-[🚀 Quick Start](#-quick-start) • [📖 Wiki](WIKI.md) • [🤝 Contributing](CONTRIBUTING.md) • [📦 Docker Hub](https://hub.docker.com/r/dukeroyahl/synaptik)
+[🚀 Quick Start](#-quick-start) • [📖 Wiki](WIKI.md) • [🤝 Contributing](CONTRIBUTING.md) • [📦 Docker Hub](https://hub.docker.com/r/roudranil/synaptik)
 
 </div>
 
@@ -22,29 +22,54 @@
 
 ## 🚀 Quick Start
 
-Get Synaptik running in 30 seconds with Docker:
+Get Synaptik running in just 3 simple commands:
 
 ### Prerequisites
 - **Docker Desktop** - [Download here](https://www.docker.com/products/docker-desktop/)
 
-### One-Command Setup
+### Installation (3 commands max!)
+
+**Option 1: Super Quick Install**
 ```bash
-# Pull and run from Docker Hub
-docker run -d \
-  --name synaptik \
-  -p 80:80 \
-  -v $HOME/.synaptik/data:/data/db \
-  -v $HOME/.synaptik/logs:/var/log/synaptik \
-  --restart unless-stopped \
-  dukeroyahl/synaptik:latest
+curl -sSL https://raw.githubusercontent.com/roudranil/synaptik/main/install.sh | bash
 ```
 
-### Access Your Application
+**Option 2: Manual Install**
+```bash
+# Step 1: Download configuration
+curl -sSL https://raw.githubusercontent.com/roudranil/synaptik/main/dist/docker-compose.yml -o docker-compose.yml
+
+# Step 2: Create data directories and start
+mkdir -p ~/.synaptik/{data,logs} && docker-compose up -d
+
+# Step 3: Access your app at http://localhost
+```
+
+### 🌐 Access Your Application
 - **Web App**: http://localhost
-- **API Documentation**: http://localhost/q/swagger-ui
-- **Health Check**: http://localhost/health
-- **MCP Server**: http://localhost/mcp (for Claude Desktop)
-- **Data Location**: `~/.synaptik/` (in your home directory)
+- **API Documentation**: http://localhost:8080/q/swagger-ui  
+- **Data Location**: `~/.synaptik/` (safe from updates!)
+
+---
+
+## 🤖 AI Integration
+
+Connect Synaptik with Claude Desktop or Amazon Q using MCP (Model Context Protocol):
+
+**Claude Desktop Setup** - Add to MCP settings:
+```json
+{
+  "mcpServers": {
+    "synaptik": {
+      "command": "docker",
+      "args": ["exec", "-i", "synaptik-backend", "java", "-cp", "/opt/synaptik", "org.dukeroyahl.synaptik.mcp.SynaptikMcpService"],
+      "env": {}
+    }
+  }
+}
+```
+
+**Amazon Q / Other MCP Assistants** - Use endpoint: `http://localhost:8080/mcp`
 
 ---
 

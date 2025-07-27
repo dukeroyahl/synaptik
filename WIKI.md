@@ -1,32 +1,24 @@
 # 📚 Synaptik Wiki
 
-Welcome to the Synaptik documentation hub! Choose your path:
-
 ## 👥 User Guide
-
-**New to Synaptik?** Start here for complete user documentation.
-
-- [🚀 Quick Start](#quick-start) - Get up and running in minutes
-- [📖 User Manual](#user-manual) - Complete feature guide
+- [🚀 Quick Start](#quick-start) - Get up and running 
 - [🤖 AI Integration](#ai-integration) - Claude Desktop setup
-- [💡 Tips & Tricks](#tips-and-tricks) - Power user features
-- [🚨 Troubleshooting](#troubleshooting) - Common issues and solutions
+- [🚨 Troubleshooting](#troubleshooting) - Common issues
 
-## 💻 Developer Guide
-
-**Want to contribute?** Technical documentation for developers.
-
-- [🛠️ Development Setup](DEVELOPMENT.md) - Local environment setup
-- [🤝 Contributing Guidelines](CONTRIBUTING.md) - How to contribute
+## 💻 Developer Guide  
 - [🏗️ Architecture Overview](#architecture) - System design
+- [📁 Project Structure](#project-structure) - Code organization
+- [🚀 Deployment Guide](#deployment-guide) - Production deployment
 - [🔌 API Documentation](#api-documentation) - REST API reference
-- [📋 Testing Guide](#testing) - How to test your changes
+- [📋 Testing Guide](#testing) - How to test changes
 
 ---
 
 # User Guide
 
 ## Quick Start
+
+Use the install script or manual Docker Compose setup as described in the main [README.md](README.md).
 
 ## 🏗️ Architecture Overview
 
@@ -632,6 +624,222 @@ spec:
 - Query profiling
 - Connection pooling
 - Replica sets for scaling
+
+## 📁 Project Structure
+
+### 🏗️ Project Layout
+
+```
+synaptik/
+├── 📁 .github/                   # GitHub configuration
+│   └── workflows/                # CI/CD workflows
+├── 📁 client/                    # React frontend application
+│   ├── src/                      # Source code
+│   │   ├── components/           # Reusable React components
+│   │   ├── pages/                # Page-level components
+│   │   ├── hooks/                # Custom React hooks
+│   │   ├── services/             # API and external services
+│   │   ├── stores/               # State management (Zustand)
+│   │   ├── types/                # TypeScript type definitions
+│   │   └── utils/                # Utility functions
+├── 📁 server/                    # Java/Quarkus backend
+│   ├── src/main/java/org/dukeroyahl/synaptik/
+│   │   ├── domain/               # Entity models
+│   │   ├── dto/                  # Data Transfer Objects
+│   │   ├── resource/             # REST endpoints (JAX-RS)
+│   │   ├── service/              # Business logic
+│   │   ├── mcp/                  # MCP server integration
+│   │   └── util/                 # Utility classes
+│   └── build.gradle              # Gradle build configuration
+├── 📁 dist/                      # Distribution files
+│   ├── docker/                   # Docker configuration
+│   │   ├── docker-compose.yml    # Production (published images)
+│   │   ├── docker-compose.dev.yml # Development (build from source)
+│   │   ├── Dockerfile.backend    # Backend container
+│   │   ├── Dockerfile.frontend   # Frontend container
+│   │   └── .env.example          # Environment template
+│   └── scripts/                  # Management scripts
+│       └── synaptik.sh           # Main management script
+├── 📁 docs/                      # Documentation
+│   ├── api/                      # API documentation
+│   ├── deployment/               # Deployment guides
+│   └── user-guide/               # User guides
+├── 📄 install.sh                 # One-command installation script
+└── 📄 synaptik.sh                # Script launcher (delegates to dist/scripts/)
+```
+
+### 🎯 Directory Purposes
+
+#### 📁 Core Application
+- **`client/`**: React 18 + TypeScript frontend with modern UI
+- **`server/`**: Java 21 + Quarkus backend with MongoDB
+- **`dist/`**: Distribution files for deployment and management
+
+#### 📚 Documentation
+- **`docs/api/`**: API documentation and schemas
+- **`docs/deployment/`**: Deployment guides and infrastructure docs
+- **`docs/development/`**: Development setup and architecture guides
+- **`docs/user-guide/`**: End-user documentation and tutorials
+
+#### 🔄 Development Workflow
+
+**Setup**
+```bash
+# Super quick install
+curl -sSL https://raw.githubusercontent.com/roudranil/synaptik/main/install.sh | bash
+
+# Or manual setup
+mkdir -p ~/.synaptik/{data,logs} && docker-compose up -d
+```
+
+**Development**
+```bash
+# Development mode (builds from source)
+docker-compose -f docker-compose.dev.yml up -d
+
+# Production mode (uses published images)  
+docker-compose up -d
+```
+
+### 📋 File Naming Conventions
+
+#### Java (Backend)
+- **Classes**: PascalCase (`TaskService.java`)
+- **Packages**: lowercase (`org.dukeroyahl.synaptik.domain`)
+- **Constants**: UPPER_SNAKE_CASE
+- **Methods**: camelCase
+
+#### TypeScript/React (Frontend)
+- **Components**: PascalCase (`TaskCard.tsx`)
+- **Hooks**: camelCase with `use` prefix (`useTaskManager.ts`)
+- **Utils**: camelCase (`dateUtils.ts`)
+- **Types**: PascalCase (`Task.ts`)
+
+## 🚀 Deployment Guide
+
+### 📋 Deployment Options
+
+#### 1. 🛠️ Quick Installation (Recommended)
+
+**Super Quick (1 command)**
+```bash
+curl -sSL https://raw.githubusercontent.com/roudranil/synaptik/main/install.sh | bash
+```
+
+**Manual Install (3 commands)**
+```bash
+# Step 1: Download configuration
+curl -sSL https://raw.githubusercontent.com/roudranil/synaptik/main/dist/docker-compose.yml -o docker-compose.yml
+
+# Step 2: Create data directories and start
+mkdir -p ~/.synaptik/{data,logs} && docker-compose up -d
+
+# Step 3: Access your app at http://localhost
+```
+
+#### 2. 🔄 Development Mode
+
+**Use this for**: Active development with hot reload
+
+```bash
+# Download development config
+curl -sSL https://raw.githubusercontent.com/roudranil/synaptik/main/dist/docker-compose.dev.yml -o docker-compose.dev.yml
+
+# Start development environment (builds from source)
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+**Services:**
+- **Frontend**: http://localhost (Nginx + React build)
+- **Backend**: http://localhost:8080 (Java/Quarkus container)
+- **MongoDB**: localhost:27017 (Docker container)
+- **Data**: `./temp/` (development) or `~/.synaptik/` (production)
+
+### 🐳 Container Architecture
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Nginx + React │    │  Java/Quarkus  │    │    MongoDB      │
+│   (Frontend)    │────│   (Backend)     │────│   (Database)    │
+│   Port: 80      │    │   Port: 8080    │    │   Port: 27017   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### 🔧 Environment Configuration
+
+#### User Data Persistence
+```bash
+# Default location (safe from updates)
+~/.synaptik/data     # MongoDB data
+~/.synaptik/logs     # Application logs
+
+# Custom location (set in .env)
+SYNAPTIK_DATA_DIR=/path/to/your/data
+SYNAPTIK_LOGS_DIR=/path/to/your/logs
+```
+
+#### Docker Images
+- **Backend**: `roudranil/synaptik-backend:latest`
+- **Frontend**: `roudranil/synaptik-frontend:latest`
+- **Database**: `mongo:7.0`
+
+### 🏥 Health Checks & Monitoring
+
+**Service Health**
+```bash
+# Check all services
+docker-compose ps
+
+# Individual health endpoints
+curl http://localhost:8080/q/health    # Backend health
+curl http://localhost/                 # Frontend
+```
+
+**Performance Monitoring**
+- **Backend Metrics**: http://localhost:8080/q/metrics
+- **API Documentation**: http://localhost:8080/q/swagger-ui
+
+### 🔒 Security & Production
+
+#### Data Protection
+- User data stored in `~/.synaptik/` persists across updates
+- MongoDB data isolated in Docker volumes
+- Logs automatically rotated and managed
+
+#### Production Considerations
+1. **Change default passwords** in environment variables
+2. **Configure proper CORS origins** for your domain
+3. **Use HTTPS** in production (configure reverse proxy)
+4. **Regular security updates** via Docker image updates
+
+### 🚨 Troubleshooting
+
+**Port Conflicts**
+```bash
+# Check what's using ports
+lsof -i :80     # Frontend
+lsof -i :8080   # Backend  
+lsof -i :27017  # MongoDB
+```
+
+**Container Issues**
+```bash
+# View logs
+docker-compose logs -f
+
+# Restart services
+docker-compose restart
+
+# Clean rebuild
+docker-compose down && docker-compose up -d
+```
+
+**Data Recovery**
+```bash
+# Your data is safe in ~/.synaptik/
+# Simply restart containers to recover
+docker-compose down && docker-compose up -d
+```
 
 ## 🔮 Future Roadmap
 
