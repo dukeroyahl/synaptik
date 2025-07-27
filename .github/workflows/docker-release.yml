@@ -15,6 +15,11 @@ on:
         default: false
         type: boolean
 
+# Cancel previous release runs for the same tag/version
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false  # Don't cancel releases, let them complete
+
 env:
   REGISTRY: docker.io
   IMAGE_NAME: roudranil/synaptik
