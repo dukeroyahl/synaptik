@@ -65,19 +65,17 @@ services:
     networks:
       - synaptik-dev-network
 
-  # Frontend Web App (Built from source)
+  # Frontend Web App (Vite dev server for hot reload)
   frontend-dev:
-    build:
-      context: ../
-      dockerfile: dist/docker/Dockerfile.frontend
+    image: node:20-alpine
     container_name: synaptik-frontend-dev
+    working_dir: /app/client
     restart: unless-stopped
     volumes:
       # Source code for hot reload
-      - ../client:/opt/synaptik/client
-      - ./temp/logs/nginx:/var/log/nginx
+      - ../client:/app/client
+      - ./temp/logs/frontend:/app/logs
     ports:
-      - "80:80"
       - "5173:5173"  # Vite dev server
     depends_on:
       backend-dev:
@@ -85,8 +83,9 @@ services:
     environment:
       - NODE_ENV=development
       - VITE_API_BASE_URL=http://localhost:8080
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5173/"]
       interval: 30s
       timeout: 10s
       retries: 3
