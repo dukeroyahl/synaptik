@@ -67,6 +67,7 @@ public class ProjectResource {
     
     @POST
     @Path("/{id}/activate")
+    @Consumes({})
     @Operation(summary = "Activate a project")
     public Uni<Response> activateProject(@PathParam("id") String id) {
         return projectService.activateProject(new ObjectId(id))
@@ -76,6 +77,7 @@ public class ProjectResource {
     
     @POST
     @Path("/{id}/complete")
+    @Consumes({})
     @Operation(summary = "Complete a project")
     public Uni<Response> completeProject(@PathParam("id") String id) {
         return projectService.completeProject(new ObjectId(id))
@@ -85,6 +87,7 @@ public class ProjectResource {
     
     @POST
     @Path("/{id}/hold")
+    @Consumes({})
     @Operation(summary = "Put project on hold")
     public Uni<Response> putProjectOnHold(@PathParam("id") String id) {
         return projectService.putProjectOnHold(new ObjectId(id))

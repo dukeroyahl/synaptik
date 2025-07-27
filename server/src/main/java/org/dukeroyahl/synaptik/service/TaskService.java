@@ -2,94 +2,104 @@ package org.dukeroyahl.synaptik.service;
 
 import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
-import org.dukeroyahl.synaptik.repository.TaskRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import io.smallrye.mutiny.Uni;
 import org.bson.types.ObjectId;
 import org.jboss.logging.Logger;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @ApplicationScoped
 public class TaskService {
     
     @Inject
-    TaskRepository taskRepository;
-    
-    @Inject
     Logger logger;
     
     public Uni<List<Task>> getAllTasks() {
-        return taskRepository.listAll();
+        return Task.listAll();
     }
     
     public Uni<Task> getTaskById(ObjectId id) {
-        return taskRepository.findById(id);
+        return Task.findById(id);
     }
     
     public Uni<Task> createTask(Task task) {
         task.prePersist();
         task.urgency = task.calculateUrgency();
         logger.infof("Creating new task: %s", task.title);
-        return taskRepository.persist(task);
+        return task.persist();
     }
     
     public Uni<Task> updateTask(ObjectId id, Task updates) {
-        return taskRepository.findById(id)
+        return Task.<Task>findById(id)
             .onItem().ifNotNull().transformToUni(task -> {
                 updateTaskFields(task, updates);
                 task.urgency = task.calculateUrgency();
                 task.prePersist();
                 logger.infof("Updating task: %s", task.title);
-                return taskRepository.update(task);
+                return task.persistOrUpdate();
             });
     }
     
     public Uni<Boolean> deleteTask(ObjectId id) {
-        return taskRepository.deleteById(id);
+        return Task.deleteById(id);
     }
     
     public Uni<Task> startTask(ObjectId id) {
-        return taskRepository.findById(id)
+        return Task.<Task>findById(id)
             .onItem().ifNotNull().transformToUni(task -> {
                 task.start();
                 task.urgency = task.calculateUrgency();
                 task.prePersist();
-                return taskRepository.update(task);
+                return task.persistOrUpdate();
             });
     }
     
     public Uni<Task> stopTask(ObjectId id) {
-        return taskRepository.findById(id)
+        return Task.<Task>findById(id)
             .onItem().ifNotNull().transformToUni(task -> {
                 task.stop();
                 task.urgency = task.calculateUrgency();
                 task.prePersist();
-                return taskRepository.update(task);
+                return task.persistOrUpdate();
             });
     }
     
     public Uni<Task> markTaskDone(ObjectId id) {
-        return taskRepository.findById(id)
+        return Task.<Task>findById(id)
             .onItem().ifNotNull().transformToUni(task -> {
                 task.done();
                 task.urgency = task.calculateUrgency();
                 task.prePersist();
-                return taskRepository.update(task);
+                return task.persistOrUpdate();
             });
     }
     
     public Uni<List<Task>> getTasksByStatus(TaskStatus status) {
-        return taskRepository.findByStatus(status);
+        return Task.<Task>find("status", status).list();
     }
     
     public Uni<List<Task>> getOverdueTasks() {
-        return taskRepository.findOverdueTasks();
+        return Task.<Task>find("dueDate < ?1 and status in ?2", 
+            LocalDateTime.now(), 
+            List.of(TaskStatus.PENDING, TaskStatus.ACTIVE)).list();
     }
     
     public Uni<List<Task>> getTodayTasks() {
-        return taskRepository.findTodayTasks();
+        LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
+        LocalDateTime endOfDay = LocalDateTime.now().withHour(23).withMinute(59).withSecond(59);
+        
+        return Task.<Task>find("dueDate >= ?1 and dueDate <= ?2", startOfDay, endOfDay).list();
+    }
+    
+    public Uni<List<Task>> getTasksByProject(String project) {
+        return Task.<Task>find("project", project).list();
+    }
+    
+    public Uni<List<Task>> getTasksByAssignee(String assignee) {
+        return Task.<Task>find("assignee", assignee).list();
     }
     
     private void updateTaskFields(Task task, Task updates) {

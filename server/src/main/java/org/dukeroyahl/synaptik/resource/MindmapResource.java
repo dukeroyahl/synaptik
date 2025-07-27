@@ -109,6 +109,7 @@ public class MindmapResource {
     
     @POST
     @Path("/{id}/collaborators")
+    @Consumes({})
     @Operation(summary = "Add collaborator to mindmap")
     public Uni<Response> addCollaborator(@PathParam("id") String id, @QueryParam("collaborator") String collaborator) {
         return mindmapService.addCollaborator(new ObjectId(id), collaborator)
@@ -159,6 +160,7 @@ public class MindmapResource {
     
     @POST
     @Path("/{id}/duplicate")
+    @Consumes({})
     @Operation(summary = "Duplicate mindmap")
     public Uni<Response> duplicateMindmap(@PathParam("id") String id, 
                                         @QueryParam("title") String newTitle,

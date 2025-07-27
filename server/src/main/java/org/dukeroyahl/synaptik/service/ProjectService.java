@@ -2,7 +2,6 @@ package org.dukeroyahl.synaptik.service;
 
 import org.dukeroyahl.synaptik.domain.Project;
 import org.dukeroyahl.synaptik.domain.ProjectStatus;
-import org.dukeroyahl.synaptik.repository.ProjectRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import io.smallrye.mutiny.Uni;
@@ -15,102 +14,101 @@ import java.util.List;
 public class ProjectService {
     
     @Inject
-    ProjectRepository projectRepository;
-    
-    @Inject
     Logger logger;
     
     public Uni<List<Project>> getAllProjects() {
-        return projectRepository.listAll();
+        return Project.listAll();
     }
     
     public Uni<Project> getProjectById(ObjectId id) {
-        return projectRepository.findById(id);
+        return Project.findById(id);
     }
     
     public Uni<Project> createProject(Project project) {
         project.prePersist();
         logger.infof("Creating new project: %s", project.name);
-        return projectRepository.persist(project);
+        return project.persist();
     }
     
     public Uni<Project> updateProject(ObjectId id, Project updates) {
-        return projectRepository.findById(id)
+        return Project.<Project>findById(id)
             .onItem().ifNotNull().transformToUni(project -> {
                 updateProjectFields(project, updates);
                 project.prePersist();
                 logger.infof("Updating project: %s", project.name);
-                return projectRepository.update(project);
+                return project.persistOrUpdate();
             });
     }
     
     public Uni<Boolean> deleteProject(ObjectId id) {
-        return projectRepository.findById(id)
+        return Project.<Project>findById(id)
             .onItem().ifNotNull().transformToUni(project -> {
                 logger.infof("Deleting project: %s", project.name);
-                return projectRepository.deleteById(id);
+                return Project.deleteById(id);
             })
             .onItem().ifNull().continueWith(false);
     }
     
     public Uni<Project> activateProject(ObjectId id) {
-        return projectRepository.findById(id)
+        return Project.<Project>findById(id)
             .onItem().ifNotNull().transformToUni(project -> {
                 project.activate();
                 project.prePersist();
                 logger.infof("Activating project: %s", project.name);
-                return projectRepository.update(project);
+                return project.persistOrUpdate();
             });
     }
     
     public Uni<Project> completeProject(ObjectId id) {
-        return projectRepository.findById(id)
+        return Project.<Project>findById(id)
             .onItem().ifNotNull().transformToUni(project -> {
                 project.complete();
                 project.prePersist();
                 logger.infof("Completing project: %s", project.name);
-                return projectRepository.update(project);
+                return project.persistOrUpdate();
             });
     }
     
     public Uni<Project> putProjectOnHold(ObjectId id) {
-        return projectRepository.findById(id)
+        return Project.<Project>findById(id)
             .onItem().ifNotNull().transformToUni(project -> {
                 project.putOnHold();
                 project.prePersist();
                 logger.infof("Putting project on hold: %s", project.name);
-                return projectRepository.update(project);
+                return project.persistOrUpdate();
             });
     }
     
     public Uni<Project> updateProjectProgress(ObjectId id, double progress) {
-        return projectRepository.findById(id)
+        return Project.<Project>findById(id)
             .onItem().ifNotNull().transformToUni(project -> {
                 project.updateProgress(progress);
                 project.prePersist();
                 logger.infof("Updating project progress: %s - %.1f%%", project.name, progress);
-                return projectRepository.update(project);
+                return project.persistOrUpdate();
             });
     }
     
     public Uni<List<Project>> getProjectsByStatus(ProjectStatus status) {
-        return projectRepository.findByStatus(status);
+        return Project.<Project>find("status", status).list();
     }
     
     public Uni<List<Project>> getProjectsByOwner(String owner) {
-        return projectRepository.findByOwner(owner);
+        return Project.<Project>find("owner", owner).list();
     }
     
     public Uni<List<Project>> getOverdueProjects() {
-        return projectRepository.findOverdueProjects();
+        return Project.<Project>find("dueDate < ?1 and status != ?2", 
+            java.time.LocalDateTime.now(), 
+            ProjectStatus.COMPLETED).list();
     }
     
     public Uni<List<Project>> getActiveProjects() {
-        return projectRepository.findActiveProjects();
+        return Project.<Project>find("status", ProjectStatus.ACTIVE).list();
     }
     
     public Uni<List<Project>> getProjectsByTag(String tag) {
-        return projectRepository.findProjectsByTag(tag);
+        return Project.<Project>find("tags", tag).list();
     }
     
     private void updateProjectFields(Project project, Project updates) {

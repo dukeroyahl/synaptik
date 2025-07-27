@@ -67,6 +67,7 @@ public class TaskResource {
     
     @POST
     @Path("/{id}/start")
+    @Consumes({})
     @Operation(summary = "Start a task")
     public Uni<Response> startTask(@PathParam("id") String id) {
         return taskService.startTask(new ObjectId(id))
@@ -76,6 +77,7 @@ public class TaskResource {
     
     @POST
     @Path("/{id}/stop")
+    @Consumes({})
     @Operation(summary = "Stop a task")
     public Uni<Response> stopTask(@PathParam("id") String id) {
         return taskService.stopTask(new ObjectId(id))
@@ -85,6 +87,7 @@ public class TaskResource {
     
     @POST
     @Path("/{id}/done")
+    @Consumes({})
     @Operation(summary = "Mark task as done")
     public Uni<Response> markTaskDone(@PathParam("id") String id) {
         return taskService.markTaskDone(new ObjectId(id))
