@@ -3,6 +3,8 @@ version: '3.8'
 # Development Docker Compose - Builds from source with hot reload
 # This is for developers who want to test their changes
 
+name: synaptik-dev
+
 services:
   # MongoDB Database
   mongodb:

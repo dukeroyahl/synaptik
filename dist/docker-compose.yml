@@ -3,6 +3,8 @@ version: '3.8'
 # Main Docker Compose - Uses pinned versions for stability
 # This is what users should use to try Synaptik
 
+name: synaptik
+
 services:
   synaptik-backend:
     image: roudranil/synaptik:1.0.0  # Pin to specific version for stability
