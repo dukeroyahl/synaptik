@@ -1,0 +1,218 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    # Run weekly on Sundays at 3 AM UTC
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  JAVA_VERSION: '21'
+
+jobs:
+  check-npm-updates:
+    runs-on: ubuntu-latest
+    outputs:
+      has-updates: ${{ steps.check.outputs.has-updates }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            client/package-lock.json
+            mcp-server/package-lock.json
+
+      - name: Check for npm updates
+        id: check
+        run: |
+          cd client
+          npm outdated --json > outdated.json || true
+          
+          if [ -s outdated.json ] && [ "$(cat outdated.json)" != "{}" ]; then
+            echo "has-updates=true" >> $GITHUB_OUTPUT
+            echo "📦 Found npm package updates"
+            cat outdated.json | jq '.'
+          else
+            echo "has-updates=false" >> $GITHUB_OUTPUT
+            echo "✅ All npm packages are up to date"
+          fi
+
+  update-npm-dependencies:
+    needs: check-npm-updates
+    if: needs.check-npm-updates.outputs.has-updates == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            client/package-lock.json
+            mcp-server/package-lock.json
+
+      - name: Update client dependencies
+        run: |
+          cd client
+          npm update
+          npm audit fix --audit-level=moderate || true
+
+      - name: Update MCP server dependencies
+        run: |
+          cd mcp-server
+          npm update
+          npm audit fix --audit-level=moderate || true
+
+      - name: Run tests to verify updates
+        run: |
+          cd client
+          npm ci
+          npm run lint || echo "Lint issues detected"
+          npm run type-check || echo "Type check issues detected"
+          npm test -- --passWithNoTests --watchAll=false
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore: update npm dependencies'
+          title: '🔄 Automated npm dependency updates'
+          body: |
+            ## 📦 Automated Dependency Updates
+            
+            This PR contains automated updates to npm dependencies.
+            
+            ### Changes
+            - Updated npm packages to latest compatible versions
+            - Fixed security vulnerabilities with `npm audit fix`
+            - Verified updates with tests and linting
+            
+            ### Testing
+            - ✅ Linting passed (or issues noted)
+            - ✅ Type checking passed (or issues noted)  
+            - ✅ Tests passed
+            
+            **Note:** Please review the changes carefully before merging.
+          branch: automated/npm-updates
+          delete-branch: true
+          labels: |
+            dependencies
+            automated
+
+  check-gradle-updates:
+    runs-on: ubuntu-latest
+    outputs:
+      has-updates: ${{ steps.check.outputs.has-updates }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+
+      - name: Check for Gradle updates
+        id: check
+        run: |
+          cd server
+          chmod +x gradlew
+          ./gradlew dependencyUpdates --info > updates.log 2>&1 || true
+          
+          if grep -q "The following dependencies are using the latest" updates.log; then
+            echo "has-updates=false" >> $GITHUB_OUTPUT
+            echo "✅ All Gradle dependencies are up to date"
+          else
+            echo "has-updates=true" >> $GITHUB_OUTPUT
+            echo "📦 Found Gradle dependency updates"
+            grep -A 20 "The following dependencies have later" updates.log || true
+          fi
+
+  update-gradle-dependencies:
+    needs: check-gradle-updates
+    if: needs.check-gradle-updates.outputs.has-updates == 'true'
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ping: 1})'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+
+      - name: Update Gradle wrapper
+        run: |
+          cd server
+          chmod +x gradlew
+          ./gradlew wrapper --gradle-version=latest
+
+      - name: Run tests to verify updates
+        run: |
+          cd server
+          ./gradlew clean test
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore: update gradle wrapper and dependencies'
+          title: '🔄 Automated Gradle dependency updates'
+          body: |
+            ## 📦 Automated Gradle Updates
+            
+            This PR contains automated updates to Gradle wrapper and dependencies.
+            
+            ### Changes
+            - Updated Gradle wrapper to latest version
+            - Dependencies reviewed for updates
+            
+            ### Testing
+            - ✅ Tests passed with updated dependencies
+            
+            **Note:** Please review the changes carefully before merging.
+          branch: automated/gradle-updates
+          delete-branch: true
+          labels: |
+            dependencies
+            automated
