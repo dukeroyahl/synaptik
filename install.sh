@@ -97,12 +97,7 @@ if [ "$IS_UPDATE" = true ]; then
     
     if [ "$CURRENT_VERSION" = "$LATEST_VERSION" ] && [ "$LATEST_VERSION" != "unknown" ]; then
         log_warning "You already have the latest version ($LATEST_VERSION)"
-        echo "Do you want to continue anyway? This will re-download all files. (y/N)"
-        read -r response
-        if [[ ! "$response" =~ ^[Yy]$ ]]; then
-            log_info "Installation cancelled"
-            exit 0
-        fi
+        log_info "Proceeding with re-download to ensure all files are up-to-date..."
     fi
 fi
 
