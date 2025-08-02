@@ -19,11 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 📋 **Issue templates** - Bug reports and feature requests
 - 📄 **MIT License** - Open source license
 - 🎯 **Project structure guide** - Detailed organization documentation
+- 📚 **Comprehensive GitHub Wiki** - Complete documentation moved to wiki
 
 ### Changed
 - 🔧 **Reorganized configuration files** - Moved to `config/` directory
 - 📜 **Moved scripts** - Centralized in `scripts/` directory  
-- 📖 **Restructured documentation** - Organized by purpose in `docs/`
+- 📖 **Moved documentation to wiki** - Complete guides now in GitHub Wiki
 - 🚀 **Updated npm scripts** - Reflect new file locations
 - 📋 **Enhanced README** - Better navigation and quick start
 - 🐳 **Improved Docker setup** - Production-ready multi-service deployment

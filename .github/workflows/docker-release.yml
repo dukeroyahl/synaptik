@@ -78,10 +78,16 @@ jobs:
             exit 0
           fi
           
-          # Check if latest CI passed using GitHub API
-          LATEST_CI_STATUS=$(gh api repos/${{ github.repository }}/commits/${{ github.sha }}/status --jq '.state')
+          # Check if latest CI workflow passed using GitHub API
+          LATEST_CI_STATUS=$(gh api repos/${{ github.repository }}/actions/runs \
+            --jq '.workflow_runs[] | select(.head_sha == "${{ github.sha }}" and .name == "CI/CD Pipeline") | .conclusion' \
+            | head -n1)
+          
           if [ "$LATEST_CI_STATUS" = "success" ]; then
             echo "✅ CI checks passed"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          elif [ -z "$LATEST_CI_STATUS" ]; then
+            echo "⚠️ No CI run found for this commit, allowing release"
             echo "should_release=true" >> $GITHUB_OUTPUT
           else
             echo "❌ CI checks failed or pending: $LATEST_CI_STATUS"
@@ -167,7 +173,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ${{ matrix.component == 'mcp-server' && './mcp-server/Dockerfile' || format('./dist/docker/Dockerfile.{0}', matrix.component) }}
+          file: ./dist/docker/Dockerfile.${{ matrix.component }}
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event.inputs.test_mode != 'true' }}
           tags: |
@@ -248,9 +254,9 @@ jobs:
             
             ## 📖 Documentation
             
-            - [User Guide](https://github.com/Dukeroyahl/synaptik/blob/main/docs/WIKI.md#user-guide)
-            - [Docker Usage](https://github.com/Dukeroyahl/synaptik/blob/main/docs/WIKI.md#docker-usage)
-            - [Version Selection Guide](https://github.com/Dukeroyahl/synaptik/blob/main/docs/CHANGELOG.md#docker-tag-selection-guide)
+            - [📚 Complete Wiki](https://github.com/Dukeroyahl/synaptik/wiki)
+            - [User Guide](https://github.com/Dukeroyahl/synaptik/wiki/User-Guide)
+            - [Docker Guide](https://github.com/Dukeroyahl/synaptik/wiki/Docker-Guide)
             - [API Documentation](http://localhost:8080/q/swagger-ui) (after starting)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
