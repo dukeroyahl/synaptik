@@ -198,76 +198,6 @@ jobs:
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache || true
 
-  build-unified-image:
-    needs: [validate-release, build-and-push]
-    runs-on: ubuntu-latest
-    outputs:
-      image-digest: ${{ steps.build.outputs.digest }}
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            network=host
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Prepare tags
-        id: tags
-        run: |
-          VERSION="${{ needs.validate-release.outputs.version }}"
-          MAJOR="${{ needs.validate-release.outputs.major }}"
-          MINOR="${{ needs.validate-release.outputs.minor }}"
-          
-          TAGS="${{ env.IMAGE_NAME }}:${VERSION}"
-          TAGS="${TAGS},${{ env.IMAGE_NAME }}:latest"
-          
-          # Only add major/minor tags if they're not empty and different from version
-          if [ -n "$MINOR" ] && [ "$MINOR" != "$VERSION" ]; then
-            TAGS="${TAGS},${{ env.IMAGE_NAME }}:${MINOR}"
-          fi
-          
-          if [ -n "$MAJOR" ] && [ "$MAJOR" != "$MINOR" ] && [ "$MAJOR" != "$VERSION" ]; then
-            TAGS="${TAGS},${{ env.IMAGE_NAME }}:${MAJOR}"
-          fi
-          
-          echo "tags=$TAGS" >> $GITHUB_OUTPUT
-          echo "🏷️ Docker tags: $TAGS"
-
-      - name: Build and push unified image
-        id: build
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event.inputs.test_mode != 'true' }}
-          tags: ${{ steps.tags.outputs.tags }}
-          labels: |
-            org.opencontainers.image.title=Synaptik
-            org.opencontainers.image.description=A next-generation task management application with TaskWarrior DNA
-            org.opencontainers.image.version=${{ needs.validate-release.outputs.version }}
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
-          cache-from: |
-            type=gha,scope=unified-release
-            type=registry,ref=${{ env.IMAGE_NAME }}:cache
-          cache-to: |
-            type=gha,mode=max,scope=unified-release
-            type=registry,ref=${{ env.IMAGE_NAME }}:cache,mode=max
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
-            VCS_REF=${{ github.sha }}
-          outputs: type=image,name=${{ env.IMAGE_NAME }},push=true
 
   update-documentation:
     needs: [validate-release, build-and-push]
@@ -286,7 +216,7 @@ jobs:
           readme-filepath: ./README.md
 
   create-release:
-    needs: [validate-release, build-unified-image]
+    needs: [validate-release, build-and-push]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     
@@ -303,13 +233,7 @@ jobs:
             
             This release is available on Docker Hub with the following tags:
             
-            **Unified Application:**
-            - `roudranil/synaptik:${{ needs.validate-release.outputs.version }}` - Exact version
-            - `roudranil/synaptik:latest` - Latest stable release
-            ${{ needs.validate-release.outputs.minor != needs.validate-release.outputs.version && format('- `roudranil/synaptik:{0}` - Latest patch of minor version', needs.validate-release.outputs.minor) || '' }}
-            ${{ needs.validate-release.outputs.major != needs.validate-release.outputs.minor && needs.validate-release.outputs.major != needs.validate-release.outputs.version && format('- `roudranil/synaptik:{0}` - Latest minor of major version', needs.validate-release.outputs.major) || '' }}
-            
-            **Individual Components:**
+            **Available Components:**
             - `roudranil/synaptik:frontend-${{ needs.validate-release.outputs.version }}`
             - `roudranil/synaptik:backend-${{ needs.validate-release.outputs.version }}`
             - `roudranil/synaptik:mcp-server-${{ needs.validate-release.outputs.version }}`
@@ -317,10 +241,7 @@ jobs:
             ## 🚀 Quick Start
             
             ```bash
-            # Using exact version (recommended for production)
-            docker run -p 8080:8080 roudranil/synaptik:${{ needs.validate-release.outputs.version }}
-            
-            # Using docker-compose
+            # Using docker-compose (recommended)
             curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker-compose.yml -o docker-compose.yml
             docker-compose up -d
             ```
@@ -335,7 +256,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release-summary:
-    needs: [validate-release, build-and-push, build-unified-image, update-documentation, create-release]
+    needs: [validate-release, build-and-push, update-documentation, create-release]
     runs-on: ubuntu-latest
     if: always()
     
@@ -353,19 +274,16 @@ jobs:
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Component Builds | ${{ needs.build-and-push.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Unified Image | ${{ needs.build-unified-image.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Documentation | ${{ needs.update-documentation.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| GitHub Release | ${{ needs.create-release.result == 'success' && '✅ Success' || (needs.create-release.result == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> $GITHUB_STEP_SUMMARY
           
-          if [ "${{ needs.build-unified-image.result }}" = "success" ]; then
+          if [ "${{ needs.build-and-push.result }}" = "success" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
             if [ "${{ github.event.inputs.test_mode }}" = "true" ]; then
               echo "### 🧪 Test Build Completed" >> $GITHUB_STEP_SUMMARY
               echo "Images were built but not pushed to registry." >> $GITHUB_STEP_SUMMARY
             else
               echo "### 🐳 Published Images" >> $GITHUB_STEP_SUMMARY
-              echo "- \`roudranil/synaptik:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-              echo "- \`roudranil/synaptik:latest\`" >> $GITHUB_STEP_SUMMARY
               echo "- \`roudranil/synaptik:frontend-${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
               echo "- \`roudranil/synaptik:backend-${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
               echo "- \`roudranil/synaptik:mcp-server-${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
@@ -374,7 +292,7 @@ jobs:
 
       - name: Check critical failures
         run: |
-          if [ "${{ needs.build-and-push.result }}" != "success" ] || [ "${{ needs.build-unified-image.result }}" != "success" ]; then
+          if [ "${{ needs.build-and-push.result }}" != "success" ]; then
             echo "❌ Critical build failures detected"
             exit 1
           fi
