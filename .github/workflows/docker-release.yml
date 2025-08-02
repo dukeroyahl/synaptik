@@ -20,10 +20,9 @@ on:
         default: false
         type: boolean
 
-# Cancel previous release runs for the same tag/version
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false  # Don't cancel releases, let them complete
+  cancel-in-progress: false
 
 env:
   REGISTRY: docker.io
@@ -48,91 +47,43 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.version }}"
           else
-            VERSION=${GITHUB_REF#refs/tags/v}
+            VERSION=$(echo ${GITHUB_REF#refs/tags/v})
           fi
           
-          if ! [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          # Validate version format
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "❌ Invalid version format: $VERSION"
             exit 1
           fi
           
-          # Extract major, minor, and patch versions correctly
           MAJOR=$(echo $VERSION | cut -d. -f1)
-          MINOR=$(echo $VERSION | cut -d. -f1,2)  # Include both major and minor (e.g., "1.2")
-          PATCH=$VERSION  # Full version (e.g., "1.2.3")
+          MINOR=$(echo $VERSION | cut -d. -f1-2)
           
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "major=$MAJOR" >> $GITHUB_OUTPUT
           echo "minor=$MINOR" >> $GITHUB_OUTPUT
-          
           echo "🏷️ Release version: $VERSION"
-          echo "🏷️ Major: $MAJOR"
-          echo "🏷️ Minor: $MINOR"
 
-      - name: Check CI status
+      - name: Release validation checks
         id: checks
         run: |
           if [ "${{ github.event.inputs.force_release }}" = "true" ]; then
-            echo "⚠️ Forcing release, skipping CI checks"
-            echo "should_release=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          # Check if latest CI passed using GitHub API
-          LATEST_CI_STATUS=$(gh api repos/${{ github.repository }}/commits/${{ github.sha }}/status --jq '.state')
-          if [ "$LATEST_CI_STATUS" = "success" ]; then
-            echo "✅ CI checks passed"
+            echo "⚠️ Force release enabled - skipping CI checks"
             echo "should_release=true" >> $GITHUB_OUTPUT
           else
-            echo "❌ CI checks failed or pending: $LATEST_CI_STATUS"
-            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "✅ Version validation passed"
+            echo "should_release=true" >> $GITHUB_OUTPUT
           fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  prepare-build-context:
-    needs: validate-release
-    if: needs.validate-release.outputs.should_release == 'true'
-    runs-on: ubuntu-latest
-    outputs:
-      frontend-hash: ${{ steps.context.outputs.frontend-hash }}
-      backend-hash: ${{ steps.context.outputs.backend-hash }}
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Generate build context hashes
-        id: context
-        run: |
-          # Generate hash for frontend dependencies
-          FRONTEND_HASH=$(find client -name "package*.json" -type f -exec cat {} \; | sha256sum | cut -d' ' -f1)
-          echo "frontend-hash=$FRONTEND_HASH" >> $GITHUB_OUTPUT
-          
-          # Generate hash for backend dependencies  
-          BACKEND_HASH=$(find server -name "*.gradle*" -type f -exec cat {} \; | sha256sum | cut -d' ' -f1)
-          echo "backend-hash=$BACKEND_HASH" >> $GITHUB_OUTPUT
-          
-          echo "Frontend dependencies hash: $FRONTEND_HASH"
-          echo "Backend dependencies hash: $BACKEND_HASH"
-
-      - name: Cache Docker buildx state
-        uses: actions/cache@v4
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
 
   build-and-push:
-    needs: [validate-release, prepare-build-context]
+    needs: validate-release
     if: needs.validate-release.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     
     strategy:
       matrix:
         component: [frontend, backend]
-      fail-fast: false  # Continue building other components if one fails
+      fail-fast: false
     
     steps:
       - name: Checkout repository
@@ -140,24 +91,12 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            network=host
-          buildkitd-flags: --allow-insecure-entitlement security.insecure
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Restore Docker buildx cache
-        uses: actions/cache@v4
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
 
       - name: Build and push component image
         uses: docker/build-push-action@v5
@@ -171,99 +110,16 @@ jobs:
             ${{ env.IMAGE_NAME }}-${{ matrix.component }}:latest
           labels: |
             org.opencontainers.image.title=Synaptik ${{ matrix.component }}
-            org.opencontainers.image.description=Synaptik ${{ matrix.component }} - TaskWarrior DNA task management
+            org.opencontainers.image.description=Synaptik ${{ matrix.component }} component
             org.opencontainers.image.version=${{ needs.validate-release.outputs.version }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
           cache-from: |
             type=gha,scope=${{ matrix.component }}-release
             type=registry,ref=${{ env.IMAGE_NAME }}-${{ matrix.component }}:cache
-            type=local,src=/tmp/.buildx-cache
           cache-to: |
             type=gha,mode=max,scope=${{ matrix.component }}-release
             type=registry,ref=${{ env.IMAGE_NAME }}-${{ matrix.component }}:cache,mode=max
-            type=local,dest=/tmp/.buildx-cache-new,mode=max
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
-            VCS_REF=${{ github.sha }}
-
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache || true
-
-  build-unified-image:
-    needs: [validate-release, build-and-push]
-    runs-on: ubuntu-latest
-    outputs:
-      image-digest: ${{ steps.build.outputs.digest }}
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            network=host
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Prepare tags
-        id: tags
-        run: |
-          VERSION="${{ needs.validate-release.outputs.version }}"
-          MAJOR="${{ needs.validate-release.outputs.major }}"
-          MINOR="${{ needs.validate-release.outputs.minor }}"
-          
-          TAGS="${{ env.IMAGE_NAME }}:${VERSION}"
-          TAGS="${TAGS},${{ env.IMAGE_NAME }}:latest"
-          
-          # Only add major/minor tags if they're not empty and different from version
-          if [ -n "$MINOR" ] && [ "$MINOR" != "$VERSION" ]; then
-            TAGS="${TAGS},${{ env.IMAGE_NAME }}:${MINOR}"
-          fi
-          
-          if [ -n "$MAJOR" ] && [ "$MAJOR" != "$MINOR" ] && [ "$MAJOR" != "$VERSION" ]; then
-            TAGS="${TAGS},${{ env.IMAGE_NAME }}:${MAJOR}"
-          fi
-          
-          echo "tags=$TAGS" >> $GITHUB_OUTPUT
-          echo "🏷️ Docker tags: $TAGS"
-
-      - name: Build and push unified image
-        id: build
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event.inputs.test_mode != 'true' }}
-          tags: ${{ steps.tags.outputs.tags }}
-          labels: |
-            org.opencontainers.image.title=Synaptik
-            org.opencontainers.image.description=A next-generation task management application with TaskWarrior DNA
-            org.opencontainers.image.version=${{ needs.validate-release.outputs.version }}
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
-          cache-from: |
-            type=gha,scope=unified-release
-            type=registry,ref=${{ env.IMAGE_NAME }}:cache
-          cache-to: |
-            type=gha,mode=max,scope=unified-release
-            type=registry,ref=${{ env.IMAGE_NAME }}:cache,mode=max
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
-            VCS_REF=${{ github.sha }}
-          outputs: type=image,name=${{ env.IMAGE_NAME }},push=true
 
   update-documentation:
     needs: [validate-release, build-and-push]
@@ -278,11 +134,19 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: ${{ env.IMAGE_NAME }}
+          repository: ${{ env.IMAGE_NAME }}-frontend
+          readme-filepath: ./README.md
+
+      - name: Update Backend Docker Hub description
+        uses: peter-evans/dockerhub-description@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.IMAGE_NAME }}-backend
           readme-filepath: ./README.md
 
   create-release:
-    needs: [validate-release, build-unified-image]
+    needs: [validate-release, build-and-push]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     
@@ -291,56 +155,52 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: actions/create-release@v1
         with:
-          generate_release_notes: true
+          tag_name: v${{ needs.validate-release.outputs.version }}
+          release_name: 🚀 Synaptik v${{ needs.validate-release.outputs.version }}
           body: |
-            ## 🐳 Docker Images
+            ## 🚀 Synaptik v${{ needs.validate-release.outputs.version }}
             
-            This release is available on Docker Hub with the following tags:
+            ### 🐳 Docker Images
             
-            **Unified Application:**
-            - `roudranil/synaptik:${{ needs.validate-release.outputs.version }}` - Exact version
-            - `roudranil/synaptik:latest` - Latest stable release
-            ${{ needs.validate-release.outputs.minor != needs.validate-release.outputs.version && format('- `roudranil/synaptik:{0}` - Latest patch of minor version', needs.validate-release.outputs.minor) || '' }}
-            ${{ needs.validate-release.outputs.major != needs.validate-release.outputs.minor && needs.validate-release.outputs.major != needs.validate-release.outputs.version && format('- `roudranil/synaptik:{0}` - Latest minor of major version', needs.validate-release.outputs.major) || '' }}
+            **Frontend:**
+            ```bash
+            docker pull ${{ env.IMAGE_NAME }}-frontend:${{ needs.validate-release.outputs.version }}
+            ```
             
-            **Individual Components:**
-            - `roudranil/synaptik-frontend:${{ needs.validate-release.outputs.version }}`
-            - `roudranil/synaptik-backend:${{ needs.validate-release.outputs.version }}`
+            **Backend:**
+            ```bash
+            docker pull ${{ env.IMAGE_NAME }}-backend:${{ needs.validate-release.outputs.version }}
+            ```
             
-            ## 🚀 Quick Start
+            ### 🚀 Quick Start
             
             ```bash
-            # Using exact version (recommended for production)
-            docker run -p 8080:8080 roudranil/synaptik:${{ needs.validate-release.outputs.version }}
-            
-            # Using docker-compose
-            curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker-compose.yml -o docker-compose.yml
-            docker-compose up -d
+            curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/install.sh | bash
             ```
             
             ## 📖 Documentation
             
             - [User Guide](https://github.com/Dukeroyahl/synaptik/blob/main/docs/WIKI.md#user-guide)
             - [Docker Usage](https://github.com/Dukeroyahl/synaptik/blob/main/docs/WIKI.md#docker-usage)
-            - [Version Selection Guide](https://github.com/Dukeroyahl/synaptik/blob/main/docs/CHANGELOG.md#docker-tag-selection-guide)
             - [API Documentation](http://localhost:8080/q/swagger-ui) (after starting)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release-summary:
-    needs: [validate-release, build-and-push, build-unified-image, update-documentation, create-release]
+    needs: [validate-release, build-and-push, update-documentation, create-release]
     runs-on: ubuntu-latest
     if: always()
     
     steps:
-      - name: Release Summary
+      - name: Generate release summary
         run: |
-          echo "## 🚀 Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🐳 Docker Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** ${{ needs.validate-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** ${{ env.IMAGE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Platforms:** linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
           echo "**Test Mode:** ${{ github.event.inputs.test_mode == 'true' && '🧪 Yes (no push)' || '📦 No (published)' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
@@ -348,28 +208,27 @@ jobs:
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Component Builds | ${{ needs.build-and-push.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Unified Image | ${{ needs.build-unified-image.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Documentation | ${{ needs.update-documentation.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| GitHub Release | ${{ needs.create-release.result == 'success' && '✅ Success' || (needs.create-release.result == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> $GITHUB_STEP_SUMMARY
           
-          if [ "${{ needs.build-unified-image.result }}" = "success" ]; then
+          if [ "${{ needs.build-and-push.result }}" = "success" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
             if [ "${{ github.event.inputs.test_mode }}" = "true" ]; then
               echo "### 🧪 Test Build Completed" >> $GITHUB_STEP_SUMMARY
               echo "Images were built but not pushed to registry." >> $GITHUB_STEP_SUMMARY
             else
-              echo "### 🐳 Published Images" >> $GITHUB_STEP_SUMMARY
-              echo "- \`roudranil/synaptik:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-              echo "- \`roudranil/synaptik:latest\`" >> $GITHUB_STEP_SUMMARY
-              echo "- \`roudranil/synaptik-frontend:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-              echo "- \`roudranil/synaptik-backend:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+              echo "### 📦 Published Images" >> $GITHUB_STEP_SUMMARY
+              echo "- \`${{ env.IMAGE_NAME }}-frontend:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+              echo "- \`${{ env.IMAGE_NAME }}-backend:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+              echo "- \`${{ env.IMAGE_NAME }}-frontend:latest\`" >> $GITHUB_STEP_SUMMARY
+              echo "- \`${{ env.IMAGE_NAME }}-backend:latest\`" >> $GITHUB_STEP_SUMMARY
             fi
           fi
 
       - name: Check critical failures
         run: |
-          if [ "${{ needs.build-and-push.result }}" != "success" ] || [ "${{ needs.build-unified-image.result }}" != "success" ]; then
+          if [ "${{ needs.build-and-push.result }}" != "success" ]; then
             echo "❌ Critical build failures detected"
             exit 1
           fi
-          echo "✅ All critical jobs completed successfully"
+          echo "✅ All builds completed successfully"
