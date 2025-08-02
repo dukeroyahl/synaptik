@@ -56,14 +56,18 @@ jobs:
             exit 1
           fi
           
+          # Extract major, minor, and patch versions correctly
           MAJOR=$(echo $VERSION | cut -d. -f1)
-          MINOR=$(echo $VERSION | cut -d. -f1-2)
+          MINOR=$(echo $VERSION | cut -d. -f1,2)  # Include both major and minor (e.g., "1.2")
+          PATCH=$VERSION  # Full version (e.g., "1.2.3")
           
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "major=$MAJOR" >> $GITHUB_OUTPUT
           echo "minor=$MINOR" >> $GITHUB_OUTPUT
           
           echo "🏷️ Release version: $VERSION"
+          echo "🏷️ Major: $MAJOR"
+          echo "🏷️ Minor: $MINOR"
 
       - name: Check CI status
         id: checks
@@ -212,6 +216,28 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Prepare tags
+        id: tags
+        run: |
+          VERSION="${{ needs.validate-release.outputs.version }}"
+          MAJOR="${{ needs.validate-release.outputs.major }}"
+          MINOR="${{ needs.validate-release.outputs.minor }}"
+          
+          TAGS="${{ env.IMAGE_NAME }}:${VERSION}"
+          TAGS="${TAGS},${{ env.IMAGE_NAME }}:latest"
+          
+          # Only add major/minor tags if they're not empty and different from version
+          if [ -n "$MINOR" ] && [ "$MINOR" != "$VERSION" ]; then
+            TAGS="${TAGS},${{ env.IMAGE_NAME }}:${MINOR}"
+          fi
+          
+          if [ -n "$MAJOR" ] && [ "$MAJOR" != "$MINOR" ] && [ "$MAJOR" != "$VERSION" ]; then
+            TAGS="${TAGS},${{ env.IMAGE_NAME }}:${MAJOR}"
+          fi
+          
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+          echo "🏷️ Docker tags: $TAGS"
+
       - name: Build and push unified image
         id: build
         uses: docker/build-push-action@v5
@@ -219,11 +245,7 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event.inputs.test_mode != 'true' }}
-          tags: |
-            ${{ env.IMAGE_NAME }}:${{ needs.validate-release.outputs.version }}
-            ${{ env.IMAGE_NAME }}:${{ needs.validate-release.outputs.minor }}
-            ${{ env.IMAGE_NAME }}:${{ needs.validate-release.outputs.major }}
-            ${{ env.IMAGE_NAME }}:latest
+          tags: ${{ steps.tags.outputs.tags }}
           labels: |
             org.opencontainers.image.title=Synaptik
             org.opencontainers.image.description=A next-generation task management application with TaskWarrior DNA
@@ -279,9 +301,9 @@ jobs:
             
             **Unified Application:**
             - `roudranil/synaptik:${{ needs.validate-release.outputs.version }}` - Exact version
-            - `roudranil/synaptik:${{ needs.validate-release.outputs.minor }}` - Latest patch of minor version
-            - `roudranil/synaptik:${{ needs.validate-release.outputs.major }}` - Latest minor of major version
             - `roudranil/synaptik:latest` - Latest stable release
+            ${{ needs.validate-release.outputs.minor != needs.validate-release.outputs.version && format('- `roudranil/synaptik:{0}` - Latest patch of minor version', needs.validate-release.outputs.minor) || '' }}
+            ${{ needs.validate-release.outputs.major != needs.validate-release.outputs.minor && needs.validate-release.outputs.major != needs.validate-release.outputs.version && format('- `roudranil/synaptik:{0}` - Latest minor of major version', needs.validate-release.outputs.major) || '' }}
             
             **Individual Components:**
             - `roudranil/synaptik-frontend:${{ needs.validate-release.outputs.version }}`
