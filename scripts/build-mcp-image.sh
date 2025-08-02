@@ -6,9 +6,10 @@
 set -e
 
 # Configuration
-IMAGE_NAME="synaptik/mcp-server"
+IMAGE_NAME="roudranil/synaptik"
+TAG_PREFIX="mcp-server-"
 TAG="${1:-latest}"
-FULL_IMAGE="$IMAGE_NAME:$TAG"
+FULL_IMAGE="$IMAGE_NAME:$TAG_PREFIX$TAG"
 
 echo "🔨 Building Synaptik MCP Server image: $FULL_IMAGE"
 

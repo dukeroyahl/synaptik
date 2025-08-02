@@ -29,7 +29,7 @@ services:
 
   # Backend API Service  
   api:
-    image: ${API_IMAGE:-synaptik/api:latest}
+    image: ${API_IMAGE:-roudranil/synaptik:backend-latest}
     container_name: synaptik-api
     expose:
       - "8080"
@@ -52,7 +52,7 @@ services:
 
   # Frontend UI Service
   ui:
-    image: ${UI_IMAGE:-synaptik/ui:latest}
+    image: ${UI_IMAGE:-roudranil/synaptik:frontend-latest}
     container_name: synaptik-ui
     ports:
       - "${HTTP_PORT:-80}:80"
@@ -65,7 +65,7 @@ services:
 
   # MCP Server (Production)
   mcp-server:
-    image: ${MCP_IMAGE:-synaptik/mcp:latest}
+    image: ${MCP_IMAGE:-roudranil/synaptik:mcp-server-latest}
     container_name: synaptik-mcp
     restart: unless-stopped
     environment:
