@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Synaptik Installation Script
-# This script sets up Synaptik with minimal user intervention
-# Safe to run multiple times - will always update to latest version
+# Synaptik Installation & Update Script
+# This script handles both fresh installations and updates
+# Safe to run multiple times - automatically detects and handles both scenarios
 
 set -e
 
