@@ -7,6 +7,7 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 
 const SYNAPTIK_BASE_URL = process.env.SYNAPTIK_URL || 'http://localhost:9001';
@@ -91,38 +92,38 @@ const server = new Server(
   { capabilities: { tools: {} } }
 );
 
-// Use the list_tools method if available
-if (server.list_tools) {
-  server.list_tools = async () => tools;
-}
+// Register tools/list handler
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  return { tools };
+});
 
-// Use the call_tool method if available  
-if (server.call_tool) {
-  server.call_tool = async (name, args) => {
-    try {
-      const response = await axios.post(`${SYNAPTIK_BASE_URL}/mcp/tools/${name}`, args, {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 30000
-      });
-      
-      return {
-        content: [{
-          type: 'text',
-          text: typeof response.data === 'string' ? response.data : JSON.stringify(response.data, null, 2)
-        }]
-      };
-    } catch (error) {
-      console.error(`Error calling tool ${name}:`, error.message);
-      return {
-        content: [{
-          type: 'text', 
-          text: `Error: ${error.message}`
-        }],
-        isError: true
-      };
-    }
-  };
-}
+// Register tools/call handler
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
+  
+  try {
+    const response = await axios.post(`${SYNAPTIK_BASE_URL}/mcp/tools/${name}`, args, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 30000
+    });
+    
+    return {
+      content: [{
+        type: 'text',
+        text: typeof response.data === 'string' ? response.data : JSON.stringify(response.data, null, 2)
+      }]
+    };
+  } catch (error) {
+    console.error(`Error calling tool ${name}:`, error.message);
+    return {
+      content: [{
+        type: 'text', 
+        text: `Error: ${error.message}`
+      }],
+      isError: true
+    };
+  }
+});
 
 async function main() {
   try {
