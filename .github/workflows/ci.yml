@@ -250,6 +250,11 @@ jobs:
 
 
   # Create release branch on merge to main
+  # Uses conventional commits to determine version bump:
+  # - feat!: or fix!: (breaking changes) → major version (x.0.0)
+  # - feat: (new features) → minor version (x.y.0)  
+  # - fix: (bug fixes) → patch version (x.y.z)
+  # - docs:, style:, refactor:, test:, chore: → no version bump
   create-release-branch:
     needs: [workflow-context, comprehensive-ci]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.comprehensive-ci.result == 'success'
@@ -272,77 +277,82 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
+      - name: Determine next version using semver
+        id: semver
+        uses: ietf-tools/semver-action@v1
+        with:
+          token: ${{ github.token }}
+          branch: main
+
       - name: Generate new version and create release branch
         id: version
         run: |
-          # Get current version from package.json
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-          echo "Current version: $CURRENT_VERSION"
-          
-          # Parse version components
-          IFS='.' read -r -a VERSION_PARTS <<< "$CURRENT_VERSION"
-          MAJOR=${VERSION_PARTS[0]}
-          MINOR=${VERSION_PARTS[1]}
-          PATCH=${VERSION_PARTS[2]}
-          
-          # Always increment patch version
-          NEW_PATCH=$((PATCH + 1))
-          NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+          # Get version info from semver action
+          CURRENT_VERSION="${{ steps.semver.outputs.current }}"
+          NEW_VERSION="${{ steps.semver.outputs.next }}"
           VERSION_TAG="v$NEW_VERSION"
-          VERSION_TYPE="PATCH"
+          VERSION_TYPE="${{ steps.semver.outputs.bump }}"
           RELEASE_BRANCH="release/$NEW_VERSION"
           
-          echo "🩹 Auto-incrementing PATCH version"
+          echo "Current version: $CURRENT_VERSION"
           echo "New version: $NEW_VERSION"
+          echo "Version type: $VERSION_TYPE"
           echo "Version tag: $VERSION_TAG"
           echo "Release branch: $RELEASE_BRANCH"
           
-          # Create release branch from main
-          git checkout -b "$RELEASE_BRANCH"
-          
-          # Update package.json
-          npm version $NEW_VERSION --no-git-tag-version
-          
-          # Update client config.ts version
-          sed -i "s/APP_VERSION = '[^']*'/APP_VERSION = '$NEW_VERSION'/" client/src/config.ts
-          
-          # Commit version changes to release branch
-          git add package.json client/src/config.ts
-          git commit -m "chore: bump version to $NEW_VERSION for release"
-          
-          # Push release branch
-          git push origin "$RELEASE_BRANCH"
-          
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "version_tag=$VERSION_TAG" >> $GITHUB_OUTPUT
-          echo "version_type=$VERSION_TYPE" >> $GITHUB_OUTPUT
-          echo "release_branch=$RELEASE_BRANCH" >> $GITHUB_OUTPUT
+          # Only create release if there's a version bump
+          if [ "$VERSION_TYPE" != "none" ]; then
+            echo "📦 Creating release branch for $VERSION_TYPE version bump"
+            
+            # Create release branch from main  
+            git checkout -b "$RELEASE_BRANCH"
+            
+            # Create empty commit to mark the release branch
+            git commit --allow-empty -m "chore: prepare release $NEW_VERSION"
+            
+            # Push release branch
+            git push origin "$RELEASE_BRANCH"
+            
+            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "version_tag=$VERSION_TAG" >> $GITHUB_OUTPUT
+            echo "version_type=$VERSION_TYPE" >> $GITHUB_OUTPUT
+            echo "release_branch=$RELEASE_BRANCH" >> $GITHUB_OUTPUT
+          else
+            echo "⏭️ No version bump needed - no conventional commits found"
+            echo "new_version=" >> $GITHUB_OUTPUT
+            echo "version_tag=" >> $GITHUB_OUTPUT
+            echo "version_type=none" >> $GITHUB_OUTPUT
+            echo "release_branch=" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create Release Pull Request
+        if: steps.version.outputs.version_type != 'none'
         run: |
           gh pr create \
             --title "Release ${{ steps.version.outputs.new_version }}" \
             --body "$(cat <<'EOF'
           ## 🚀 Release ${{ steps.version.outputs.new_version }}
           
-          **${{ steps.version.outputs.version_type }} release** - Automated patch release
+          **${{ steps.version.outputs.version_type }} release** - Automated release based on conventional commits
           
           ### 📋 Release Details
           
-          - **Version Type**: ${{ steps.version.outputs.version_type }} (automated increment)
+          - **Version Type**: ${{ steps.version.outputs.version_type }} (determined by conventional commits)
           - **New Version**: ${{ steps.version.outputs.new_version }}
           - **Release Branch**: ${{ steps.version.outputs.release_branch }}
           
           ### 🔄 Changes Included
           
-          This release includes all changes merged to main since the last release.
-          Check the commit history for detailed changes.
+          This release includes all conventional commits since the last release:
+          - `feat:` commits trigger **minor** version bumps
+          - `feat!:` or `fix!:` (breaking changes) trigger **major** version bumps  
+          - `fix:` commits trigger **patch** version bumps
           
           ### ✅ Merge Instructions
           
-          1. Review the version bump changes
-          2. Merge this PR to trigger Docker publishing and GitHub release creation
-          3. After merge, the release will be automatically published to DockerHub
+          1. Review the release branch changes
+          2. Merge this PR to trigger Docker publishing and GitHub release creation  
+          3. After merge, git tag will be created and release published to DockerHub
           
           🤖 Generated with [Claude Code](https://claude.ai/code)
           EOF
@@ -354,7 +364,7 @@ jobs:
 
   docker-publish:
     needs: [workflow-context, comprehensive-ci]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.comprehensive-ci.result == 'success' && contains(github.event.head_commit.message, 'chore: bump version')
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.comprehensive-ci.result == 'success' && contains(github.event.head_commit.message, 'chore: prepare release')
     runs-on: ubuntu-latest
     
     strategy:
@@ -366,10 +376,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get version from package.json
+      - name: Get version from semver-action
+        id: semver
+        uses: ietf-tools/semver-action@v1
+        with:
+          token: ${{ github.token }}
+          branch: main
+
+      - name: Set version
         id: version
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          VERSION="${{ steps.semver.outputs.current }}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Release version: $VERSION"
 
@@ -418,16 +435,23 @@ jobs:
   create-github-release:
     needs: [docker-publish]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && contains(github.event.head_commit.message, 'chore: bump version')
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && contains(github.event.head_commit.message, 'chore: prepare release')
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get version from package.json
+      - name: Get version from semver-action
+        id: semver
+        uses: ietf-tools/semver-action@v1
+        with:
+          token: ${{ github.token }}
+          branch: main
+
+      - name: Set version
         id: version
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          VERSION="${{ steps.semver.outputs.current }}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Release version: $VERSION"
 
@@ -440,11 +464,11 @@ jobs:
           body: |
             ## 🚀 Synaptik ${{ steps.version.outputs.version }}
             
-            **PATCH release** - Automated release from release branch merge
+            **Release** - Automated release from release branch merge
             
             ### 📋 Release Details
             
-            - **Version Type**: PATCH (automated increment)
+            - **Version Type**: Determined by conventional commits (feat!, feat:, fix:, etc.)
             - **Release Notes**: Check commit history for detailed changes
             - **Commit SHA**: ${{ github.sha }}
             
@@ -530,8 +554,8 @@ jobs:
                 echo "❌ Release branch creation failed"
                 exit 1
               fi
-              # Docker publish and GitHub release are only expected if version bump commit
-              if [ "${{ contains(github.event.head_commit.message, 'chore: bump version') }}" = "true" ]; then
+              # Docker publish and GitHub release are only expected if release commit
+              if [ "${{ contains(github.event.head_commit.message, 'chore: prepare release') }}" = "true" ]; then
                 if [ "${{ needs.docker-publish.result }}" != "success" ]; then
                   echo "❌ Docker publish failed"
                   exit 1
