@@ -109,6 +109,10 @@ jobs:
           FRONTEND_HASH=$(find client -name "package*.json" -type f -exec cat {} \; | sha256sum | cut -d' ' -f1)
           echo "frontend-hash=$FRONTEND_HASH" >> $GITHUB_OUTPUT
           
+          # Generate hash for MCP server dependencies
+          MCP_HASH=$(find mcp-server -name "package*.json" -type f -exec cat {} \; | sha256sum | cut -d' ' -f1)
+          echo "mcp-hash=$MCP_HASH" >> $GITHUB_OUTPUT
+          
           # Generate hash for backend dependencies  
           BACKEND_HASH=$(find server -name "*.gradle*" -type f -exec cat {} \; | sha256sum | cut -d' ' -f1)
           echo "backend-hash=$BACKEND_HASH" >> $GITHUB_OUTPUT
@@ -131,7 +135,7 @@ jobs:
     
     strategy:
       matrix:
-        component: [frontend, backend]
+        component: [frontend, backend, mcp-server]
       fail-fast: false  # Continue building other components if one fails
     
     steps:
@@ -163,7 +167,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./dist/docker/Dockerfile.${{ matrix.component }}
+          file: ${{ matrix.component == 'mcp-server' && './mcp-server/Dockerfile' || format('./dist/docker/Dockerfile.{0}', matrix.component) }}
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event.inputs.test_mode != 'true' }}
           tags: |
@@ -308,6 +312,7 @@ jobs:
             **Individual Components:**
             - `roudranil/synaptik-frontend:${{ needs.validate-release.outputs.version }}`
             - `roudranil/synaptik-backend:${{ needs.validate-release.outputs.version }}`
+            - `roudranil/synaptik-mcp-server:${{ needs.validate-release.outputs.version }}`
             
             ## 🚀 Quick Start
             
@@ -363,6 +368,7 @@ jobs:
               echo "- \`roudranil/synaptik:latest\`" >> $GITHUB_STEP_SUMMARY
               echo "- \`roudranil/synaptik-frontend:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
               echo "- \`roudranil/synaptik-backend:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+              echo "- \`roudranil/synaptik-mcp-server:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
             fi
           fi
 

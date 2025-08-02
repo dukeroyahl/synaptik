@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Build and push Synaptik MCP Server Docker image
-# This creates the image that can be used as now let me build doMCP server
+# This creates the image that can be used as a Docker MCP server
 
 set -e
 
