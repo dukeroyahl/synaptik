@@ -29,7 +29,7 @@ The MCP server is published as Docker images under the consolidated repository:
 2. **Run the MCP server:**
    ```bash
    docker run -i --rm \
-     -e SYNAPTIK_URL=http://host.docker.internal:8080 \
+     -e SYNAPTIK_URL=http://host.docker.internal:9001 \
      roudranil/synaptik:mcp-server-latest
    ```
 
@@ -55,7 +55,7 @@ The MCP server is published as Docker images under the consolidated repository:
            "--rm",
            "--network=synaptik-network",
            "-e",
-           "SYNAPTIK_URL=http://api:8080",
+           "SYNAPTIK_URL=http://api:9001",
            "roudranil/synaptik:mcp-server-latest"
          ]
        }
@@ -124,7 +124,7 @@ docker build -f Dockerfile -t synaptik-mcp:local .
 
 # Run locally
 docker run -i --rm \
-  -e SYNAPTIK_URL=http://localhost:8080 \
+  -e SYNAPTIK_URL=http://localhost:9001 \
   synaptik-mcp:local
 ```
 
@@ -173,7 +173,7 @@ The MCP server communicates with:
 Enable debug logging:
 ```bash
 docker run -i --rm \
-  -e SYNAPTIK_URL=http://host.docker.internal:8080 \
+  -e SYNAPTIK_URL=http://host.docker.internal:9001 \
   -e NODE_ENV=development \
   roudranil/synaptik:mcp-server-latest
 ```
