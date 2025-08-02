@@ -5,16 +5,20 @@
  * Bridges between stdio MCP protocol and Synaptik's HTTP MCP endpoints
  */
 
-const { createServer } = require('@modelcontextprotocol/sdk/server');
-const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio');
-const axios = require('axios');
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import axios from 'axios';
 
 const SYNAPTIK_BASE_URL = process.env.SYNAPTIK_URL || 'http://localhost:9001';
 
 // Create MCP server
-const server = createServer({
+const server = new Server({
   name: 'synaptik',
   version: '1.0.0',
+}, {
+  capabilities: {
+    tools: {},
+  },
 });
 
 // Define tools that proxy to Synaptik HTTP endpoints
@@ -91,14 +95,17 @@ const tools = [
   }
 ];
 
-// Register tools
-server.setRequestHandler('tools/list', async () => ({
-  tools
-}));
+// Register tools list handler
+server.setRequestHandler(
+  { method: 'tools/list' },
+  async () => ({ tools })
+);
 
 // Handle tool calls by proxying to Synaptik HTTP API
-server.setRequestHandler('tools/call', async (request) => {
-  const { name, arguments: args } = request.params;
+server.setRequestHandler(
+  { method: 'tools/call' },
+  async (request) => {
+    const { name, arguments: args } = request.params;
   
   try {
     // Make HTTP request to Synaptik MCP endpoint
