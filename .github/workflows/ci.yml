@@ -291,7 +291,8 @@ jobs:
         with:
           token: ${{ github.token }}
           branch: main
-          fallbackTag: v1.0.3
+          fallbackTag: v1.1.0
+          noVersionBumpBehavior: current
 
       - name: Generate new version and create release branch
         id: version
