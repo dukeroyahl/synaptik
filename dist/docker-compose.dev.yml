@@ -3,6 +3,8 @@ version: '3.8'
 # Development Docker Compose - Builds from source with hot reload
 # This is for developers who want to test their changes
 
+name: synaptik-dev
+
 services:
   # MongoDB Database
   mongodb:
@@ -63,19 +65,17 @@ services:
     networks:
       - synaptik-dev-network
 
-  # Frontend Web App (Built from source)
+  # Frontend Web App (Vite dev server for hot reload)
   frontend-dev:
-    build:
-      context: ../
-      dockerfile: dist/docker/Dockerfile.frontend
+    image: node:20-alpine
     container_name: synaptik-frontend-dev
+    working_dir: /app/client
     restart: unless-stopped
     volumes:
       # Source code for hot reload
-      - ../client:/opt/synaptik/client
-      - ./temp/logs/nginx:/var/log/nginx
+      - ../client:/app/client
+      - ./temp/logs/frontend:/app/logs
     ports:
-      - "80:80"
       - "5173:5173"  # Vite dev server
     depends_on:
       backend-dev:
@@ -83,8 +83,9 @@ services:
     environment:
       - NODE_ENV=development
       - VITE_API_BASE_URL=http://localhost:8080
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5173/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -106,6 +107,27 @@ services:
       - "8081:8081"
     depends_on:
       - mongodb
+    networks:
+      - synaptik-dev-network
+
+  # MCP Server (Development)
+  mcp-server-dev:
+    build:
+      context: ../
+      dockerfile: mcp-server/Dockerfile
+    container_name: synaptik-mcp-dev
+    restart: unless-stopped
+    environment:
+      - SYNAPTIK_URL=http://backend-dev:8080
+      - NODE_ENV=development
+    depends_on:
+      backend-dev:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+    volumes:
+      # Source code for development
+      - ../mcp-server:/app/src
     networks:
       - synaptik-dev-network
 

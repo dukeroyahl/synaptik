@@ -109,14 +109,16 @@ check_requirements() {
     
     # Check MongoDB
     if command_exists mongod; then
-        echo_status "$GREEN" "$CHECK" "MongoDB found"
+        echo_status "$GREEN" "$CHECK" "MongoDB found (local installation)"
     elif command_exists brew && brew list mongodb-community >/dev/null 2>&1; then
         echo_status "$GREEN" "$CHECK" "MongoDB (via Homebrew) found"
-    elif command_exists docker && [ -f "$SYNAPTIK_PATH/config/docker-compose.yml" ]; then
-        echo_status "$BLUE" "$INFO" "Docker available - MongoDB will be started via docker-compose"
+    elif command_exists docker && [ -f "$SYNAPTIK_PATH/dist/docker-compose.yml" ]; then
+        echo_status "$GREEN" "$CHECK" "Docker available - MongoDB will be started via Docker Compose"
+    elif command_exists docker; then
+        echo_status "$GREEN" "$CHECK" "Docker available - MongoDB will be containerized"
     else
-        echo_status "$YELLOW" "$WARNING" "MongoDB not found - will need to be installed or use Docker"
-        missing_deps+=("MongoDB")
+        echo_status "$YELLOW" "$WARNING" "MongoDB not found and Docker not available"
+        missing_deps+=("MongoDB or Docker")
     fi
     
     # Check Docker (optional)
@@ -141,34 +143,9 @@ check_requirements() {
 setup_mongodb() {
     echo_header "${DATABASE} MongoDB Setup"
     
-    # Check if docker-compose.yml exists and use it
-    if [ -f "$SYNAPTIK_PATH/config/docker-compose.yml" ] && command_exists docker; then
-        echo_status "$BLUE" "$INFO" "Starting MongoDB via docker-compose..."
-        cd "$SYNAPTIK_PATH/config"
-        docker-compose up -d
-        cd "$SYNAPTIK_PATH"
-        echo_status "$GREEN" "$CHECK" "MongoDB started via Docker Compose"
-        return 0
-    fi
-    
-    # Fallback to Homebrew installation
-    if command_exists brew && ! brew list mongodb-community >/dev/null 2>&1; then
-        echo_status "$BLUE" "$INFO" "Installing MongoDB via Homebrew..."
-        brew tap mongodb/brew
-        brew install mongodb-community
-    fi
-    
-    # Check if MongoDB is running locally
-    if ! pgrep -x "mongod" > /dev/null; then
-        echo_status "$BLUE" "$INFO" "Starting MongoDB..."
-        if command_exists brew; then
-            brew services start mongodb-community
-        else
-            echo_status "$YELLOW" "$WARNING" "Please start MongoDB manually"
-        fi
-    else
-        echo_status "$GREEN" "$CHECK" "MongoDB is already running"
-    fi
+    # MongoDB will be handled by Docker Compose
+    echo_status "$BLUE" "$INFO" "MongoDB will be started automatically with Docker Compose"
+    echo_status "$GREEN" "$CHECK" "MongoDB setup configured for containerized deployment"
 }
 
 # Function to setup environment files

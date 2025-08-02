@@ -7,8 +7,13 @@ on:
     branches: [ main, develop ]
   workflow_dispatch:
 
+# Cancel previous runs for the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20'
   JAVA_VERSION: '21'
 
 jobs:
@@ -40,6 +45,11 @@ jobs:
     if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     
+    strategy:
+      matrix:
+        task: [lint, type-check, test, build]
+      fail-fast: false
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -51,34 +61,56 @@ jobs:
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
 
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            client/node_modules
+            ~/.npm
+          key: ${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('client/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ env.NODE_VERSION }}-
+            ${{ runner.os }}-node-
+
       - name: Install dependencies
         run: |
           cd client
           npm ci
 
-      - name: Lint code
+      - name: Run lint
+        if: matrix.task == 'lint'
         run: |
           cd client
           npm run lint || echo "Lint failed but continuing..."
 
-      - name: Type check
+      - name: Run type check
+        if: matrix.task == 'type-check'
         run: |
           cd client
           npm run type-check || echo "Type check not available, skipping..."
 
       - name: Run tests
+        if: matrix.task == 'test'
         run: |
           cd client
           npm test -- --coverage --passWithNoTests --watchAll=false
 
       - name: Build application
+        if: matrix.task == 'build'
         run: |
           cd client
           npm run build
 
+      - name: Cache build artifacts
+        if: matrix.task == 'build'
+        uses: actions/cache@v4
+        with:
+          path: client/dist
+          key: ${{ runner.os }}-frontend-build-${{ github.sha }}
+
       - name: Upload coverage reports
+        if: matrix.task == 'test' && always()
         uses: codecov/codecov-action@v3
-        if: always()
         with:
           directory: ./client/coverage
           flags: frontend
@@ -88,6 +120,11 @@ jobs:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        task: [test, integration-test, quality-check, build]
+      fail-fast: false
     
     services:
       mongodb:
@@ -114,34 +151,71 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           gradle-home-cache-cleanup: true
+          cache-read-only: false
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            server/.gradle
+          key: ${{ runner.os }}-gradle-${{ env.JAVA_VERSION }}-${{ hashFiles('server/**/*.gradle*', 'server/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-${{ env.JAVA_VERSION }}-
+            ${{ runner.os }}-gradle-
 
       - name: Grant execute permission
         run: chmod +x server/gradlew
 
       - name: Run tests
+        if: matrix.task == 'test'
         run: |
           cd server
-          ./gradlew clean test jacocoTestReport
+          echo "🧪 Running tests..."
+          # Try with coverage first, fallback to plain tests if JaCoCo fails
+          if ! ./gradlew clean test jacocoTestReport 2>/dev/null; then
+            echo "⚠️ JaCoCo coverage failed, running tests without coverage..."
+            ./gradlew clean test
+          fi
+          echo "✅ Tests completed"
 
       - name: Run integration tests
+        if: matrix.task == 'integration-test'
         run: |
           cd server
-          ./gradlew integrationTest || echo "Integration tests failed but continuing..."
+          # Check if quarkusIntTest task exists (Quarkus integration tests)
+          if ./gradlew tasks --all | grep -q "quarkusIntTest"; then
+            ./gradlew quarkusIntTest
+          else
+            echo "⚠️ Quarkus integration test task not found, skipping..."
+          fi
         continue-on-error: true
 
       - name: Code quality check
+        if: matrix.task == 'quality-check'
         run: |
           cd server
           ./gradlew check
 
       - name: Build application
+        if: matrix.task == 'build'
         run: |
           cd server
           ./gradlew build -Dquarkus.package.type=uber-jar
 
+      - name: Cache build artifacts
+        if: matrix.task == 'build'
+        uses: actions/cache@v4
+        with:
+          path: |
+            server/build/libs
+            server/build/quarkus-app
+          key: ${{ runner.os }}-backend-build-${{ github.sha }}
+
       - name: Upload coverage reports
+        if: matrix.task == 'test' && always()
         uses: codecov/codecov-action@v3
-        if: always()
         with:
           directory: ./server/build/reports/jacoco
           flags: backend
@@ -149,7 +223,8 @@ jobs:
 
   security-scan:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && (needs.changes.outputs.frontend == 'true' || needs.changes.outputs.backend == 'true')
+    needs: changes
     
     steps:
       - name: Checkout repository

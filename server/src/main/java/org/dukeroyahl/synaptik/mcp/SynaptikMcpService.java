@@ -62,16 +62,16 @@ public class SynaptikMcpService {
 
     @Tool(description = "Create a new task")
     public Uni<String> createTask(
-            @ToolArg(description = "Task title") String title,
-            @ToolArg(description = "Task description") String description,
-            @ToolArg(description = "Task status (PENDING, WAITING, ACTIVE, COMPLETED)") String status,
-            @ToolArg(description = "Task priority (HIGH, MEDIUM, LOW)") String priority,
-            @ToolArg(description = "Project name") String project,
-            @ToolArg(description = "Assignee name") String assignee,
-            @ToolArg(description = "Due date (ISO format)") String dueDate,
-            @ToolArg(description = "Wait until date (ISO format)") String waitUntil,
-            @ToolArg(description = "Task tags (comma-separated)") String tags,
-            @ToolArg(description = "Task dependencies (comma-separated task IDs)") String depends) {
+            @ToolArg(description = "Task title (required)") String title,
+            @ToolArg(description = "Task description (optional)", required = false) String description,
+            @ToolArg(description = "Task status (optional): PENDING, WAITING, ACTIVE, COMPLETED", required = false) String status,
+            @ToolArg(description = "Task priority (optional): HIGH, MEDIUM, LOW", required = false) String priority,
+            @ToolArg(description = "Project name (optional)", required = false) String project,
+            @ToolArg(description = "Assignee name (optional)", required = false) String assignee,
+            @ToolArg(description = "Due date in ISO format (optional)", required = false) String dueDate,
+            @ToolArg(description = "Wait until date in ISO format (optional)", required = false) String waitUntil,
+            @ToolArg(description = "Task tags comma-separated (optional)", required = false) String tags,
+            @ToolArg(description = "Task dependencies comma-separated task IDs (optional)", required = false) String depends) {
         TaskCreateRequest request = new TaskCreateRequest();
         request.title = title;
         request.description = description;

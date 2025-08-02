@@ -1,42 +1,91 @@
-version: '3.8'
+# Production Docker Compose for Synaptik
+# Uses container images for production deployment
 
-# Main Docker Compose - Uses pinned versions for stability
-# This is what users should use to try Synaptik
+name: synaptik
 
 services:
-  synaptik-backend:
-    image: roudranil/synaptik:1.0.0  # Pin to specific version for stability
-    container_name: synaptik-backend
-    ports:
-      - "8080:8080"
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: synaptik-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: synaptik
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme}
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_logs:/var/log/mongodb
+    expose:
+      - "27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - synaptik-network
+
+  # Backend API Service  
+  api:
+    image: ${API_IMAGE:-synaptik/api:latest}
+    container_name: synaptik-api
+    expose:
+      - "8080"
     environment:
       - QUARKUS_PROFILE=prod
-      - QUARKUS_DATASOURCE_JDBC_URL=jdbc:h2:file:/opt/synaptik/data/synaptik;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-      - QUARKUS_LOG_FILE_PATH=/opt/synaptik/logs/synaptik.log
-      - QUARKUS_LOG_LEVEL=INFO
-    volumes:
-      - ~/.synaptik/data:/opt/synaptik/data
-      - ~/.synaptik/logs:/opt/synaptik/logs
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-changeme}@mongodb:27017/synaptik?authSource=admin
+      - QUARKUS_LOG_LEVEL=${LOG_LEVEL:-INFO}
     restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/q/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - synaptik-network
 
-  synaptik-frontend:
-    image: nginx:alpine
-    container_name: synaptik-frontend
+  # Frontend UI Service
+  ui:
+    image: ${UI_IMAGE:-synaptik/ui:latest}
+    container_name: synaptik-ui
     ports:
-      - "80:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - "${HTTP_PORT:-80}:80"
     depends_on:
-      synaptik-backend:
+      api:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - synaptik-network
+
+  # MCP Server (Production)
+  mcp-server:
+    image: ${MCP_IMAGE:-synaptik/mcp:latest}
+    container_name: synaptik-mcp
+    restart: unless-stopped
+    environment:
+      - SYNAPTIK_URL=http://api:8080
+      - NODE_ENV=production
+    depends_on:
+      api:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+    networks:
+      - synaptik-network
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_logs:
+    driver: local
 
 networks:
-  default:
+  synaptik-network:
     name: synaptik-network
+    driver: bridge

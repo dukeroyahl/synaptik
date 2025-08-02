@@ -1,0 +1,20 @@
+{
+  "name": "synaptik-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Synaptik task management",
+  "main": "mcp-bridge.js",
+  "scripts": {
+    "start": "node mcp-bridge.js",
+    "dev": "node mcp-bridge.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0",
+    "axios": "^1.6.0"
+  },
+  "bin": {
+    "synaptik-mcp": "./mcp-bridge.js"
+  },
+  "keywords": ["mcp", "synaptik", "task-management"],
+  "author": "Synaptik",
+  "license": "MIT"
+}
