@@ -257,7 +257,7 @@ jobs:
             - [📚 Complete Wiki](https://github.com/Dukeroyahl/synaptik/wiki)
             - [User Guide](https://github.com/Dukeroyahl/synaptik/wiki/User-Guide)
             - [Docker Guide](https://github.com/Dukeroyahl/synaptik/wiki/Docker-Guide)
-            - [API Documentation](http://localhost:8080/q/swagger-ui) (after starting)
+            - [API Documentation](http://localhost:9001/q/swagger-ui) (after starting)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
