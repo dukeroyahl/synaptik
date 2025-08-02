@@ -364,7 +364,11 @@ jobs:
 
   docker-publish:
     needs: [workflow-context, comprehensive-ci]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.comprehensive-ci.result == 'success' && contains(github.event.head_commit.message, 'chore: prepare release')
+    if: |
+      github.ref == 'refs/heads/main' && 
+      github.event_name == 'push' && 
+      needs.comprehensive-ci.result == 'success' && 
+      contains(github.event.head_commit.message, 'chore: prepare release')
     runs-on: ubuntu-latest
     
     strategy:
@@ -435,7 +439,10 @@ jobs:
   create-github-release:
     needs: [docker-publish]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && contains(github.event.head_commit.message, 'chore: prepare release')
+    if: |
+      github.ref == 'refs/heads/main' && 
+      github.event_name == 'push' && 
+      contains(github.event.head_commit.message, 'chore: prepare release')
     
     steps:
       - name: Checkout repository
