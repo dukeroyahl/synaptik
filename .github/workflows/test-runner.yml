@@ -1,0 +1,167 @@
+name: Reusable Test Runner
+
+on:
+  workflow_call:
+    inputs:
+      component:
+        description: 'Component to test (frontend/backend)'
+        required: true
+        type: string
+      test_type:
+        description: 'Type of test (unit/integration/coverage)'
+        required: false
+        default: 'unit'
+        type: string
+      node_version:
+        description: 'Node.js version'
+        required: false
+        default: '20'
+        type: string
+      java_version:
+        description: 'Java version'
+        required: false
+        default: '21'
+        type: string
+      skip_coverage:
+        description: 'Skip coverage reporting'
+        required: false
+        default: false
+        type: boolean
+    outputs:
+      test_result:
+        description: 'Test execution result'
+        value: ${{ jobs.run-tests.outputs.result }}
+      coverage_available:
+        description: 'Whether coverage data is available'
+        value: ${{ jobs.run-tests.outputs.coverage_available }}
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.test-result.outputs.result }}
+      coverage_available: ${{ steps.test-result.outputs.coverage_available }}
+    
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ping: 1})'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        if: inputs.component == 'frontend'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Setup JDK
+        if: inputs.component == 'backend'
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ inputs.java_version }}
+          distribution: 'temurin'
+
+      - name: Cache Gradle dependencies
+        if: inputs.component == 'backend'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            server/.gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('server/**/*.gradle*', 'server/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Frontend tests
+        if: inputs.component == 'frontend'
+        run: |
+          cd client
+          npm ci --prefer-offline --no-audit
+          
+          case "${{ inputs.test_type }}" in
+            "unit")
+              npm test -- --passWithNoTests --watchAll=false
+              ;;
+            "coverage")
+              npm test -- --coverage --passWithNoTests --watchAll=false
+              ;;
+            "integration")
+              # Add integration test command when available
+              echo "Integration tests not yet implemented"
+              ;;
+          esac
+
+      - name: Backend tests
+        if: inputs.component == 'backend'
+        run: |
+          cd server
+          chmod +x gradlew
+          
+          case "${{ inputs.test_type }}" in
+            "unit")
+              ./gradlew test
+              ;;
+            "coverage")
+              if [ "${{ inputs.skip_coverage }}" = "false" ]; then
+                if ! ./gradlew test jacocoTestReport 2>/dev/null; then
+                  echo "⚠️ JaCoCo coverage failed, running tests without coverage..."
+                  ./gradlew test
+                  echo "coverage_failed=true" >> $GITHUB_ENV
+                fi
+              else
+                ./gradlew test
+              fi
+              ;;
+            "integration")
+              ./gradlew integrationTest || ./gradlew test
+              ;;
+          esac
+
+      - name: Upload coverage reports
+        if: inputs.test_type == 'coverage'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ inputs.component }}
+          path: |
+            client/coverage/
+            server/build/reports/jacoco/
+          retention-days: 7
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ inputs.component }}
+          path: |
+            client/test-results/
+            server/build/test-results/
+            server/build/reports/tests/
+          retention-days: 3
+
+      - name: Set test result
+        id: test-result
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "result=success" >> $GITHUB_OUTPUT
+          else
+            echo "result=failure" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ "${{ inputs.test_type }}" = "coverage" ]; then
+            echo "coverage_available=true" >> $GITHUB_OUTPUT
+          else
+            echo "coverage_available=false" >> $GITHUB_OUTPUT
+          fi

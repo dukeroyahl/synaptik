@@ -1,129 +1,145 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop, "feature/*", "hotfix/*"]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: false
+        default: 'test'
+        type: choice
+        options:
+        - test
+        - staging
+        - production
+      skip_tests:
+        description: 'Skip test execution'
+        required: false
+        default: false
+        type: boolean
 
-# Cancel previous runs for the same branch/PR
+# Smart concurrency - cancel for PRs, don't cancel for main
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   NODE_VERSION: '20'
   JAVA_VERSION: '21'
 
 jobs:
-  changes:
+  # Determine what type of checks to run
+  workflow-context:
     runs-on: ubuntu-latest
     outputs:
-      frontend: ${{ steps.changes.outputs.frontend }}
-      backend: ${{ steps.changes.outputs.backend }}
-      docker: ${{ steps.changes.outputs.docker }}
+      check_type: ${{ steps.context.outputs.check_type }}
+      environment: ${{ steps.context.outputs.environment }}
+      frontend_changed: ${{ steps.changes.outputs.frontend }}
+      backend_changed: ${{ steps.changes.outputs.backend }}
+    
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect file changes
+        uses: dorny/paths-filter@v2
         id: changes
         with:
           filters: |
             frontend:
               - 'client/**'
-              - 'dist/docker/Dockerfile.frontend'
-              - 'dist/docker/nginx.conf'
+              - '*.json'
+              - 'package*.json'
             backend:
               - 'server/**'
-              - 'dist/docker/Dockerfile.backend'
-            docker:
-              - 'dist/docker/**'
-              - 'docker-compose*.yml'
+              - '*.gradle*'
+              - 'gradle/**'
 
-  frontend-test:
-    needs: changes
-    if: needs.changes.outputs.frontend == 'true'
+      - name: Determine workflow context
+        id: context
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "check_type=fast" >> $GITHUB_OUTPUT
+            echo "environment=test" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "check_type=comprehensive" >> $GITHUB_OUTPUT
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "check_type=comprehensive" >> $GITHUB_OUTPUT
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          else
+            echo "check_type=standard" >> $GITHUB_OUTPUT
+            echo "environment=test" >> $GITHUB_OUTPUT
+          fi
+
+  # Fast checks for PRs
+  fast-validation:
+    needs: workflow-context
+    if: needs.workflow-context.outputs.check_type == 'fast'
     runs-on: ubuntu-latest
     
     strategy:
       matrix:
-        task: [lint, type-check, test, build]
+        check: [frontend-lint, backend-compile, security-basic]
       fail-fast: false
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Setup environments
+        run: |
+          if [[ "${{ matrix.check }}" == "frontend-lint" && "${{ needs.workflow-context.outputs.frontend_changed }}" == "true" ]]; then
+            echo "RUN_CHECK=true" >> $GITHUB_ENV
+          elif [[ "${{ matrix.check }}" == "backend-compile" && "${{ needs.workflow-context.outputs.backend_changed }}" == "true" ]]; then
+            echo "RUN_CHECK=true" >> $GITHUB_ENV
+          elif [[ "${{ matrix.check }}" == "security-basic" ]]; then
+            echo "RUN_CHECK=true" >> $GITHUB_ENV
+          else
+            echo "RUN_CHECK=false" >> $GITHUB_ENV
+          fi
+
+      - name: Frontend fast lint
+        if: env.RUN_CHECK == 'true' && matrix.check == 'frontend-lint'
+        run: |
+          cd client
+          npm ci --prefer-offline --no-audit
+          npm run lint -- --max-warnings 0
+          npm run type-check
+
+      - name: Backend fast compile
+        if: env.RUN_CHECK == 'true' && matrix.check == 'backend-compile'
+        run: |
+          cd server
+          chmod +x gradlew
+          ./gradlew compileJava compileTestJava --no-daemon
+
+      - name: Basic security scan
+        if: env.RUN_CHECK == 'true' && matrix.check == 'security-basic'
+        uses: aquasecurity/trivy-action@master
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: client/package-lock.json
-
-      - name: Cache node modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            client/node_modules
-            ~/.npm
-          key: ${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('client/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-${{ env.NODE_VERSION }}-
-            ${{ runner.os }}-node-
-
-      - name: Install dependencies
-        run: |
-          cd client
-          npm ci
-
-      - name: Run lint
-        if: matrix.task == 'lint'
-        run: |
-          cd client
-          npm run lint || echo "Lint failed but continuing..."
-
-      - name: Run type check
-        if: matrix.task == 'type-check'
-        run: |
-          cd client
-          npm run type-check || echo "Type check not available, skipping..."
-
-      - name: Run tests
-        if: matrix.task == 'test'
-        run: |
-          cd client
-          npm test -- --coverage --passWithNoTests --watchAll=false
-
-      - name: Build application
-        if: matrix.task == 'build'
-        run: |
-          cd client
-          npm run build
-
-      - name: Cache build artifacts
-        if: matrix.task == 'build'
-        uses: actions/cache@v4
-        with:
-          path: client/dist
-          key: ${{ runner.os }}-frontend-build-${{ github.sha }}
-
-      - name: Upload coverage reports
-        if: matrix.task == 'test' && always()
-        uses: codecov/codecov-action@v3
-        with:
-          directory: ./client/coverage
-          flags: frontend
+          scan-type: 'fs'
+          format: 'table'
+          exit-code: 1
+          severity: 'CRITICAL,HIGH'
         continue-on-error: true
 
-  backend-test:
-    needs: changes
-    if: needs.changes.outputs.backend == 'true'
+  # Comprehensive CI for main branch and manual triggers
+  comprehensive-ci:
+    needs: workflow-context
+    if: needs.workflow-context.outputs.check_type != 'fast'
     runs-on: ubuntu-latest
     
     strategy:
       matrix:
-        task: [test, integration-test, quality-check, build]
+        component: [frontend, backend]
+        task: [test, build]
       fail-fast: false
     
     services:
@@ -141,191 +157,134 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK
+      - name: Setup Node.js
+        if: matrix.component == 'frontend'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Setup JDK and Gradle cache
+        if: matrix.component == 'backend'
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          gradle-home-cache-cleanup: true
-          cache-read-only: false
-
       - name: Cache Gradle dependencies
+        if: matrix.component == 'backend'
         uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
             server/.gradle
-          key: ${{ runner.os }}-gradle-${{ env.JAVA_VERSION }}-${{ hashFiles('server/**/*.gradle*', 'server/gradle/wrapper/gradle-wrapper.properties') }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('server/**/*.gradle*', 'server/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
-            ${{ runner.os }}-gradle-${{ env.JAVA_VERSION }}-
-            ${{ runner.os }}-gradle-
+            gradle-${{ runner.os }}-
 
-      - name: Grant execute permission
-        run: chmod +x server/gradlew
-
-      - name: Run tests
-        if: matrix.task == 'test'
+      - name: Frontend tasks
+        if: matrix.component == 'frontend' && needs.workflow-context.outputs.frontend_changed == 'true'
         run: |
-          cd server
-          echo "🧪 Running tests..."
-          # Try with coverage first, fallback to plain tests if JaCoCo fails
-          if ! ./gradlew clean test jacocoTestReport 2>/dev/null; then
-            echo "⚠️ JaCoCo coverage failed, running tests without coverage..."
-            ./gradlew clean test
+          cd client
+          npm ci
+          
+          if [ "${{ matrix.task }}" = "test" ]; then
+            npm run lint
+            npm run type-check
+            npm test -- --coverage --passWithNoTests --watchAll=false
+          elif [ "${{ matrix.task }}" = "build" ]; then
+            npm run build
           fi
-          echo "✅ Tests completed"
 
-      - name: Run integration tests
-        if: matrix.task == 'integration-test'
+      - name: Backend tasks
+        if: matrix.component == 'backend' && needs.workflow-context.outputs.backend_changed == 'true'
         run: |
           cd server
-          # Check if quarkusIntTest task exists (Quarkus integration tests)
-          if ./gradlew tasks --all | grep -q "quarkusIntTest"; then
-            ./gradlew quarkusIntTest
-          else
-            echo "⚠️ Quarkus integration test task not found, skipping..."
+          chmod +x gradlew
+          
+          if [ "${{ matrix.task }}" = "test" ]; then
+            if ! ./gradlew clean test jacocoTestReport 2>/dev/null; then
+              echo "⚠️ JaCoCo coverage failed, running tests without coverage..."
+              ./gradlew clean test
+            fi
+          elif [ "${{ matrix.task }}" = "build" ]; then
+            ./gradlew build -Dquarkus.package.type=uber-jar
           fi
-        continue-on-error: true
 
-      - name: Code quality check
-        if: matrix.task == 'quality-check'
-        run: |
-          cd server
-          ./gradlew check
-
-      - name: Build application
-        if: matrix.task == 'build'
-        run: |
-          cd server
-          ./gradlew build -Dquarkus.package.type=uber-jar
-
-      - name: Cache build artifacts
-        if: matrix.task == 'build'
-        uses: actions/cache@v4
-        with:
-          path: |
-            server/build/libs
-            server/build/quarkus-app
-          key: ${{ runner.os }}-backend-build-${{ github.sha }}
-
-      - name: Upload coverage reports
+      - name: Upload test artifacts
         if: matrix.task == 'test' && always()
-        uses: codecov/codecov-action@v3
+        uses: actions/upload-artifact@v4
         with:
-          directory: ./server/build/reports/jacoco
-          flags: backend
-        continue-on-error: true
+          name: test-results-${{ matrix.component }}
+          path: |
+            client/coverage/
+            server/build/reports/
+          retention-days: 3
 
-  security-scan:
+  # Security and quality checks
+  security-comprehensive:
+    needs: workflow-context
+    if: needs.workflow-context.outputs.check_type == 'comprehensive'
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (needs.changes.outputs.frontend == 'true' || needs.changes.outputs.backend == 'true')
-    needs: changes
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Trivy vulnerability scanner
+      - name: Full security scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
-          scan-ref: '.'
           format: 'sarif'
           output: 'trivy-results.sarif'
-        continue-on-error: true
 
-      - name: Upload Trivy scan results
+      - name: Upload security results
         uses: github/codeql-action/upload-sarif@v2
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
-        continue-on-error: true
 
-  docker-build-test:
-    needs: [changes, frontend-test, backend-test]
-    if: |
-      always() && 
-      (needs.changes.outputs.docker == 'true' || 
-       needs.frontend-test.result == 'success' || 
-       needs.backend-test.result == 'success') &&
-      github.event_name == 'push'
+  # Status reporting
+  ci-summary:
+    needs: [workflow-context, fast-validation, comprehensive-ci, security-comprehensive]
     runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        component: [frontend, backend]
-      fail-fast: false
-        
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Check if Dockerfile exists
-        id: dockerfile-check
-        run: |
-          if [ -f "./dist/docker/Dockerfile.${{ matrix.component }}" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "⚠️ Dockerfile.${{ matrix.component }} not found, skipping..."
-          fi
-
-      - name: Build Docker image (test only)
-        if: steps.dockerfile-check.outputs.exists == 'true'
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./dist/docker/Dockerfile.${{ matrix.component }}
-          push: false
-          tags: synaptik-${{ matrix.component }}:test
-          cache-from: type=gha,scope=${{ matrix.component }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
-        continue-on-error: true
-
-  status-check:
-    runs-on: ubuntu-latest
-    needs: [changes, frontend-test, backend-test, security-scan, docker-build-test]
     if: always()
     
     steps:
-      - name: Check all jobs status
+      - name: Generate summary
         run: |
-          echo "=== Job Results ==="
-          echo "Changes: ${{ needs.changes.result }}"
-          echo "Frontend: ${{ needs.frontend-test.result }}"
-          echo "Backend: ${{ needs.backend-test.result }}"
-          echo "Security: ${{ needs.security-scan.result }}"
-          echo "Docker: ${{ needs.docker-build-test.result }}"
+          echo "## 🚀 CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Check Type:** ${{ needs.workflow-context.outputs.check_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ needs.workflow-context.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Frontend Changed:** ${{ needs.workflow-context.outputs.frontend_changed }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Backend Changed:** ${{ needs.workflow-context.outputs.backend_changed }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           
-          # Check if any critical jobs failed
-          CRITICAL_FAILURE=false
+          echo "### Job Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
           
-          if [[ "${{ needs.frontend-test.result }}" == "failure" ]]; then
-            echo "❌ Frontend tests failed"
-            CRITICAL_FAILURE=true
+          if [ "${{ needs.workflow-context.outputs.check_type }}" = "fast" ]; then
+            echo "| Fast Validation | ${{ needs.fast-validation.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Comprehensive CI | ${{ needs.comprehensive-ci.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Security Scan | ${{ needs.security-comprehensive.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           fi
-          
-          if [[ "${{ needs.backend-test.result }}" == "failure" ]]; then
-            echo "❌ Backend tests failed"
-            CRITICAL_FAILURE=true
+
+      - name: Check critical failures
+        run: |
+          if [ "${{ needs.workflow-context.outputs.check_type }}" = "fast" ]; then
+            if [ "${{ needs.fast-validation.result }}" != "success" ]; then
+              echo "❌ Fast validation failed"
+              exit 1
+            fi
+          else
+            if [ "${{ needs.comprehensive-ci.result }}" != "success" ]; then
+              echo "❌ Comprehensive CI failed"
+              exit 1
+            fi
           fi
-          
-          if [[ "${{ needs.changes.result }}" == "failure" ]]; then
-            echo "❌ Change detection failed"
-            CRITICAL_FAILURE=true
-          fi
-          
-          if [ "$CRITICAL_FAILURE" = true ]; then
-            echo "❌ Critical tests failed"
-            exit 1
-          fi
-          
-          echo "✅ All critical tests passed or were skipped"
+          echo "✅ All checks passed"

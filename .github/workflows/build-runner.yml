@@ -1,0 +1,138 @@
+name: Reusable Build Runner
+
+on:
+  workflow_call:
+    inputs:
+      component:
+        description: 'Component to build (frontend/backend)'
+        required: true
+        type: string
+      build_type:
+        description: 'Type of build (development/production)'
+        required: false
+        default: 'production'
+        type: string
+      node_version:
+        description: 'Node.js version'
+        required: false
+        default: '20'
+        type: string
+      java_version:
+        description: 'Java version'
+        required: false
+        default: '21'
+        type: string
+      output_artifacts:
+        description: 'Upload build artifacts'
+        required: false
+        default: true
+        type: boolean
+    outputs:
+      build_result:
+        description: 'Build execution result'
+        value: ${{ jobs.run-build.outputs.result }}
+      artifact_name:
+        description: 'Name of uploaded artifact'
+        value: ${{ jobs.run-build.outputs.artifact_name }}
+
+jobs:
+  run-build:
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.build-result.outputs.result }}
+      artifact_name: ${{ steps.build-result.outputs.artifact_name }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        if: inputs.component == 'frontend'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Setup JDK
+        if: inputs.component == 'backend'
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ inputs.java_version }}
+          distribution: 'temurin'
+
+      - name: Cache Gradle dependencies
+        if: inputs.component == 'backend'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            server/.gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('server/**/*.gradle*', 'server/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Frontend build
+        if: inputs.component == 'frontend'
+        run: |
+          cd client
+          npm ci --prefer-offline --no-audit
+          
+          case "${{ inputs.build_type }}" in
+            "development")
+              npm run build:dev || npm run build
+              ;;
+            "production")
+              npm run build
+              ;;
+          esac
+
+      - name: Backend build
+        if: inputs.component == 'backend'
+        run: |
+          cd server
+          chmod +x gradlew
+          
+          case "${{ inputs.build_type }}" in
+            "development")
+              ./gradlew build -Dquarkus.package.type=fast-jar
+              ;;
+            "production")
+              ./gradlew build -Dquarkus.package.type=uber-jar
+              ;;
+          esac
+
+      - name: Upload frontend artifacts
+        if: inputs.component == 'frontend' && inputs.output_artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build-${{ inputs.build_type }}
+          path: client/dist/
+          retention-days: 7
+
+      - name: Upload backend artifacts
+        if: inputs.component == 'backend' && inputs.output_artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build-${{ inputs.build_type }}
+          path: |
+            server/build/libs/
+            server/build/quarkus-app/
+          retention-days: 7
+
+      - name: Set build result
+        id: build-result
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "result=success" >> $GITHUB_OUTPUT
+          else
+            echo "result=failure" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ "${{ inputs.output_artifacts }}" = "true" ]; then
+            echo "artifact_name=${{ inputs.component }}-build-${{ inputs.build_type }}" >> $GITHUB_OUTPUT
+          else
+            echo "artifact_name=" >> $GITHUB_OUTPUT
+          fi
