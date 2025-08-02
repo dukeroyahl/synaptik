@@ -3,9 +3,10 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package.json and install dependencies
-COPY mcp-server/package.json ./
-RUN npm install --production
+# Copy package.json and package-lock.json for consistent installs
+COPY mcp-server/package.json mcp-server/package-lock.json ./
+# Install dependencies - use npm ci for production builds with package-lock.json
+RUN npm ci --only=production
 
 # Copy MCP bridge script
 COPY mcp-server/mcp-bridge.js ./
