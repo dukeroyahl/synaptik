@@ -8,7 +8,7 @@
 [![Docker](https://img.shields.io/docker/pulls/roudranil/synaptik?logo=docker&color=2496ED)](https://hub.docker.com/r/roudranil/synaptik)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-[🚀 Quick Start](#-quick-start) • [📚 Wiki Documentation](https://github.com/Dukeroyahl/Synaptik/wiki) • [🤝 Contributing](CONTRIBUTING.md)
+[🚀 Quick Start](#-quick-start) • [📚 Wiki Documentation](https://github.com/Dukeroyahl/Synaptik/wiki) • [🤝 Contributing](CONTRIBUTING.md) • [📝 Conventional Commits](https://github.com/Dukeroyahl/Synaptik/wiki/Conventional-Commits)
 
 </div>
 
