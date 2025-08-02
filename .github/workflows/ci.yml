@@ -28,7 +28,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
-  contents: read
+  contents: write  # Required for version bumping and pushing tags
   security-events: write
   actions: read
 
