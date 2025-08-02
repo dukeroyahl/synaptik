@@ -301,12 +301,14 @@ jobs:
           # Get version info from semver action
           CURRENT_VERSION="${{ steps.semver.outputs.current }}"
           NEW_VERSION="${{ steps.semver.outputs.next }}"
-          VERSION_TAG="v$NEW_VERSION"
+          # Remove 'v' prefix if present, then add it consistently
+          CLEAN_VERSION="${NEW_VERSION#v}"
+          VERSION_TAG="v$CLEAN_VERSION"
           VERSION_TYPE="${{ steps.semver.outputs.bump }}"
-          RELEASE_BRANCH="release/$NEW_VERSION"
+          RELEASE_BRANCH="release/$CLEAN_VERSION"
           
           echo "Current version: $CURRENT_VERSION"
-          echo "New version: $NEW_VERSION"
+          echo "Clean version: $CLEAN_VERSION"
           echo "Version type: $VERSION_TYPE"
           echo "Version tag: $VERSION_TAG"
           echo "Release branch: $RELEASE_BRANCH"
@@ -319,12 +321,12 @@ jobs:
             git checkout -b "$RELEASE_BRANCH"
             
             # Create empty commit to mark the release branch
-            git commit --allow-empty -m "chore: prepare release $NEW_VERSION"
+            git commit --allow-empty -m "chore: prepare release $CLEAN_VERSION"
             
             # Push release branch
             git push origin "$RELEASE_BRANCH"
             
-            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "new_version=$CLEAN_VERSION" >> $GITHUB_OUTPUT
             echo "version_tag=$VERSION_TAG" >> $GITHUB_OUTPUT
             echo "version_type=$VERSION_TYPE" >> $GITHUB_OUTPUT
             echo "release_branch=$RELEASE_BRANCH" >> $GITHUB_OUTPUT
