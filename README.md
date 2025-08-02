@@ -54,8 +54,8 @@ docker-compose up -d
 
 ### 🌐 Access Your Application
 - **Web App**: http://localhost:4000
-- **API**: http://localhost:8080
-- **API Documentation**: http://localhost:8080/q/swagger-ui
+- **API**: http://localhost:9001
+- **API Documentation**: http://localhost:9001/q/swagger-ui
 
 
 ---
@@ -82,7 +82,7 @@ Connect Synaptik with Claude Desktop or other AI assistants using MCP (Model Con
         "roudranil/synaptik:mcp-server-latest"
       ],
       "env": {
-        "SYNAPTIK_URL": "http://host.docker.internal:8080"
+        "SYNAPTIK_URL": "http://host.docker.internal:9001"
       }
     }
   }

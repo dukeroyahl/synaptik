@@ -8,7 +8,29 @@
 
 set -e  # Exit on any error
 
-# Configuration
+# Configu    echo ""
+    echo -e "${CYAN}${WEB}     while [ $retries -lt $max_retries ]; do
+        if    # Check individual ports
+    if check_port 9001; then
+        echo_status "$GREEN" "$CHECK" "Backend server is running on port 9001"
+    else
+        echo_status "$RED" "$CROSS" "Backend server is not running on port 9001"
+    fi_port 9001 && check_port 5173; then
+            echo_status "$GREEN" "$CHECK" "All services are running!"
+            echo ""
+            echo -e "${CYAN}${WEB} Application URLs:${NC}"
+            echo -e "${CYAN}   Frontend: http://localhost:4000${NC}"
+            echo -e "${CYAN}   Backend:  http://localhost:9001${NC}"
+            echo -e "${CYAN}   API Docs: http://localhost:9001/q/swagger-ui${NC}"
+            echo -e "${CYAN}   Health:   http://localhost:9001/q/health${NC}"
+            echo ""
+            echo -e "${CYAN}${INFO} Logs are being written to: $LOG_FILE${NC}"
+            return 0
+        fiill be available at:${NC}"
+    echo -e "${CYAN}   Frontend: http://localhost:4000${NC}"
+    echo -e "${CYAN}   Backend:  http://localhost:9001${NC}"
+    echo -e "${CYAN}   API Docs: http://localhost:9001/q/swagger-ui${NC}"
+    echo ""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SYNAPTIK_PATH="$(cd "$SCRIPT_DIR/../.." && pwd)"  # Go up two levels to project root
 LOG_FILE="$SYNAPTIK_PATH/synaptik.log"
@@ -162,7 +184,7 @@ setup_environment() {
             echo_status "$YELLOW" "$WARNING" "No server/.env.example found, creating basic .env..."
             cat > "$SYNAPTIK_PATH/server/.env" << EOF
 MONGODB_URI=mongodb://localhost:27017/synaptik
-QUARKUS_HTTP_PORT=8080
+QUARKUS_HTTP_PORT=9001
 QUARKUS_HTTP_CORS=true
 QUARKUS_LOG_LEVEL=INFO
 EOF
@@ -180,7 +202,7 @@ EOF
         else
             echo_status "$YELLOW" "$WARNING" "No client/.env.example found, creating basic .env.local..."
             cat > "$SYNAPTIK_PATH/client/.env.local" << EOF
-VITE_API_BASE_URL=http://localhost:8080
+VITE_API_BASE_URL=http://localhost:9001
 VITE_PORT=5173
 EOF
         fi
@@ -261,8 +283,8 @@ start_dev() {
     cd "$SYNAPTIK_PATH" || { echo_status "$RED" "$CROSS" "Synaptik directory not found"; exit 1; }
     
     # Check if already running
-    if check_port 8080 || check_port 5173; then
-        echo_status "$YELLOW" "$WARNING" "Port 8080 or 5173 is already in use. Synaptik might be running."
+    if check_port 9001 || check_port 5173; then
+        echo_status "$YELLOW" "$WARNING" "Port 9001 or 5173 is already in use. Synaptik might be running."
         echo_status "$BLUE" "$INFO" "Use './synaptik.sh status' to check or './synaptik.sh stop' to stop existing processes"
         return 1
     fi
