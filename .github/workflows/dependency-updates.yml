@@ -94,6 +94,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: 'chore: update npm dependencies'
           title: '🔄 Automated npm dependency updates'
+          base: main
           body: |
             ## 📦 Automated Dependency Updates
             
@@ -198,6 +199,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: 'chore: update gradle wrapper and dependencies'
           title: '🔄 Automated Gradle dependency updates'
+          base: main
           body: |
             ## 📦 Automated Gradle Updates
             
