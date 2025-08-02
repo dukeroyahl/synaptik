@@ -249,8 +249,8 @@ jobs:
           output: 'trivy-results.sarif'
 
 
-  # Auto-versioning and Docker publish on merge to main
-  auto-version-and-publish:
+  # Create release branch on merge to main
+  create-release-branch:
     needs: [workflow-context, comprehensive-ci]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.comprehensive-ci.result == 'success'
     runs-on: ubuntu-latest
@@ -258,6 +258,7 @@ jobs:
       new_version: ${{ steps.version.outputs.new_version }}
       version_tag: ${{ steps.version.outputs.version_tag }}
       version_type: ${{ steps.version.outputs.version_type }}
+      release_branch: ${{ steps.version.outputs.release_branch }}
     
     steps:
       - name: Checkout repository
@@ -271,7 +272,7 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-      - name: Generate new version
+      - name: Generate new version and create release branch
         id: version
         run: |
           # Get current version from package.json
@@ -289,10 +290,15 @@ jobs:
           NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
           VERSION_TAG="v$NEW_VERSION"
           VERSION_TYPE="PATCH"
+          RELEASE_BRANCH="release/$NEW_VERSION"
           
           echo "🩹 Auto-incrementing PATCH version"
           echo "New version: $NEW_VERSION"
           echo "Version tag: $VERSION_TAG"
+          echo "Release branch: $RELEASE_BRANCH"
+          
+          # Create release branch from main
+          git checkout -b "$RELEASE_BRANCH"
           
           # Update package.json
           npm version $NEW_VERSION --no-git-tag-version
@@ -300,22 +306,55 @@ jobs:
           # Update client config.ts version
           sed -i "s/APP_VERSION = '[^']*'/APP_VERSION = '$NEW_VERSION'/" client/src/config.ts
           
-          # Commit version changes
+          # Commit version changes to release branch
           git add package.json client/src/config.ts
-          git commit -m "chore: bump patch version to $NEW_VERSION [skip ci]"
+          git commit -m "chore: bump version to $NEW_VERSION for release"
           
-          # Create and push tag
-          git tag $VERSION_TAG
-          git push origin main
-          git push origin $VERSION_TAG
+          # Push release branch
+          git push origin "$RELEASE_BRANCH"
           
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "version_tag=$VERSION_TAG" >> $GITHUB_OUTPUT
           echo "version_type=$VERSION_TYPE" >> $GITHUB_OUTPUT
+          echo "release_branch=$RELEASE_BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Create Release Pull Request
+        run: |
+          gh pr create \
+            --title "Release ${{ steps.version.outputs.new_version }}" \
+            --body "$(cat <<'EOF'
+          ## 🚀 Release ${{ steps.version.outputs.new_version }}
+          
+          **${{ steps.version.outputs.version_type }} release** - Automated patch release
+          
+          ### 📋 Release Details
+          
+          - **Version Type**: ${{ steps.version.outputs.version_type }} (automated increment)
+          - **New Version**: ${{ steps.version.outputs.new_version }}
+          - **Release Branch**: ${{ steps.version.outputs.release_branch }}
+          
+          ### 🔄 Changes Included
+          
+          This release includes all changes merged to main since the last release.
+          Check the commit history for detailed changes.
+          
+          ### ✅ Merge Instructions
+          
+          1. Review the version bump changes
+          2. Merge this PR to trigger Docker publishing and GitHub release creation
+          3. After merge, the release will be automatically published to DockerHub
+          
+          🤖 Generated with [Claude Code](https://claude.ai/code)
+          EOF
+          )" \
+            --head "${{ steps.version.outputs.release_branch }}" \
+            --base main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   docker-publish:
-    needs: [workflow-context, comprehensive-ci, auto-version-and-publish]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.comprehensive-ci.result == 'success'
+    needs: [workflow-context, comprehensive-ci]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.comprehensive-ci.result == 'success' && contains(github.event.head_commit.message, 'chore: bump version')
     runs-on: ubuntu-latest
     
     strategy:
@@ -326,8 +365,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.auto-version-and-publish.outputs.version_tag }}
+
+      - name: Get version from package.json
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Release version: $VERSION"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -345,7 +389,7 @@ jobs:
           images: roudranil/synaptik
           tags: |
             type=raw,value=${{ matrix.component }}-latest
-            type=raw,value=${{ matrix.component }}-${{ needs.auto-version-and-publish.outputs.new_version }}
+            type=raw,value=${{ matrix.component }}-${{ steps.version.outputs.version }}
             type=raw,value=${{ matrix.component }}-{{date 'YYYY.MM.DD'}}-{{sha}}
 
       - name: Build and push component image
@@ -358,34 +402,49 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: |
             ${{ steps.meta.outputs.labels }}
-            org.opencontainers.image.version=${{ needs.auto-version-and-publish.outputs.new_version }}
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Create version tag
+        if: matrix.component == 'frontend'  # Only create tag once
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+
   create-github-release:
-    needs: [auto-version-and-publish, docker-publish]
+    needs: [docker-publish]
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && contains(github.event.head_commit.message, 'chore: bump version')
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.auto-version-and-publish.outputs.version_tag }}
+
+      - name: Get version from package.json
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Release version: $VERSION"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ needs.auto-version-and-publish.outputs.version_tag }}
-          name: Release ${{ needs.auto-version-and-publish.outputs.new_version }}
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
           generate_release_notes: true
           body: |
-            ## 🚀 Synaptik ${{ needs.auto-version-and-publish.outputs.new_version }}
+            ## 🚀 Synaptik ${{ steps.version.outputs.version }}
             
-            **${{ needs.auto-version-and-publish.outputs.version_type }} release** - Automated patch release from main branch
+            **PATCH release** - Automated release from release branch merge
             
             ### 📋 Release Details
             
-            - **Version Type**: ${{ needs.auto-version-and-publish.outputs.version_type }} (automated increment)
+            - **Version Type**: PATCH (automated increment)
             - **Release Notes**: Check commit history for detailed changes
             - **Commit SHA**: ${{ github.sha }}
             
@@ -393,9 +452,9 @@ jobs:
             
             This release includes the following Docker images:
             
-            - `roudranil/synaptik:frontend-${{ needs.auto-version-and-publish.outputs.new_version }}`
-            - `roudranil/synaptik:backend-${{ needs.auto-version-and-publish.outputs.new_version }}`  
-            - `roudranil/synaptik:mcp-server-${{ needs.auto-version-and-publish.outputs.new_version }}`
+            - `roudranil/synaptik:frontend-${{ steps.version.outputs.version }}`
+            - `roudranil/synaptik:backend-${{ steps.version.outputs.version }}`  
+            - `roudranil/synaptik:mcp-server-${{ steps.version.outputs.version }}`
             
             ### 📦 Installation
             
@@ -413,7 +472,7 @@ jobs:
 
   # Status reporting
   ci-summary:
-    needs: [workflow-context, fast-validation, comprehensive-ci, security-comprehensive, auto-version-and-publish, docker-publish, create-github-release]
+    needs: [workflow-context, fast-validation, comprehensive-ci, security-comprehensive, create-release-branch, docker-publish, create-github-release]
     runs-on: ubuntu-latest
     if: always()
     
@@ -438,20 +497,17 @@ jobs:
             echo "| Comprehensive CI | ${{ needs.comprehensive-ci.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
             echo "| Security Scan | ${{ needs.security-comprehensive.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
             if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" = "push" ]; then
-              echo "| Auto Versioning | ${{ needs.auto-version-and-publish.result == 'success' && '✅ Success' || (needs.auto-version-and-publish.result == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> $GITHUB_STEP_SUMMARY
+              echo "| Release Branch Creation | ${{ needs.create-release-branch.result == 'success' && '✅ Success' || (needs.create-release-branch.result == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> $GITHUB_STEP_SUMMARY
               echo "| Docker Publish | ${{ needs.docker-publish.result == 'success' && '✅ Success' || (needs.docker-publish.result == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> $GITHUB_STEP_SUMMARY
               echo "| GitHub Release | ${{ needs.create-github-release.result == 'success' && '✅ Success' || (needs.create-github-release.result == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> $GITHUB_STEP_SUMMARY
-              if [ "${{ needs.auto-version-and-publish.outputs.new_version }}" != "" ]; then
+              if [ "${{ needs.create-release-branch.outputs.new_version }}" != "" ]; then
                 echo "" >> $GITHUB_STEP_SUMMARY
-                echo "### 🎉 New Version Released" >> $GITHUB_STEP_SUMMARY
-                echo "**Version:** ${{ needs.auto-version-and-publish.outputs.new_version }} (${{ needs.auto-version-and-publish.outputs.version_type }})" >> $GITHUB_STEP_SUMMARY
-                echo "**Tag:** ${{ needs.auto-version-and-publish.outputs.version_tag }}" >> $GITHUB_STEP_SUMMARY
-                echo "**Type:** Automated patch increment" >> $GITHUB_STEP_SUMMARY
+                echo "### 🎉 Release Branch Created" >> $GITHUB_STEP_SUMMARY
+                echo "**Version:** ${{ needs.create-release-branch.outputs.new_version }} (${{ needs.create-release-branch.outputs.version_type }})" >> $GITHUB_STEP_SUMMARY
+                echo "**Branch:** ${{ needs.create-release-branch.outputs.release_branch }}" >> $GITHUB_STEP_SUMMARY
+                echo "**Type:** Automated release branch creation" >> $GITHUB_STEP_SUMMARY
                 echo "" >> $GITHUB_STEP_SUMMARY
-                echo "**Docker Images:**" >> $GITHUB_STEP_SUMMARY
-                echo "- \`roudranil/synaptik:frontend-${{ needs.auto-version-and-publish.outputs.new_version }}\`" >> $GITHUB_STEP_SUMMARY
-                echo "- \`roudranil/synaptik:backend-${{ needs.auto-version-and-publish.outputs.new_version }}\`" >> $GITHUB_STEP_SUMMARY
-                echo "- \`roudranil/synaptik:mcp-server-${{ needs.auto-version-and-publish.outputs.new_version }}\`" >> $GITHUB_STEP_SUMMARY
+                echo "**Next Steps:** Review and merge the release PR to publish Docker images and create GitHub release" >> $GITHUB_STEP_SUMMARY
               fi
             fi
           fi
@@ -468,19 +524,22 @@ jobs:
               echo "❌ Comprehensive CI failed"
               exit 1
             fi
-            # Only fail on versioning/publishing jobs if they were supposed to run (main branch push)
+            # Only fail on critical jobs (release branch creation must always succeed for main push)
             if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" = "push" ]; then
-              if [ "${{ needs.auto-version-and-publish.result }}" != "success" ]; then
-                echo "❌ Auto versioning failed"
+              if [ "${{ needs.create-release-branch.result }}" != "success" ]; then
+                echo "❌ Release branch creation failed"
                 exit 1
               fi
-              if [ "${{ needs.docker-publish.result }}" != "success" ]; then
-                echo "❌ Docker publish failed"
-                exit 1
-              fi
-              if [ "${{ needs.create-github-release.result }}" != "success" ]; then
-                echo "❌ GitHub release creation failed"
-                exit 1
+              # Docker publish and GitHub release are only expected if version bump commit
+              if [ "${{ contains(github.event.head_commit.message, 'chore: bump version') }}" = "true" ]; then
+                if [ "${{ needs.docker-publish.result }}" != "success" ]; then
+                  echo "❌ Docker publish failed"
+                  exit 1
+                fi
+                if [ "${{ needs.create-github-release.result }}" != "success" ]; then
+                  echo "❌ GitHub release creation failed"
+                  exit 1
+                fi
               fi
             fi
           fi
