@@ -31,6 +31,7 @@ permissions:
   contents: write  # Required for version bumping and pushing tags
   security-events: write
   actions: read
+  pull-requests: write  # Required for creating release PRs
 
 env:
   NODE_VERSION: '20'
@@ -370,7 +371,7 @@ jobs:
             --head "${{ steps.version.outputs.release_branch }}" \
             --base main
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
 
   docker-publish:
     needs: [workflow-context, comprehensive-ci]
