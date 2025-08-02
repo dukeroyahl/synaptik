@@ -171,8 +171,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event.inputs.test_mode != 'true' }}
           tags: |
-            ${{ env.IMAGE_NAME }}-${{ matrix.component }}:${{ needs.validate-release.outputs.version }}
-            ${{ env.IMAGE_NAME }}-${{ matrix.component }}:latest
+            ${{ env.IMAGE_NAME }}:${{ matrix.component }}-${{ needs.validate-release.outputs.version }}
+            ${{ env.IMAGE_NAME }}:${{ matrix.component }}-latest
           labels: |
             org.opencontainers.image.title=Synaptik ${{ matrix.component }}
             org.opencontainers.image.description=Synaptik ${{ matrix.component }} - TaskWarrior DNA task management
@@ -310,9 +310,9 @@ jobs:
             ${{ needs.validate-release.outputs.major != needs.validate-release.outputs.minor && needs.validate-release.outputs.major != needs.validate-release.outputs.version && format('- `roudranil/synaptik:{0}` - Latest minor of major version', needs.validate-release.outputs.major) || '' }}
             
             **Individual Components:**
-            - `roudranil/synaptik-frontend:${{ needs.validate-release.outputs.version }}`
-            - `roudranil/synaptik-backend:${{ needs.validate-release.outputs.version }}`
-            - `roudranil/synaptik-mcp-server:${{ needs.validate-release.outputs.version }}`
+            - `roudranil/synaptik:frontend-${{ needs.validate-release.outputs.version }}`
+            - `roudranil/synaptik:backend-${{ needs.validate-release.outputs.version }}`
+            - `roudranil/synaptik:mcp-server-${{ needs.validate-release.outputs.version }}`
             
             ## 🚀 Quick Start
             
@@ -366,9 +366,9 @@ jobs:
               echo "### 🐳 Published Images" >> $GITHUB_STEP_SUMMARY
               echo "- \`roudranil/synaptik:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
               echo "- \`roudranil/synaptik:latest\`" >> $GITHUB_STEP_SUMMARY
-              echo "- \`roudranil/synaptik-frontend:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-              echo "- \`roudranil/synaptik-backend:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-              echo "- \`roudranil/synaptik-mcp-server:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+              echo "- \`roudranil/synaptik:frontend-${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+              echo "- \`roudranil/synaptik:backend-${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+              echo "- \`roudranil/synaptik:mcp-server-${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
             fi
           fi
 
