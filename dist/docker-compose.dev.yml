@@ -110,6 +110,27 @@ services:
     networks:
       - synaptik-dev-network
 
+  # MCP Server (Development)
+  mcp-server-dev:
+    build:
+      context: ../
+      dockerfile: mcp-server/Dockerfile
+    container_name: synaptik-mcp-dev
+    restart: unless-stopped
+    environment:
+      - SYNAPTIK_URL=http://backend-dev:8080
+      - NODE_ENV=development
+    depends_on:
+      backend-dev:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+    volumes:
+      # Source code for development
+      - ../mcp-server:/app/src
+    networks:
+      - synaptik-dev-network
+
 # Development volumes (can be deleted safely)
 volumes:
   synaptik_dev_data:

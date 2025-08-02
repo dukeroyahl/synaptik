@@ -38,6 +38,11 @@
     "concurrently": "^8.2.2"
   },
   "dependencies": {
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "@modelcontextprotocol/sdk": "^0.6.0",
+    "axios": "^1.6.0"
+  },
+  "bin": {
+    "synaptik-mcp": "./mcp-bridge.js"
   }
 }

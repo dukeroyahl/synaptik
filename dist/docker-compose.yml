@@ -63,6 +63,22 @@ services:
     networks:
       - synaptik-network
 
+  # MCP Server (Production)
+  mcp-server:
+    image: ${MCP_IMAGE:-synaptik/mcp:latest}
+    container_name: synaptik-mcp
+    restart: unless-stopped
+    environment:
+      - SYNAPTIK_URL=http://api:8080
+      - NODE_ENV=production
+    depends_on:
+      api:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+    networks:
+      - synaptik-network
+
 volumes:
   mongodb_data:
     driver: local
