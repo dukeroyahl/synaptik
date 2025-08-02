@@ -53,7 +53,7 @@ docker-compose up -d
 ```
 
 ### 🌐 Access Your Application
-- **Web App**: http://localhost:3000
+- **Web App**: http://localhost:4000
 - **API**: http://localhost:8080
 - **API Documentation**: http://localhost:8080/q/swagger-ui
 
@@ -109,6 +109,7 @@ Connect Synaptik with Claude Desktop or other AI assistants using MCP (Model Con
 ### 💻 For Developers  
 - **[Developer Guide](https://github.com/Dukeroyahl/Synaptik/wiki/Developer-Guide)** - Technical documentation
 - **[Contributing Guidelines](CONTRIBUTING.md)** - How to contribute
+- **[Branching Strategy](docs/BRANCHING_STRATEGY.md)** - Automated versioning and branch conventions
 - **[Docker Guide](https://github.com/Dukeroyahl/Synaptik/wiki/Docker-Guide)** - Container deployment
 
 ---

@@ -285,7 +285,7 @@ start_dev() {
             echo_status "$GREEN" "$CHECK" "All services are running!"
             echo ""
             echo -e "${CYAN}${WEB} Application URLs:${NC}"
-            echo -e "${CYAN}   Frontend: http://localhost:3000${NC}"
+            echo -e "${CYAN}   Frontend: http://localhost:4000${NC}"
             echo -e "${CYAN}   Backend:  http://localhost:8080${NC}"
             echo -e "${CYAN}   API Docs: http://localhost:8080/q/swagger-ui${NC}"
             echo -e "${CYAN}   Health:   http://localhost:8080/q/health${NC}"

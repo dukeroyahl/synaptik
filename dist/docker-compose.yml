@@ -55,7 +55,7 @@ services:
     image: ${UI_IMAGE:-roudranil/synaptik:frontend-latest}
     container_name: synaptik-ui
     ports:
-      - "${HTTP_PORT:-3000}:80"
+      - "${HTTP_PORT:-4000}:80"
     depends_on:
       api:
         condition: service_healthy
