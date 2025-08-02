@@ -9,7 +9,7 @@ const { createServer } = require('@modelcontextprotocol/sdk/server');
 const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio');
 const axios = require('axios');
 
-const SYNAPTIK_BASE_URL = process.env.SYNAPTIK_URL || 'http://localhost:8080';
+const SYNAPTIK_BASE_URL = process.env.SYNAPTIK_URL || 'http://localhost:9001';
 
 // Create MCP server
 const server = createServer({

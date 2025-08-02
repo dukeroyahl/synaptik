@@ -270,9 +270,9 @@ full_setup() {
     echo -e "${CYAN}   ./synaptik.sh dev${NC}"
     echo ""
     echo -e "${CYAN}${WEB} Application will be available at:${NC}"
-    echo -e "${CYAN}   Frontend: http://localhost:3000${NC}"
-    echo -e "${CYAN}   Backend:  http://localhost:8080${NC}"
-    echo -e "${CYAN}   API Docs: http://localhost:8080/q/swagger-ui${NC}"
+    echo -e "${CYAN}   Frontend: http://localhost:4000${NC}"
+    echo -e "${CYAN}   Backend:  http://localhost:9001${NC}"
+    echo -e "${CYAN}   API Docs: http://localhost:9001/q/swagger-ui${NC}"
     echo ""
 }
 
@@ -303,14 +303,14 @@ start_dev() {
     echo_status "$BLUE" "$INFO" "Checking if services are starting... (max wait: ${max_retries} attempts)"
     
     while [ $retries -lt $max_retries ]; do
-        if check_port 8080 && check_port 5173; then
+        if check_port 9001 && check_port 5173; then
             echo_status "$GREEN" "$CHECK" "All services are running!"
             echo ""
             echo -e "${CYAN}${WEB} Application URLs:${NC}"
             echo -e "${CYAN}   Frontend: http://localhost:4000${NC}"
-            echo -e "${CYAN}   Backend:  http://localhost:8080${NC}"
-            echo -e "${CYAN}   API Docs: http://localhost:8080/q/swagger-ui${NC}"
-            echo -e "${CYAN}   Health:   http://localhost:8080/q/health${NC}"
+            echo -e "${CYAN}   Backend:  http://localhost:9001${NC}"
+            echo -e "${CYAN}   API Docs: http://localhost:9001/q/swagger-ui${NC}"
+            echo -e "${CYAN}   Health:   http://localhost:9001/q/health${NC}"
             echo ""
             echo -e "${CYAN}${INFO} Logs are being written to: $LOG_FILE${NC}"
             return 0
@@ -345,10 +345,10 @@ check_status() {
     fi
     
     # Check individual ports
-    if check_port 8080; then
-        echo_status "$GREEN" "$CHECK" "Backend server is running on port 8080"
+    if check_port 9001; then
+        echo_status "$GREEN" "$CHECK" "Backend server is running on port 9001"
     else
-        echo_status "$RED" "$CROSS" "Backend server is not running on port 8080"
+        echo_status "$RED" "$CROSS" "Backend server is not running on port 9001"
     fi
     
     if check_port 5173; then
