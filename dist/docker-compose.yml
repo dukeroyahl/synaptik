@@ -1,7 +1,5 @@
-version: '3.8'
-
-# Main Docker Compose - Uses pinned versions for stability
-# This is what users should use to try Synaptik
+# Production Docker Compose for Synaptik
+# Uses container images for production deployment
 
 name: synaptik
 
@@ -13,11 +11,13 @@ services:
     restart: unless-stopped
     environment:
       MONGO_INITDB_DATABASE: synaptik
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme}
     volumes:
-      - ~/.synaptik/data/mongodb:/data/db
-      - ~/.synaptik/logs/mongodb:/var/log/mongodb
-    ports:
-      - "27017:27017"
+      - mongodb_data:/data/db
+      - mongodb_logs:/var/log/mongodb
+    expose:
+      - "27017"
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 30s
@@ -27,19 +27,16 @@ services:
     networks:
       - synaptik-network
 
-  # Backend Service
-  synaptik-backend:
-    image: roudranil/synaptik:1.0.0  # Pin to specific version for stability
-    container_name: synaptik-backend
-    ports:
-      - "8080:8080"
+  # Backend API Service  
+  api:
+    image: ${API_IMAGE:-synaptik/api:latest}
+    container_name: synaptik-api
+    expose:
+      - "8080"
     environment:
       - QUARKUS_PROFILE=prod
-      - QUARKUS_MONGODB_CONNECTION_STRING=mongodb://mongodb:27017/synaptik
-      - QUARKUS_LOG_FILE_PATH=/opt/synaptik/logs/synaptik.log
-      - QUARKUS_LOG_LEVEL=INFO
-    volumes:
-      - ~/.synaptik/logs/backend:/opt/synaptik/logs
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-changeme}@mongodb:27017/synaptik?authSource=admin
+      - QUARKUS_LOG_LEVEL=${LOG_LEVEL:-INFO}
     restart: unless-stopped
     depends_on:
       mongodb:
@@ -53,19 +50,24 @@ services:
     networks:
       - synaptik-network
 
-  synaptik-frontend:
-    image: nginx:alpine
-    container_name: synaptik-frontend
+  # Frontend UI Service
+  ui:
+    image: ${UI_IMAGE:-synaptik/ui:latest}
+    container_name: synaptik-ui
     ports:
-      - "80:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - "${HTTP_PORT:-80}:80"
     depends_on:
-      synaptik-backend:
+      api:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - synaptik-network
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_logs:
+    driver: local
 
 networks:
   synaptik-network:
