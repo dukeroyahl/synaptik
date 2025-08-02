@@ -8,7 +8,7 @@
 [![Docker](https://img.shields.io/docker/pulls/roudranil/synaptik?logo=docker&color=2496ED)](https://hub.docker.com/r/roudranil/synaptik)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-[🚀 Quick Start](#-quick-start) • [� Wiki Documentation](https://github.com/Dukeroyahl/Synaptik/wiki) • [🤝 Contributing](CONTRIBUTING.md)
+[🚀 Quick Start](#-quick-start) • [📚 Wiki Documentation](https://github.com/Dukeroyahl/Synaptik/wiki) • [🤝 Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -25,7 +25,7 @@
 - 📊 **Smart Analytics**: Productivity insights and intelligent dashboards
 - 🐳 **Container-Ready**: Multi-architecture Docker images with semantic versioning
 
-![Synaptik Application](https://via.placeholder.com/800x400/2D3748/FFFFFF?text=Synaptik+Dashboard+Screenshot)
+![Synaptik Application](docs/images/app-main.png)
 
 ---
 
@@ -48,7 +48,7 @@ curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/install.sh 
 # Create dedicated folder, download configuration files and start
 mkdir synaptik && cd synaptik && \
 curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker-compose.yml -o docker-compose.yml && \
-curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/.env.example -o .env && \
+curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker/.env.example -o .env && \
 docker-compose up -d
 ```
 
@@ -117,6 +117,6 @@ Connect Synaptik with Claude Desktop or other AI assistants using MCP (Model Con
 
 **Built with ❤️ by the Synaptik team**
 
-[🚀 Quick Start](#-quick-start) • [� Wiki Documentation](https://github.com/Dukeroyahl/Synaptik/wiki) • [🤝 Contributing](CONTRIBUTING.md) • [📝 Issues](https://github.com/Dukeroyahl/Synaptik/issues)
+[🚀 Quick Start](#-quick-start) • [📚 Wiki Documentation](https://github.com/Dukeroyahl/Synaptik/wiki) • [🤝 Contributing](CONTRIBUTING.md) • [📝 Issues](https://github.com/Dukeroyahl/Synaptik/issues)
 
 </div>
