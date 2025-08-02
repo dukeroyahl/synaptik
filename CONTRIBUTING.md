@@ -51,7 +51,6 @@ synaptik/
 ├── client/          # React 18 + TypeScript frontend
 ├── server/          # Java 21 + Quarkus backend  
 ├── mcp-server/      # Node.js MCP server for AI integration
-├── docs/            # Documentation
 ├── scripts/         # Development and deployment scripts
 └── config/          # Configuration files
 ```
@@ -284,7 +283,7 @@ npm run test:integration
 ### Community Support
 - **GitHub Discussions**: Q&A and general discussion
 - **GitHub Issues**: Bug reports and feature requests
-- **Documentation**: Check docs/ directory first
+- **Documentation**: Check the [GitHub Wiki](https://github.com/Dukeroyahl/Synaptik/wiki) first
 
 ### Maintainer Contact
 - **General Questions**: Use GitHub Discussions
