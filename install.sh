@@ -49,7 +49,7 @@ fi
 # Download docker-compose.yml if it doesn't exist
 if [ ! -f "docker-compose.yml" ]; then
     echo "📥 Downloading docker-compose.yml..."
-    curl -sSL https://raw.githubusercontent.com/roudranil/synaptik/main/dist/docker-compose.yml -o docker-compose.yml
+    curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker-compose.yml -o docker-compose.yml
     echo "✅ docker-compose.yml downloaded"
 fi
 
@@ -57,7 +57,7 @@ fi
 if [ ! -f ".env" ]; then
     echo "⚙️  Setting up environment configuration..."
     if [ ! -f ".env.example" ]; then
-        curl -sSL https://raw.githubusercontent.com/roudranil/synaptik/main/dist/docker/.env.example -o .env.example
+        curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker/.env.example -o .env.example
     fi
     cp .env.example .env
     echo "✅ Environment configuration created (.env)"
@@ -83,4 +83,4 @@ echo "💾 Your data is stored in: $HOME/.synaptik/"
 echo "   This ensures data persistence across updates!"
 echo ""
 echo "📖 For more information, visit the documentation:"
-echo "   https://github.com/roudranil/synaptik/wiki"
+echo "   https://github.com/Dukeroyahl/synaptik/wiki"

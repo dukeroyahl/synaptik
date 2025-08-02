@@ -14,8 +14,8 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme}
     volumes:
-      - mongodb_data:/data/db
-      - mongodb_logs:/var/log/mongodb
+      - ${HOME}/.synaptik/data:/data/db
+      - ${HOME}/.synaptik/logs:/var/log/mongodb
     expose:
       - "27017"
     healthcheck:
@@ -64,11 +64,8 @@ services:
       - synaptik-network
 
 
-volumes:
-  mongodb_data:
-    driver: local
-  mongodb_logs:
-    driver: local
+# User data is stored in ~/.synaptik/ on the host system
+# No Docker volumes needed - data persists across container updates
 
 networks:
   synaptik-network:
