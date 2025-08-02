@@ -3,3 +3,12 @@ Testing release workflow Sat Aug  2 16:20:27 EDT 2025
 ## Testing conventional commits workflow Sat Aug  2 16:33:59 EDT 2025
 Simple patch test
 Direct test Sat Aug  2 16:42:00 EDT 2025
+
+## Semver Plugin Fix Validation
+Testing improved semver-action configuration with:
+- Consistent tag format (v prefix)
+- Updated fallback tag to v1.1.0
+- noVersionBumpBehavior: current
+- Enhanced tag detection
+
+This should trigger a patch version bump (v1.1.1) due to the fix: prefix.
