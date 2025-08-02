@@ -304,18 +304,11 @@ jobs:
           if [ "$VERSION_TYPE" != "none" ]; then
             echo "📦 Creating release branch for $VERSION_TYPE version bump"
             
-            # Create release branch from main
+            # Create release branch from main  
             git checkout -b "$RELEASE_BRANCH"
             
-            # Update package.json
-            npm version $NEW_VERSION --no-git-tag-version
-            
-            # Update client config.ts version
-            sed -i "s/APP_VERSION = '[^']*'/APP_VERSION = '$NEW_VERSION'/" client/src/config.ts
-            
-            # Commit version changes to release branch
-            git add package.json client/src/config.ts
-            git commit -m "chore: bump version to $NEW_VERSION for release"
+            # Create empty commit to mark the release branch
+            git commit --allow-empty -m "chore: prepare release $NEW_VERSION"
             
             # Push release branch
             git push origin "$RELEASE_BRANCH"
@@ -357,9 +350,9 @@ jobs:
           
           ### ✅ Merge Instructions
           
-          1. Review the version bump changes
-          2. Merge this PR to trigger Docker publishing and GitHub release creation
-          3. After merge, the release will be automatically published to DockerHub
+          1. Review the release branch changes
+          2. Merge this PR to trigger Docker publishing and GitHub release creation  
+          3. After merge, git tag will be created and release published to DockerHub
           
           🤖 Generated with [Claude Code](https://claude.ai/code)
           EOF
@@ -371,7 +364,7 @@ jobs:
 
   docker-publish:
     needs: [workflow-context, comprehensive-ci]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.comprehensive-ci.result == 'success' && contains(github.event.head_commit.message, 'chore: bump version')
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.comprehensive-ci.result == 'success' && contains(github.event.head_commit.message, 'chore: prepare release')
     runs-on: ubuntu-latest
     
     strategy:
@@ -383,10 +376,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get version from package.json
+      - name: Get version from semver-action
+        id: semver
+        uses: ietf-tools/semver-action@v1
+        with:
+          token: ${{ github.token }}
+          branch: main
+
+      - name: Set version
         id: version
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          VERSION="${{ steps.semver.outputs.current }}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Release version: $VERSION"
 
@@ -435,16 +435,23 @@ jobs:
   create-github-release:
     needs: [docker-publish]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && contains(github.event.head_commit.message, 'chore: bump version')
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && contains(github.event.head_commit.message, 'chore: prepare release')
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get version from package.json
+      - name: Get version from semver-action
+        id: semver
+        uses: ietf-tools/semver-action@v1
+        with:
+          token: ${{ github.token }}
+          branch: main
+
+      - name: Set version
         id: version
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          VERSION="${{ steps.semver.outputs.current }}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Release version: $VERSION"
 
@@ -547,8 +554,8 @@ jobs:
                 echo "❌ Release branch creation failed"
                 exit 1
               fi
-              # Docker publish and GitHub release are only expected if version bump commit
-              if [ "${{ contains(github.event.head_commit.message, 'chore: bump version') }}" = "true" ]; then
+              # Docker publish and GitHub release are only expected if release commit
+              if [ "${{ contains(github.event.head_commit.message, 'chore: prepare release') }}" = "true" ]; then
                 if [ "${{ needs.docker-publish.result }}" != "success" ]; then
                   echo "❌ Docker publish failed"
                   exit 1
