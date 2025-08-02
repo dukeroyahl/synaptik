@@ -11,16 +11,6 @@ import axios from 'axios';
 
 const SYNAPTIK_BASE_URL = process.env.SYNAPTIK_URL || 'http://localhost:9001';
 
-// Create MCP server
-const server = new Server({
-  name: 'synaptik',
-  version: '1.0.0',
-}, {
-  capabilities: {
-    tools: {},
-  },
-});
-
 // Define tools that proxy to Synaptik HTTP endpoints
 const tools = [
   {
@@ -95,45 +85,55 @@ const tools = [
   }
 ];
 
-// Register tools list handler
-server.setRequestHandler(
-  { method: 'tools/list' },
-  async () => ({ tools })
+// Create MCP server
+const server = new Server(
+  { name: 'synaptik', version: '1.0.0' },
+  { capabilities: { tools: {} } }
 );
 
-// Handle tool calls by proxying to Synaptik HTTP API
-server.setRequestHandler(
-  { method: 'tools/call' },
-  async (request) => {
-    const { name, arguments: args } = request.params;
-  
+// Use the list_tools method if available
+if (server.list_tools) {
+  server.list_tools = async () => tools;
+}
+
+// Use the call_tool method if available  
+if (server.call_tool) {
+  server.call_tool = async (name, args) => {
+    try {
+      const response = await axios.post(`${SYNAPTIK_BASE_URL}/mcp/tools/${name}`, args, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 30000
+      });
+      
+      return {
+        content: [{
+          type: 'text',
+          text: typeof response.data === 'string' ? response.data : JSON.stringify(response.data, null, 2)
+        }]
+      };
+    } catch (error) {
+      console.error(`Error calling tool ${name}:`, error.message);
+      return {
+        content: [{
+          type: 'text', 
+          text: `Error: ${error.message}`
+        }],
+        isError: true
+      };
+    }
+  };
+}
+
+async function main() {
   try {
-    // Make HTTP request to Synaptik MCP endpoint
-    const response = await axios.post(`${SYNAPTIK_BASE_URL}/mcp/tools/${name}`, args, {
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 30000
-    });
-    
-    return {
-      content: [{
-        type: 'text',
-        text: response.data
-      }]
-    };
+    // Start stdio transport
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    console.error('Synaptik MCP Bridge started');
   } catch (error) {
-    console.error(`Error calling tool ${name}:`, error.message);
-    return {
-      content: [{
-        type: 'text', 
-        text: `Error: ${error.message}`
-      }],
-      isError: true
-    };
+    console.error('Failed to start MCP Bridge:', error);
+    process.exit(1);
   }
-});
+}
 
-// Start stdio transport
-const transport = new StdioServerTransport();
-server.connect(transport);
-
-console.error('Synaptik MCP Bridge started');
+main();
