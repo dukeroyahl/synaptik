@@ -6,9 +6,11 @@ Direct test Sat Aug  2 16:42:00 EDT 2025
 
 ## Semver Plugin Fix Validation
 Testing improved semver-action configuration with:
-- Consistent tag format (v prefix)
-- Updated fallback tag to v1.1.0
-- noVersionBumpBehavior: current
-- Enhanced tag detection
 
-This should trigger a patch version bump (v1.1.1) due to the fix: prefix.
+- Correct fallback tag: 1.0.3 (actual latest in main branch)
+- Added noVersionBumpBehavior: current
+- Removed problematic v1.1.0 tag that wasn't in main branch history
+- Enhanced tag detection and error handling
+
+This should trigger a patch version bump (1.0.4) due to the fix: prefix.
+The semver-action will now properly compare against the correct baseline tag.
