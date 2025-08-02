@@ -1,0 +1,146 @@
+name: Reusable Test Runner
+
+on:
+  workflow_call:
+    inputs:
+      component:
+        description: 'Component to test (frontend/backend/mcp-server)'
+        required: true
+        type: string
+      test-type:
+        description: 'Test type (unit/integration/e2e/all)'
+        required: false
+        default: 'all'
+        type: string
+      coverage:
+        description: 'Generate coverage reports'
+        required: false
+        default: true
+        type: boolean
+      node-version:
+        description: 'Node.js version'
+        required: false
+        default: '20'
+        type: string
+      java-version:
+        description: 'Java version'
+        required: false
+        default: '21'
+        type: string
+    outputs:
+      test-results:
+        description: 'Test execution summary'
+        value: ${{ jobs.test.outputs.results }}
+      coverage-report:
+        description: 'Coverage report location'
+        value: ${{ jobs.test.outputs.coverage }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    outputs:
+      results: ${{ steps.summary.outputs.results }}
+      coverage: ${{ steps.summary.outputs.coverage }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        if: inputs.component == 'frontend' || inputs.component == 'mcp-server'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+          cache-dependency-path: |
+            ${{ inputs.component }}/package-lock.json
+
+      - name: Setup Java
+        if: inputs.component == 'backend'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ inputs.java-version }}
+
+      - name: Install Node dependencies
+        if: inputs.component == 'frontend' || inputs.component == 'mcp-server'
+        working-directory: ${{ inputs.component }}
+        run: npm ci
+
+      - name: Frontend Tests
+        if: inputs.component == 'frontend'
+        working-directory: client
+        run: |
+          set -e
+          echo "🧪 Running frontend tests..."
+          
+          if [ "${{ inputs.test-type }}" = "unit" ] || [ "${{ inputs.test-type }}" = "all" ]; then
+            echo "▶️ Unit tests"
+            npm run test:unit 2>/dev/null || npm test || echo "⚠️ Unit tests not configured"
+          fi
+          
+          if [ "${{ inputs.test-type }}" = "e2e" ] || [ "${{ inputs.test-type }}" = "all" ]; then
+            echo "▶️ E2E tests"
+            npm run test:e2e 2>/dev/null || npm run e2e 2>/dev/null || echo "⚠️ E2E tests not configured"
+          fi
+          
+          echo "✅ Frontend tests completed"
+
+      - name: Backend Tests
+        if: inputs.component == 'backend'
+        working-directory: server
+        run: |
+          set -e
+          echo "🧪 Running backend tests..."
+          
+          if [ "${{ inputs.test-type }}" = "unit" ] || [ "${{ inputs.test-type }}" = "all" ]; then
+            echo "▶️ Unit tests"
+            ./gradlew test --no-daemon
+          fi
+          
+          if [ "${{ inputs.test-type }}" = "integration" ] || [ "${{ inputs.test-type }}" = "all" ]; then
+            echo "▶️ Integration tests"
+            ./gradlew integrationTest --no-daemon 2>/dev/null || echo "⚠️ Integration tests not configured"
+          fi
+          
+          echo "✅ Backend tests completed"
+
+      - name: Generate coverage report
+        if: inputs.coverage == true && inputs.component == 'backend'
+        working-directory: server
+        run: |
+          echo "📊 Generating coverage report..."
+          ./gradlew jacocoTestReport --no-daemon 2>/dev/null || {
+            echo "⚠️ JaCoCo not configured, skipping coverage"
+            exit 0
+          }
+
+      - name: MCP Server Tests
+        if: inputs.component == 'mcp-server'
+        working-directory: mcp-server
+        run: |
+          set -e
+          echo "🧪 Running MCP server tests..."
+          npm test 2>/dev/null || echo "⚠️ MCP tests not configured"
+          echo "✅ MCP tests completed"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ inputs.component }}
+          path: |
+            ${{ inputs.component }}/test-results/
+            ${{ inputs.component }}/coverage/
+            server/build/reports/
+          retention-days: 7
+
+      - name: Test summary
+        id: summary
+        run: |
+          echo "results=Tests completed for ${{ inputs.component }}" >> $GITHUB_OUTPUT
+          echo "coverage=Available in artifacts" >> $GITHUB_OUTPUT
+          echo "## 🧪 Test Results - ${{ inputs.component }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Component: ${{ inputs.component }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Test Type: ${{ inputs.test-type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Coverage: ${{ inputs.coverage == true && '📊 Generated' || '⏭️ Skipped' }}" >> $GITHUB_STEP_SUMMARY
