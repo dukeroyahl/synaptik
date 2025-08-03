@@ -5,6 +5,7 @@ import org.dukeroyahl.synaptik.domain.TaskStatus;
 import org.dukeroyahl.synaptik.service.TaskService;
 import org.dukeroyahl.synaptik.service.NaturalLanguageParser;
 import io.smallrye.mutiny.Uni;
+import io.smallrye.common.annotation.Blocking;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
@@ -138,6 +139,7 @@ public class TaskResource {
     @Path("/capture")
     @Consumes(MediaType.TEXT_PLAIN)
     @Operation(summary = "Create task from natural language or TaskWarrior syntax")
+    @Blocking
     public Uni<Response> captureTask(String input) {
         Task parsedTask = nlpParser.parseNaturalLanguage(input);
         return taskService.createTask(parsedTask)

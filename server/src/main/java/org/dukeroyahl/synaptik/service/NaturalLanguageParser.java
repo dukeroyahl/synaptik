@@ -4,9 +4,13 @@ import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.TaskPriority;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
 import org.dukeroyahl.synaptik.util.TaskWarriorParser;
+import org.dukeroyahl.synaptik.service.StanfordNLPService.NLPResult;
+import org.dukeroyahl.synaptik.service.StanfordNLPService.EntityInfo;
+import org.dukeroyahl.synaptik.service.StanfordNLPService.TimeInfo;
 import org.jboss.logging.Logger;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,29 +22,22 @@ public class NaturalLanguageParser {
     
     private static final Logger logger = Logger.getLogger(NaturalLanguageParser.class);
     
-    // Patterns for natural language parsing
-    private static final Pattern MEETING_PATTERN = Pattern.compile(
-        "(?:meet|meeting|call|talk)\\s+(?:with\\s+)?([\\w\\s]+?)\\s+(?:on\\s+|at\\s+)?([\\w\\s,]+?)\\s+(?:about\\s+|for\\s+|regarding\\s+)([\\w\\s]+)",
-        Pattern.CASE_INSENSITIVE
-    );
+    @Inject
+    StanfordNLPService nlpService;
     
-    private static final Pattern TIME_PATTERN = Pattern.compile(
-        "(\\d{1,2})(?::(\\d{2}))?(am|pm)?", 
-        Pattern.CASE_INSENSITIVE
-    );
-    
-    private static final Pattern DATE_PATTERN = Pattern.compile(
-        "\\b(today|tomorrow|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next\\s+\\w+|\\d+/\\d+)\\b",
-        Pattern.CASE_INSENSITIVE
-    );
-    
+    // Enhanced patterns for natural language parsing
     private static final Pattern PRIORITY_WORDS = Pattern.compile(
         "\\b(urgent|asap|high\\s+priority|important|critical|low\\s+priority|when\\s+possible)\\b",
         Pattern.CASE_INSENSITIVE
     );
     
+    private static final Pattern ACTION_PATTERNS = Pattern.compile(
+        "\\b(send|email|call|meet|review|fix|update|write|create|schedule|plan|organize)\\b",
+        Pattern.CASE_INSENSITIVE
+    );
+    
     public Task parseNaturalLanguage(String input) {
-        logger.infof("Parsing natural language input: %s", input);
+        logger.infof("Parsing input with Stanford NLP: %s", input);
         
         // First try TaskWarrior syntax - if it contains structured syntax, use existing parser
         if (containsTaskWarriorSyntax(input)) {
@@ -48,8 +45,8 @@ public class NaturalLanguageParser {
             return TaskWarriorParser.parseTaskWarriorInput(input);
         }
         
-        // Otherwise, attempt natural language parsing
-        return parseAsNaturalLanguage(input);
+        // Use Stanford NLP for natural language parsing
+        return parseWithStanfordNLP(input);
     }
     
     private boolean containsTaskWarriorSyntax(String input) {
@@ -60,132 +57,108 @@ public class NaturalLanguageParser {
                input.contains("assignee:");
     }
     
-    private Task parseAsNaturalLanguage(String input) {
+    private Task parseWithStanfordNLP(String input) {
         Task task = new Task();
         
-        // Try to parse as a meeting
-        Matcher meetingMatcher = MEETING_PATTERN.matcher(input);
-        if (meetingMatcher.find()) {
-            String person = meetingMatcher.group(1).trim();
-            String timeInfo = meetingMatcher.group(2).trim();
-            String topic = meetingMatcher.group(3).trim();
-            
-            task.title = String.format("Meet with %s about %s", person, topic);
-            task.assignee = person;
-            task.project = extractProject(topic);
-            task.dueDate = parseDateTime(timeInfo);
-            
-            // Add meeting tag
-            task.tags = new ArrayList<>();
-            task.tags.add("meeting");
-            
-            logger.infof("Parsed as meeting: %s with %s about %s", task.title, person, topic);
-        } else {
-            // General task parsing
-            task.title = extractTitle(input);
-            task.dueDate = extractDueDate(input);
-            task.priority = extractPriority(input);
-            task.assignee = extractAssignee(input);
-            task.project = extractProject(input);
-            task.tags = extractTags(input);
-        }
+        // Process with Stanford NLP
+        NLPResult nlpResult = nlpService.processText(input);
+        
+        // Extract task components using NLP results
+        task.title = extractTitle(input, nlpResult);
+        task.assignee = extractAssignee(input, nlpResult);
+        task.project = extractProject(input, nlpResult);
+        task.dueDate = extractDueDate(input, nlpResult);
+        task.priority = extractPriority(input, nlpResult);
+        task.tags = extractTags(input, nlpResult);
         
         // Set default status
         task.status = TaskStatus.PENDING;
         
-        logger.infof("Parsed natural language task: title='%s', assignee='%s', due='%s'", 
-                    task.title, task.assignee, task.dueDate);
+        logger.infof("Parsed Stanford NLP task: title='%s', assignee='%s', due='%s', priority='%s'", 
+                    task.title, task.assignee, task.dueDate, task.priority);
         
         return task;
     }
     
-    private String extractTitle(String input) {
-        // Remove time/date information and priority words for cleaner title
+    private String extractTitle(String input, NLPResult nlpResult) {
         String title = input;
-        title = DATE_PATTERN.matcher(title).replaceAll("");
-        title = TIME_PATTERN.matcher(title).replaceAll("");
-        title = PRIORITY_WORDS.matcher(title).replaceAll("");
         
-        return title.trim().isEmpty() ? "Untitled Task" : title.trim();
+        // Remove time expressions and entities for cleaner title
+        for (TimeInfo timeInfo : nlpResult.timeExpressions) {
+            title = title.replace(timeInfo.value, "").trim();
+        }
+        
+        // Remove priority words
+        Matcher priorityMatcher = PRIORITY_WORDS.matcher(title);
+        title = priorityMatcher.replaceAll("").trim();
+        
+        // Clean up extra spaces
+        title = title.replaceAll("\\s+", " ").trim();
+        
+        return title.isEmpty() ? "Untitled Task" : title;
     }
     
-    private LocalDateTime extractDueDate(String input) {
-        Matcher dateMatcher = DATE_PATTERN.matcher(input);
-        if (dateMatcher.find()) {
-            String dateStr = dateMatcher.group(1).toLowerCase();
-            return parseDateString(dateStr);
+    private String extractAssignee(String input, NLPResult nlpResult) {
+        // First try to find PERSON entities from Stanford NLP
+        for (EntityInfo entity : nlpResult.entities) {
+            if ("PERSON".equals(entity.type)) {
+                return entity.value;
+            }
         }
+        
+        // Fallback to pattern matching
+        Pattern assigneePattern = Pattern.compile(
+            "\\b(?:with|assign(?:ed)?\\s+to|for|call|meet(?:ing)?\\s+with)\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?)", 
+            Pattern.CASE_INSENSITIVE
+        );
+        Matcher matcher = assigneePattern.matcher(input);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        
         return null;
     }
     
-    private LocalDateTime parseDateTime(String timeInfo) {
-        LocalDateTime baseDate = null;
-        
-        // Extract date
-        Matcher dateMatcher = DATE_PATTERN.matcher(timeInfo);
-        if (dateMatcher.find()) {
-            String dateStr = dateMatcher.group(1).toLowerCase();
-            baseDate = parseDateString(dateStr);
+    private String extractProject(String input, NLPResult nlpResult) {
+        // Look for project-related keywords
+        Pattern projectPattern = Pattern.compile(
+            "\\b(?:about|regarding|for|on)\\s+(?:the\\s+)?([\\w\\s]+?)(?:\\s+project|\\s+task|\\s+work|$)", 
+            Pattern.CASE_INSENSITIVE
+        );
+        Matcher matcher = projectPattern.matcher(input);
+        if (matcher.find()) {
+            String project = matcher.group(1).trim();
+            if (project.length() > 3) { // Avoid single words like "it"
+                return project;
+            }
         }
         
-        // Extract time
-        Matcher timeMatcher = TIME_PATTERN.matcher(timeInfo);
-        if (timeMatcher.find() && baseDate != null) {
-            int hour = Integer.parseInt(timeMatcher.group(1));
-            int minute = timeMatcher.group(2) != null ? Integer.parseInt(timeMatcher.group(2)) : 0;
-            String ampm = timeMatcher.group(3);
-            
-            if (ampm != null && ampm.equalsIgnoreCase("pm") && hour != 12) {
-                hour += 12;
-            } else if (ampm != null && ampm.equalsIgnoreCase("am") && hour == 12) {
-                hour = 0;
+        return null;
+    }
+    
+    private LocalDateTime extractDueDate(String input, NLPResult nlpResult) {
+        // Use Stanford NLP time expressions first
+        for (TimeInfo timeInfo : nlpResult.timeExpressions) {
+            LocalDateTime parsed = parseTimeExpression(timeInfo.value);
+            if (parsed != null) {
+                return parsed;
             }
-            
-            return baseDate.withHour(hour).withMinute(minute);
         }
         
-        return baseDate;
-    }
-    
-    private LocalDateTime parseDateString(String dateStr) {
-        LocalDateTime now = LocalDateTime.now();
+        // Fallback to manual pattern matching
+        Pattern datePattern = Pattern.compile(
+            "\\b(today|tomorrow|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next\\s+\\w+|\\d+/\\d+)\\b",
+            Pattern.CASE_INSENSITIVE
+        );
+        Matcher matcher = datePattern.matcher(input);
+        if (matcher.find()) {
+            return parseTimeExpression(matcher.group(1));
+        }
         
-        return switch (dateStr.toLowerCase()) {
-            case "today" -> now.withHour(23).withMinute(59);
-            case "tomorrow" -> now.plusDays(1).withHour(23).withMinute(59);
-            case "yesterday" -> now.minusDays(1).withHour(23).withMinute(59);
-            case "monday" -> getNextDayOfWeek(now, 1);
-            case "tuesday" -> getNextDayOfWeek(now, 2);
-            case "wednesday" -> getNextDayOfWeek(now, 3);
-            case "thursday" -> getNextDayOfWeek(now, 4);
-            case "friday" -> getNextDayOfWeek(now, 5);
-            case "saturday" -> getNextDayOfWeek(now, 6);
-            case "sunday" -> getNextDayOfWeek(now, 7);
-            default -> {
-                try {
-                    // Try parsing as MM/dd format
-                    if (dateStr.contains("/")) {
-                        String[] parts = dateStr.split("/");
-                        int month = Integer.parseInt(parts[0]);
-                        int day = Integer.parseInt(parts[1]);
-                        yield now.withMonth(month).withDayOfMonth(day).withHour(23).withMinute(59);
-                    }
-                } catch (Exception e) {
-                    logger.warnf("Could not parse date: %s", dateStr);
-                }
-                yield null;
-            }
-        };
+        return null;
     }
     
-    private LocalDateTime getNextDayOfWeek(LocalDateTime now, int targetDayOfWeek) {
-        int currentDayOfWeek = now.getDayOfWeek().getValue();
-        int daysToAdd = (targetDayOfWeek - currentDayOfWeek + 7) % 7;
-        if (daysToAdd == 0) daysToAdd = 7; // Next week if it's the same day
-        return now.plusDays(daysToAdd).withHour(23).withMinute(59);
-    }
-    
-    private TaskPriority extractPriority(String input) {
+    private TaskPriority extractPriority(String input, NLPResult nlpResult) {
         Matcher priorityMatcher = PRIORITY_WORDS.matcher(input);
         if (priorityMatcher.find()) {
             String priorityWord = priorityMatcher.group(1).toLowerCase();
@@ -198,46 +171,106 @@ public class NaturalLanguageParser {
         return TaskPriority.NONE;
     }
     
-    private String extractAssignee(String input) {
-        // Look for "with [person]" patterns
-        Pattern assigneePattern = Pattern.compile("\\b(?:with|assign(?:ed)?\\s+to|for)\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?)", Pattern.CASE_INSENSITIVE);
-        Matcher matcher = assigneePattern.matcher(input);
-        if (matcher.find()) {
-            return matcher.group(1);
-        }
-        return null;
-    }
-    
-    private String extractProject(String input) {
-        // Look for project-related keywords
-        Pattern projectPattern = Pattern.compile("\\b(?:about|regarding|for|on)\\s+(?:the\\s+)?([\\w\\s]+?)(?:\\s+project|\\s+task|$)", Pattern.CASE_INSENSITIVE);
-        Matcher matcher = projectPattern.matcher(input);
-        if (matcher.find()) {
-            String project = matcher.group(1).trim();
-            if (project.length() > 3) { // Avoid single words like "it"
-                return project;
-            }
-        }
-        return null;
-    }
-    
-    private List<String> extractTags(String input) {
+    private List<String> extractTags(String input, NLPResult nlpResult) {
         List<String> tags = new ArrayList<>();
         
-        // Add contextual tags based on keywords
+        // Add contextual tags based on actions and keywords
+        Matcher actionMatcher = ACTION_PATTERNS.matcher(input);
+        if (actionMatcher.find()) {
+            String action = actionMatcher.group(1).toLowerCase();
+            tags.add(action);
+        }
+        
+        // Add specific tags based on content
         if (input.toLowerCase().contains("meet") || input.toLowerCase().contains("call")) {
             tags.add("meeting");
-        }
-        if (input.toLowerCase().contains("review") || input.toLowerCase().contains("check")) {
-            tags.add("review");
         }
         if (input.toLowerCase().contains("email") || input.toLowerCase().contains("mail")) {
             tags.add("email");
         }
-        if (input.toLowerCase().contains("urgent") || input.toLowerCase().contains("asap")) {
-            tags.add("urgent");
+        if (input.toLowerCase().contains("review") || input.toLowerCase().contains("check")) {
+            tags.add("review");
+        }
+        if (PRIORITY_WORDS.matcher(input).find()) {
+            tags.add("priority");
+        }
+        
+        // Add Stanford NLP detected entity types as tags
+        for (EntityInfo entity : nlpResult.entities) {
+            if ("ORGANIZATION".equals(entity.type) || "LOCATION".equals(entity.type)) {
+                tags.add(entity.type.toLowerCase());
+            }
         }
         
         return tags;
+    }
+    
+    private LocalDateTime parseTimeExpression(String timeExpr) {
+        LocalDateTime now = LocalDateTime.now();
+        String expr = timeExpr.toLowerCase().trim();
+        
+        // Handle specific time expressions
+        if (expr.contains("at") && (expr.contains("am") || expr.contains("pm"))) {
+            return parseDateTime(expr);
+        }
+        
+        return switch (expr) {
+            case "today" -> now.withHour(23).withMinute(59);
+            case "tomorrow" -> now.plusDays(1).withHour(23).withMinute(59);
+            case "yesterday" -> now.minusDays(1).withHour(23).withMinute(59);
+            case "monday" -> getNextDayOfWeek(now, 1);
+            case "tuesday" -> getNextDayOfWeek(now, 2);
+            case "wednesday" -> getNextDayOfWeek(now, 3);
+            case "thursday" -> getNextDayOfWeek(now, 4);
+            case "friday" -> getNextDayOfWeek(now, 5);
+            case "saturday" -> getNextDayOfWeek(now, 6);
+            case "sunday" -> getNextDayOfWeek(now, 7);
+            default -> {
+                if (expr.startsWith("next ")) {
+                    String day = expr.substring(5);
+                    yield parseTimeExpression(day);
+                }
+                yield null;
+            }
+        };
+    }
+    
+    private LocalDateTime parseDateTime(String timeInfo) {
+        LocalDateTime baseDate = null;
+        
+        // Extract date part
+        Pattern datePattern = Pattern.compile("\\b(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\\b", Pattern.CASE_INSENSITIVE);
+        Matcher dateMatcher = datePattern.matcher(timeInfo);
+        if (dateMatcher.find()) {
+            baseDate = parseTimeExpression(dateMatcher.group(1));
+        } else {
+            baseDate = LocalDateTime.now(); // Default to today
+        }
+        
+        // Extract time part
+        Pattern timePattern = Pattern.compile("\\b(\\d{1,2})(?::(\\d{2}))?(am|pm|AM|PM)\\b");
+        Matcher timeMatcher = timePattern.matcher(timeInfo);
+        if (timeMatcher.find() && baseDate != null) {
+            int hour = Integer.parseInt(timeMatcher.group(1));
+            int minute = timeMatcher.group(2) != null ? Integer.parseInt(timeMatcher.group(2)) : 0;
+            String ampm = timeMatcher.group(3);
+            
+            if (ampm != null && ampm.toLowerCase().equals("pm") && hour != 12) {
+                hour += 12;
+            } else if (ampm != null && ampm.toLowerCase().equals("am") && hour == 12) {
+                hour = 0;
+            }
+            
+            return baseDate.withHour(hour).withMinute(minute).withSecond(0);
+        }
+        
+        return baseDate;
+    }
+    
+    private LocalDateTime getNextDayOfWeek(LocalDateTime now, int targetDayOfWeek) {
+        int currentDayOfWeek = now.getDayOfWeek().getValue();
+        int daysToAdd = (targetDayOfWeek - currentDayOfWeek + 7) % 7;
+        if (daysToAdd == 0) daysToAdd = 7; // Next week if it's the same day
+        return now.plusDays(daysToAdd).withHour(23).withMinute(59);
     }
 }
