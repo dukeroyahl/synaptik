@@ -1,0 +1,74 @@
+# Production Docker Compose for Synaptik
+# Uses container images for production deployment
+
+name: synaptik
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: synaptik-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: synaptik
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme}
+    volumes:
+      - ${HOME}/.synaptik/data:/data/db
+      - ${SYNAPTIK_LOGS_DIR:-${HOME}/.synaptik/logs}/mongodb:/var/log/mongodb
+    expose:
+      - "27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - synaptik-network
+
+  # Backend API Service  
+  api:
+    image: ${API_IMAGE:-ghcr.io/dukeroyahl/synaptik:backend-latest}
+    container_name: synaptik-api
+    ports:
+      - "${API_PORT:-9001}:9001"
+    environment:
+      - QUARKUS_PROFILE=prod
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-changeme}@mongodb:27017/synaptik?authSource=admin
+    volumes:
+      - ${SYNAPTIK_LOGS_DIR:-${HOME}/.synaptik/logs}/backend:/opt/synaptik/logs
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9001/q/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - synaptik-network
+
+  # Frontend UI Service
+  ui:
+    image: ${UI_IMAGE:-ghcr.io/dukeroyahl/synaptik:frontend-latest}
+    container_name: synaptik-ui
+    ports:
+      - "${HTTP_PORT:-4000}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - synaptik-network
+
+
+# User data is stored in ~/.synaptik/ on the host system
+# No Docker volumes needed - data persists across container updates
+
+networks:
+  synaptik-network:
+    name: synaptik-network
+    driver: bridge

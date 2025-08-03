@@ -222,8 +222,13 @@ memory-*.json
 # PROJECT SPECIFIC
 # ===========================
 # Build artifacts
-dist/
-docker/
+/client/dist/
+/server/build/
+/mcp-server/dist/
+
+# Allow Docker infrastructure
+!dist/docker/
+!dist/docker-compose.yml
 
 # Test files
 test.txt
