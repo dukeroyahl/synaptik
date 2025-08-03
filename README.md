@@ -8,7 +8,7 @@
 [![Docker](https://img.shields.io/docker/pulls/roudranil/synaptik?logo=docker&color=2496ED)](https://hub.docker.com/r/roudranil/synaptik)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-[🚀 Quick Start](#-quick-start) • [📚 Wiki Documentation](https://github.com/Dukeroyahl/Synaptik/wiki) • [🤝 Contributing](CONTRIBUTING.md) • [📝 Conventional Commits](https://github.com/Dukeroyahl/Synaptik/wiki/Conventional-Commits)
+[🚀 Quick Start](#-quick-start) • [📚 Wiki Documentation](https://github.com/dukeroyahl/synaptik/wiki) • [🤝 Contributing](CONTRIBUTING.md) • [📝 Conventional Commits](https://github.com/dukeroyahl/synaptik/wiki/Conventional-Commits)
 
 </div>
 
@@ -47,8 +47,8 @@ curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/install.sh 
 ```bash
 # Create dedicated folder, download configuration files and start
 mkdir synaptik && cd synaptik && \
-curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker-compose.yml -o docker-compose.yml && \
-curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker/.env.example -o .env && \
+curl -sSL https://raw.githubusercontent.com/dukeroyahl/synaptik/main/docker/docker-compose.yml -o docker-compose.yml && \
+curl -sSL https://raw.githubusercontent.com/dukeroyahl/synaptik/main/docker/.env.example -o .env && \
 docker-compose up -d
 ```
 
@@ -81,7 +81,7 @@ This installs the complete Synaptik application with:
 #### Step 2: Download MCP Connector (Native Binary)
 ```bash
 # Download the native binary for your platform
-curl -sSL https://github.com/Dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux -o synaptik-mcp
+curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux -o synaptik-mcp
 chmod +x synaptik-mcp
 ```
 
@@ -137,15 +137,15 @@ Restart Claude Desktop and you're ready to go!
 ## 📖 Documentation
 
 ### 👥 For Users
-- **[📚 Complete Wiki](https://github.com/Dukeroyahl/Synaptik/wiki)** - Comprehensive documentation hub
-- **[User Guide](https://github.com/Dukeroyahl/Synaptik/wiki/User-Guide)** - Complete user documentation
-- **[MCP Integration Guide](https://github.com/Dukeroyahl/Synaptik/wiki/MCP-Server)** - Claude Desktop setup
+- **[📚 Complete Wiki](https://github.com/dukeroyahl/synaptik/wiki)** - Comprehensive documentation hub
+- **[User Guide](https://github.com/dukeroyahl/synaptik/wiki/User-Guide)** - Complete user documentation
+- **[MCP Integration Guide](https://github.com/dukeroyahl/synaptik/wiki/MCP-Server)** - Claude Desktop setup
 
 ### 💻 For Developers  
-- **[Developer Guide](https://github.com/Dukeroyahl/Synaptik/wiki/Developer-Guide)** - Technical documentation
+- **[Developer Guide](https://github.com/dukeroyahl/synaptik/wiki/Developer-Guide)** - Technical documentation
 - **[Contributing Guidelines](CONTRIBUTING.md)** - How to contribute
 - **[Branching Strategy](docs/BRANCHING_STRATEGY.md)** - Automated versioning and branch conventions
-- **[Docker Guide](https://github.com/Dukeroyahl/Synaptik/wiki/Docker-Guide)** - Container deployment
+- **[Docker Guide](https://github.com/dukeroyahl/synaptik/wiki/Docker-Guide)** - Container deployment
 
 ---
 
@@ -153,6 +153,6 @@ Restart Claude Desktop and you're ready to go!
 
 **Built with ❤️ by the Synaptik team**
 
-[🚀 Quick Start](#-quick-start) • [📚 Wiki Documentation](https://github.com/Dukeroyahl/Synaptik/wiki) • [🤝 Contributing](CONTRIBUTING.md) • [📝 Issues](https://github.com/Dukeroyahl/Synaptik/issues)
+[🚀 Quick Start](#-quick-start) • [📚 Wiki Documentation](https://github.com/dukeroyahl/synaptik/wiki) • [🤝 Contributing](CONTRIBUTING.md) • [📝 Issues](https://github.com/dukeroyahl/synaptik/issues)
 
 </div>

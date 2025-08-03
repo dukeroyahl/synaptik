@@ -32,9 +32,9 @@ log_error() {
 
 # Configuration
 SYNAPTIK_DIR="$HOME/.synaptik"
-COMPOSE_URL="https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker-compose.yml"
-ENV_URL="https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker/.env.example"
-GITHUB_REPO="Dukeroyahl/synaptik"
+COMPOSE_URL="https://raw.githubusercontent.com/dukeroyahl/synaptik/main/docker-compose.yml"
+ENV_URL="https://raw.githubusercontent.com/dukeroyahl/synaptik/main/docker/.env.example"
+GITHUB_REPO="dukeroyahl/synaptik"
 
 echo "🚀 Welcome to Synaptik Installation & Update"
 echo "============================================="
@@ -213,7 +213,7 @@ echo "   Status:      cd $SYNAPTIK_DIR && $DOCKER_COMPOSE_CMD ps"
 echo "   Logs:        cd $SYNAPTIK_DIR && $DOCKER_COMPOSE_CMD logs -f"
 echo "   Stop:        cd $SYNAPTIK_DIR && $DOCKER_COMPOSE_CMD down"
 echo "   Restart:     cd $SYNAPTIK_DIR && $DOCKER_COMPOSE_CMD restart"
-echo "   Update:      curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/install.sh | bash"
+echo "   Update:      curl -sSL https://raw.githubusercontent.com/dukeroyahl/synaptik/main/install.sh | bash"
 echo ""
 echo "💾 Data & Configuration:"
 echo "   Installation: $SYNAPTIK_DIR"
@@ -228,8 +228,8 @@ if [ "$IS_UPDATE" = true ]; then
     echo "   - Docker images updated to latest versions"
     echo ""
 fi
-echo "📖 Documentation: https://github.com/Dukeroyahl/synaptik/wiki"
-echo "🐛 Issues: https://github.com/Dukeroyahl/synaptik/issues"
+echo "📖 Documentation: https://github.com/dukeroyahl/synaptik/wiki"
+echo "🐛 Issues: https://github.com/dukeroyahl/synaptik/issues"
 
 # Show Claude Desktop integration info
 echo ""
@@ -240,22 +240,22 @@ echo ""
 echo "1. Download the native connector for your platform:"
 case "$(uname)" in
     Darwin*) 
-        echo "   curl -sSL https://github.com/Dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-macos -o synaptik-mcp"
+        echo "   curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-macos -o synaptik-mcp"
         ;;
     Linux*)
-        echo "   curl -sSL https://github.com/Dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux -o synaptik-mcp"
+        echo "   curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux -o synaptik-mcp"
         ;;
     MINGW*|CYGWIN*|MSYS*)
-        echo "   curl -sSL https://github.com/Dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-windows.exe -o synaptik-mcp.exe"
+        echo "   curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-windows.exe -o synaptik-mcp.exe"
         ;;
     *)
-        echo "   Visit: https://github.com/Dukeroyahl/synaptik/releases/latest"
+        echo "   Visit: https://github.com/dukeroyahl/synaptik/releases/latest"
         ;;
 esac
 echo "   chmod +x synaptik-mcp"
 echo ""
 echo "2. Configure Claude Desktop to use the connector"
-echo "   See: https://github.com/Dukeroyahl/synaptik#-claude-desktop-integration"
+echo "   See: https://github.com/dukeroyahl/synaptik#-claude-desktop-integration"
 echo ""
 log_info "Once configured, ask Claude things like:"
 echo "   • 'Show me my active tasks'"
