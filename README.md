@@ -2,11 +2,18 @@
 
 # 🧠 Synaptik
 
+[![CI](https://github.com/dukeroyahl/synaptik/actions/workflows/ci.yml/badge.svg)](https://github.com/dukeroyahl/synaptik/actions/workflows/ci.yml)
+[![CD](https://github.com/dukeroyahl/synaptik/actions/workflows/cd.yml/badge.svg)](https://github.com/dukeroyahl/synaptik/actions/workflows/cd.yml)
 [![Java](https://img.shields.io/badge/Java-21+-orange.svg)](https://openjdk.java.net/)
 [![Quarkus](https://img.shields.io/badge/Quarkus-3.6+-blue.svg)](https://quarkus.io/)
 [![React](https://img.shields.io/badge/React-18+-61DAFB.svg)](https://reactjs.org/)
-[![Docker](https://img.shields.io/docker/pulls/roudranil/synaptik?logo=docker&color=2496ED)](https://hub.docker.com/r/roudranil/synaptik)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+[![GitHub Packages](https://img.shields.io/badge/Docker-GitHub%20Packages-blue?logo=docker&logoColor=white)](https://github.com/dukeroyahl/synaptik/pkgs/container/synaptik)
+[![Frontend](https://img.shields.io/badge/Frontend-GHCR-blue?logo=github&logoColor=white)](https://github.com/dukeroyahl/synaptik/pkgs/container/synaptik/versions?filters%5Bversion_type%5D=tagged&query=frontend)
+[![Backend](https://img.shields.io/badge/Backend-GHCR-blue?logo=github&logoColor=white)](https://github.com/dukeroyahl/synaptik/pkgs/container/synaptik/versions?filters%5Bversion_type%5D=tagged&query=backend)
+[![Native Binaries](https://img.shields.io/badge/Binaries-GitHub%20Releases-green?logo=github&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
+[![macOS ARM64](https://img.shields.io/badge/macOS%20ARM64-Primary%20Platform-success?logo=apple&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
 
 [🚀 Quick Start](#-quick-start) • [📚 Wiki Documentation](https://github.com/dukeroyahl/synaptik/wiki) • [🤝 Contributing](CONTRIBUTING.md) • [📝 Conventional Commits](https://github.com/dukeroyahl/synaptik/wiki/Conventional-Commits)
 
@@ -26,6 +33,35 @@
 - 🐳 **Container-Ready**: Multi-architecture Docker images with semantic versioning
 
 ![Synaptik Application](docs/images/app-main.png)
+
+---
+
+## 📦 GitHub Packages
+
+<div align="center">
+
+### 🐳 Docker Images (GitHub Container Registry)
+[![Frontend Image](https://img.shields.io/badge/ghcr.io%2Fdukeroyahl%2Fsynaptik-frontend--latest-blue?logo=docker&logoColor=white)](https://github.com/dukeroyahl/synaptik/pkgs/container/synaptik/versions?filters%5Bversion_type%5D=tagged&query=frontend)
+[![Backend Image](https://img.shields.io/badge/ghcr.io%2Fdukeroyahl%2Fsynaptik-backend--latest-blue?logo=docker&logoColor=white)](https://github.com/dukeroyahl/synaptik/pkgs/container/synaptik/versions?filters%5Bversion_type%5D=tagged&query=backend)
+
+```bash
+# Pull latest images
+docker pull ghcr.io/dukeroyahl/synaptik:frontend-latest
+docker pull ghcr.io/dukeroyahl/synaptik:backend-latest
+```
+
+### 🔥 Native MCP Binaries (GitHub Releases)
+[![macOS ARM64](https://img.shields.io/badge/macOS%20ARM64-Primary-success?logo=apple&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
+[![Linux x86_64](https://img.shields.io/badge/Linux%20x86__64-Supported-informational?logo=linux&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
+[![Linux ARM64](https://img.shields.io/badge/Linux%20ARM64-Supported-informational?logo=linux&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
+
+```bash
+# Download for macOS Apple Silicon (Primary Platform)
+curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-darwin-arm64 -o synaptik-mcp
+chmod +x synaptik-mcp
+```
+
+</div>
 
 ---
 
