@@ -32,7 +32,7 @@ log_error() {
 
 # Configuration
 SYNAPTIK_DIR="$HOME/.synaptik"
-COMPOSE_URL="https://raw.githubusercontent.com/dukeroyahl/synaptik/main/docker-compose.yml"
+COMPOSE_URL="https://raw.githubusercontent.com/dukeroyahl/synaptik/main/docker/docker-compose.yml"
 ENV_URL="https://raw.githubusercontent.com/dukeroyahl/synaptik/main/docker/.env.example"
 GITHUB_REPO="dukeroyahl/synaptik"
 
