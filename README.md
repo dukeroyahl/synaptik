@@ -81,15 +81,14 @@ This installs the complete Synaptik application with:
 #### Step 2: Download MCP Connector (Native Binary)
 ```bash
 # Download the native binary for your platform
-curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux-amd64 -o synaptik-mcp
+curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-darwin-arm64 -o synaptik-mcp
 chmod +x synaptik-mcp
 ```
 
 **Available Platforms:**
+- **macOS Apple Silicon**: `synaptik-mcp-darwin-arm64` ⭐ **(Primary Platform)**
 - **Linux x86_64**: `synaptik-mcp-linux-amd64`
 - **Linux ARM64**: `synaptik-mcp-linux-arm64`
-
-*Note: macOS support will be available in future releases.*
 
 > **Architecture**: The MCP server is a standalone native executable that connects to your Dockerized Synaptik server on port 9001. No dependencies required!
 

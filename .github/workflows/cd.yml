@@ -123,6 +123,9 @@ jobs:
     strategy:
       matrix:
         include:
+          - platform: darwin-arm64
+            os: macos-14
+            use-native: true
           - platform: linux-amd64
             os: ubuntu-latest
             builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-amd64
@@ -151,14 +154,27 @@ jobs:
           key: gradle-mcp-${{ runner.os }}-${{ hashFiles('mcp-quarkus-server/**/*.gradle*') }}
           restore-keys: gradle-mcp-${{ runner.os }}-
 
+      - name: Install GraalVM (macOS only)
+        if: matrix.use-native == true
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build MCP native binary
         run: |
           cd mcp-quarkus-server
           chmod +x gradlew
           
-          # Build native executable - uses appropriate builder image for each architecture
-          ./gradlew buildNative -Dquarkus.native.container-build=true \
-                               -Dquarkus.native.builder-image=${{ matrix.builder-image }}
+          if [ "${{ matrix.use-native }}" = "true" ]; then
+            # macOS: Use native GraalVM installation
+            ./gradlew buildNative
+          else
+            # Linux: Use containerized Mandrel builder
+            ./gradlew buildNative -Dquarkus.native.container-build=true \
+                                 -Dquarkus.native.builder-image=${{ matrix.builder-image }}
+          fi
 
       - name: Prepare binary for release
         run: |
@@ -272,6 +288,9 @@ jobs:
             Download the native MCP connector for your platform:
             
             ```bash
+            # macOS Apple Silicon (Primary Platform)
+            curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ needs.validate-release.outputs.version }}/synaptik-mcp-darwin-arm64 -o synaptik-mcp && chmod +x synaptik-mcp
+            
             # Linux x86_64
             curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ needs.validate-release.outputs.version }}/synaptik-mcp-linux-amd64 -o synaptik-mcp && chmod +x synaptik-mcp
             
@@ -280,10 +299,9 @@ jobs:
             ```
             
             **Available Binaries:**
+            - `synaptik-mcp-darwin-arm64` - macOS Apple Silicon ⭐ **(Primary Platform)**
             - `synaptik-mcp-linux-amd64` - Linux x86_64
             - `synaptik-mcp-linux-arm64` - Linux ARM64
-            
-            *Note: macOS support will be available in future releases.*
             
             ### 🚀 Quick Start
             ```bash
