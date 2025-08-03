@@ -141,7 +141,7 @@ const EmbeddedTerminal: React.FC = () => {
           if (pwdResult.output) {
             setCurrentDirectory(pwdResult.output.trim().split('/').pop() || '~');
           }
-        } catch (e) {
+        } catch {
           // Ignore pwd errors
         }
       }

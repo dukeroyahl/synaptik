@@ -55,7 +55,7 @@ const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
       } else {
         setMessage({ type: 'error', text: result.error || 'Failed to capture task' })
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Network error occurred' })
     } finally {
       setLoading(false)
