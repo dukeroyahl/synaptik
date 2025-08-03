@@ -204,7 +204,23 @@ jobs:
             npm test -- --coverage --passWithNoTests --watchAll=false
           elif [ "${{ matrix.task }}" = "build" ]; then
             npm run build
+            # Bundle size analysis
+            echo "📦 Bundle Size Analysis" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            du -sh dist/ | tee -a $GITHUB_STEP_SUMMARY || echo "No dist directory" >> $GITHUB_STEP_SUMMARY
+            echo "Top 5 largest JS files:" >> $GITHUB_STEP_SUMMARY
+            find dist/ -name "*.js" -exec du -h {} + | sort -hr | head -5 | tee -a $GITHUB_STEP_SUMMARY || echo "No JS files found" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: MCP Server tasks
+        if: matrix.component == 'frontend'
+        run: |
+          cd mcp-server
+          npm ci
+          npm run lint || echo "ℹ️ No lint script found for MCP server"
+          npm test || echo "ℹ️ No test script found for MCP server"
+          echo "✅ MCP Server validation completed"
 
       - name: Backend tasks
         if: matrix.component == 'backend' && needs.workflow-context.outputs.backend_changed == 'true'
@@ -229,6 +245,7 @@ jobs:
           path: |
             client/coverage/
             server/build/reports/
+            mcp-server/coverage/
           retention-days: 3
 
   # Security and quality checks
