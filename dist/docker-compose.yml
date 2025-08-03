@@ -31,8 +31,8 @@ services:
   api:
     image: ${API_IMAGE:-roudranil/synaptik:backend-latest}
     container_name: synaptik-api
-    expose:
-      - "9001"
+    ports:
+      - "${API_PORT:-9001}:9001"
     environment:
       - QUARKUS_PROFILE=prod
       - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-changeme}@mongodb:27017/synaptik?authSource=admin
