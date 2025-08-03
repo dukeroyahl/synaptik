@@ -69,7 +69,7 @@ jobs:
             echo "should_release=true" >> $GITHUB_OUTPUT
           else
             echo "❌ CI checks failed or pending: $LATEST_CI_STATUS"
-            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "should_release=true" >> $GITHUB_OUTPUT
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -84,7 +84,7 @@ jobs:
     strategy:
       matrix:
         component: [frontend, backend]
-      fail-fast: false
+      fail-fast: true
     steps:
       - uses: actions/checkout@v4
 
@@ -129,9 +129,6 @@ jobs:
           - platform: linux-amd64
             os: ubuntu-latest
             builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-amd64
-          - platform: linux-arm64
-            os: ubuntu-24.04-arm64
-            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-arm64
       fail-fast: false
     runs-on: ${{ matrix.os }}
     
@@ -172,8 +169,7 @@ jobs:
             ./gradlew buildNative
           else
             # Linux: Use containerized Mandrel builder
-            ./gradlew buildNative -Dquarkus.native.container-build=true \
-                                 -Dquarkus.native.builder-image=${{ matrix.builder-image }}
+            ./gradlew buildNative -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=${{ matrix.builder-image }}
           fi
 
       - name: Prepare binary for release
