@@ -106,8 +106,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.component }}-${{ needs.validate-release.outputs.version }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.component }}-latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.component }}:${{ needs.validate-release.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.component }}:latest
           labels: |
             org.opencontainers.image.title=Synaptik ${{ matrix.component }}
             org.opencontainers.image.description=Synaptik ${{ matrix.component }} - TaskWarrior DNA task management
@@ -278,10 +278,10 @@ jobs:
             ### 🐳 Docker Images (GitHub Packages)
             ```bash
             # Frontend
-            docker pull ghcr.io/${{ github.repository }}:frontend-${{ needs.validate-release.outputs.version }}
+            docker pull ghcr.io/${{ github.repository }}/frontend:${{ needs.validate-release.outputs.version }}
             
             # Backend  
-            docker pull ghcr.io/${{ github.repository }}:backend-${{ needs.validate-release.outputs.version }}
+            docker pull ghcr.io/${{ github.repository }}/backend:${{ needs.validate-release.outputs.version }}
             ```
             
             ### 📦 Native MCP Binaries (GitHub Packages)
@@ -387,8 +387,8 @@ jobs:
           if [ "${{ needs.build-docker-images.result }}" = "success" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🐳 Published Images (GitHub Packages)" >> $GITHUB_STEP_SUMMARY
-            echo "- \`ghcr.io/${{ github.repository }}:frontend-${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "- \`ghcr.io/${{ github.repository }}:backend-${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`ghcr.io/${{ github.repository }}/frontend:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`ghcr.io/${{ github.repository }}/backend:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Check for critical failures
