@@ -120,13 +120,17 @@ jobs:
   build-native-binaries:
     needs: validate-release
     if: needs.validate-release.outputs.should_release == 'true'
-    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
           - platform: linux-amd64
+            os: ubuntu-latest
             builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-amd64
+          - platform: linux-arm64
+            os: ubuntu-24.04-arm64
+            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-arm64
       fail-fast: false
+    runs-on: ${{ matrix.os }}
     
     steps:
       - uses: actions/checkout@v4
@@ -152,7 +156,7 @@ jobs:
           cd mcp-quarkus-server
           chmod +x gradlew
           
-          # Build native executable for Linux AMD64
+          # Build native executable - uses appropriate builder image for each architecture
           ./gradlew buildNative -Dquarkus.native.container-build=true \
                                -Dquarkus.native.builder-image=${{ matrix.builder-image }}
 
@@ -268,14 +272,18 @@ jobs:
             Download the native MCP connector for your platform:
             
             ```bash
-            # Linux x86_64 (currently supported)
+            # Linux x86_64
             curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ needs.validate-release.outputs.version }}/synaptik-mcp-linux-amd64 -o synaptik-mcp && chmod +x synaptik-mcp
+            
+            # Linux ARM64
+            curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ needs.validate-release.outputs.version }}/synaptik-mcp-linux-arm64 -o synaptik-mcp && chmod +x synaptik-mcp
             ```
             
             **Available Binaries:**
             - `synaptik-mcp-linux-amd64` - Linux x86_64
+            - `synaptik-mcp-linux-arm64` - Linux ARM64
             
-            *Note: Additional platforms (ARM64, macOS) will be available in future releases.*
+            *Note: macOS support will be available in future releases.*
             
             ### 🚀 Quick Start
             ```bash

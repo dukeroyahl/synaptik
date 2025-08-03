@@ -87,8 +87,9 @@ chmod +x synaptik-mcp
 
 **Available Platforms:**
 - **Linux x86_64**: `synaptik-mcp-linux-amd64`
+- **Linux ARM64**: `synaptik-mcp-linux-arm64`
 
-*Note: Additional platforms (ARM64, macOS) will be available in future releases.*
+*Note: macOS support will be available in future releases.*
 
 > **Architecture**: The MCP server is a standalone native executable that connects to your Dockerized Synaptik server on port 9001. No dependencies required!
 
