@@ -227,8 +227,7 @@ memory-*.json
 /mcp-server/dist/
 
 # Allow Docker infrastructure
-!dist/docker/
-!dist/docker-compose.yml
+!docker/
 
 # Test files
 test.txt
