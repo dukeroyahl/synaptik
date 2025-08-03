@@ -43,7 +43,7 @@
     "@typescript-eslint/parser": "^8.38.0",
     "@vitejs/plugin-react": "^4.1.1",
     "eslint": "^9.32.0",
-    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.4",
     "typescript": "^5.8.4",
     "vite": "^7.0.0"
