@@ -26,25 +26,6 @@ updates:
       - dependency-name: "react-dom"
         update-types: ["version-update:semver-major"]
 
-  # MCP Server dependencies (Node.js)
-  - package-ecosystem: "npm"
-    directory: "/mcp-server"
-    schedule:
-      interval: "weekly"
-      day: "sunday"
-      time: "03:00"
-    open-pull-requests-limit: 3
-    reviewers:
-      - "Dukeroyahl"
-    assignees:
-      - "Dukeroyahl"
-    commit-message:
-      prefix: "deps"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "mcp-server"
-
   # Root package.json dependencies
   - package-ecosystem: "npm"
     directory: "/"
@@ -124,20 +105,3 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
-
-  # Docker dependencies
-  - package-ecosystem: "docker"
-    directory: "/dist/docker"
-    schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 2
-    reviewers:
-      - "Dukeroyahl"
-    assignees:
-      - "Dukeroyahl"
-    commit-message:
-      prefix: "deps"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "docker"

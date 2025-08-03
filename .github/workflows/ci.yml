@@ -59,11 +59,11 @@ jobs:
           filters: |
             frontend:
               - 'client/**'
-              - 'mcp-server/**'
               - '*.json'
               - 'package*.json'
             backend:
               - 'server/**'
+              - 'mcp-quarkus-server/**'
               - '*.gradle*'
               - 'gradle/**'
 
@@ -171,7 +171,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: |
             client/package-lock.json
-            mcp-server/package-lock.json
 
       - name: Setup JDK and Gradle cache
         if: matrix.component == 'backend'
@@ -213,14 +212,6 @@ jobs:
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: MCP Server tasks
-        if: matrix.component == 'frontend'
-        run: |
-          cd mcp-server
-          npm ci
-          npm run lint || echo "ℹ️ No lint script found for MCP server"
-          npm test || echo "ℹ️ No test script found for MCP server"
-          echo "✅ MCP Server validation completed"
 
       - name: Backend tasks
         if: matrix.component == 'backend' && needs.workflow-context.outputs.backend_changed == 'true'
@@ -245,7 +236,7 @@ jobs:
           path: |
             client/coverage/
             server/build/reports/
-            mcp-server/coverage/
+            mcp-quarkus-server/build/reports/
           retention-days: 3
 
   # Security and quality checks
