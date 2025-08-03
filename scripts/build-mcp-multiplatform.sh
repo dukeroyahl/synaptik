@@ -73,7 +73,7 @@ build_for_platform() {
     
     echo -e "${BLUE}📦 Building for $target_platform...${NC}"
     
-    cd mcp-quarkus-server
+    cd mcp
     ./gradlew clean
     
     local build_args="build -Dquarkus.package.type=native"

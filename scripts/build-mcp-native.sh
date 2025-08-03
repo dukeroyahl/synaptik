@@ -36,7 +36,7 @@ echo -e "${GREEN}✅ GraalVM native-image available${NC}"
 echo -e "${BLUE}📦 Building MCP native binaries for release...${NC}"
 
 # Change to MCP server directory
-cd mcp-quarkus-server
+cd mcp
 
 # Create release directory
 mkdir -p ../dist/release

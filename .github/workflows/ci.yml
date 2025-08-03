@@ -63,7 +63,7 @@ jobs:
               - 'package*.json'
             backend:
               - 'server/**'
-              - 'mcp-quarkus-server/**'
+              - 'mcp/**'
               - '*.gradle*'
               - 'gradle/**'
 
@@ -236,7 +236,7 @@ jobs:
           path: |
             client/coverage/
             server/build/reports/
-            mcp-quarkus-server/build/reports/
+            mcp/build/reports/
           retention-days: 3
 
   # Security and quality checks

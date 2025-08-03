@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
     "client:dev": "cd client && npm run dev",
-    "server:dev": "cd mcp-quarkus-server && ./gradlew quarkusDev",
+    "server:dev": "cd mcp && ./gradlew quarkusDev",
     "build": "cd client && npm run build",
-    "build:server": "cd mcp-quarkus-server && ./gradlew clean build",
+    "build:server": "cd mcp && ./gradlew clean build",
     "install:all": "npm install && cd client && npm install",
     "mongo:start": "brew services start mongodb-community",
     "mongo:stop": "brew services stop mongodb-community",

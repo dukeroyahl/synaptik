@@ -147,8 +147,8 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-            mcp-quarkus-server/.gradle
-          key: gradle-mcp-${{ runner.os }}-${{ hashFiles('mcp-quarkus-server/**/*.gradle*') }}
+            mcp/.gradle
+          key: gradle-mcp-${{ runner.os }}-${{ hashFiles('mcp/**/*.gradle*') }}
           restore-keys: gradle-mcp-${{ runner.os }}-
 
       - name: Install GraalVM (macOS only)
@@ -161,7 +161,7 @@ jobs:
 
       - name: Build MCP native binary
         run: |
-          cd mcp-quarkus-server
+          cd mcp
           chmod +x gradlew
           
           if [ "${{ matrix.use-native }}" = "true" ]; then
@@ -174,7 +174,7 @@ jobs:
 
       - name: Prepare binary for release
         run: |
-          cd mcp-quarkus-server/build
+          cd mcp/build
           
           # Find the generated native binary
           BINARY_NAME=$(find . -name "*-runner" -type f | head -n 1)
@@ -196,7 +196,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: synaptik-mcp-${{ matrix.platform }}
-          path: mcp-quarkus-server/build/synaptik-mcp-${{ matrix.platform }}
+          path: mcp/build/synaptik-mcp-${{ matrix.platform }}
           retention-days: 7
           compression-level: 9
 

@@ -70,7 +70,7 @@ updates:
 
   # MCP Quarkus Server dependencies
   - package-ecosystem: "gradle"
-    directory: "/mcp-quarkus-server"
+    directory: "/mcp"
     schedule:
       interval: "weekly"
       day: "sunday"
@@ -85,7 +85,7 @@ updates:
       include: "scope"
     labels:
       - "dependencies"
-      - "mcp-quarkus-server"
+      - "mcp"
 
   # GitHub Actions dependencies
   - package-ecosystem: "github-actions"
