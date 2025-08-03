@@ -167,10 +167,9 @@ jobs:
           esac
           
           # Build native executable
-          ./gradlew build -Dquarkus.native.enabled=true \
-                         -Dquarkus.native.container-build=true \
-                         -Dquarkus.native.builder-image=${{ matrix.builder-image }} \
-                         $EXTRA_ARGS
+          ./gradlew buildNative -Dquarkus.native.container-build=true \
+                               -Dquarkus.native.builder-image=${{ matrix.builder-image }} \
+                               $EXTRA_ARGS
 
       - name: Prepare binary for release
         run: |
