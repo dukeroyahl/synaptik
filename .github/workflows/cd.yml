@@ -126,12 +126,6 @@ jobs:
         include:
           - platform: linux-amd64
             builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-amd64
-          - platform: linux-arm64
-            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-arm64
-          - platform: darwin-amd64
-            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-amd64
-          - platform: darwin-arm64
-            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-arm64
       fail-fast: false
     
     steps:
@@ -158,21 +152,9 @@ jobs:
           cd mcp-quarkus-server
           chmod +x gradlew
           
-          # Set platform-specific build args
-          EXTRA_ARGS=""
-          case "${{ matrix.platform }}" in
-            "darwin-amd64")
-              EXTRA_ARGS="-Dquarkus.native.additional-build-args=--target=x86_64-apple-darwin"
-              ;;
-            "darwin-arm64")
-              EXTRA_ARGS="-Dquarkus.native.additional-build-args=--target=aarch64-apple-darwin"
-              ;;
-          esac
-          
-          # Build native executable
+          # Build native executable for Linux AMD64
           ./gradlew buildNative -Dquarkus.native.container-build=true \
-                               -Dquarkus.native.builder-image=${{ matrix.builder-image }} \
-                               $EXTRA_ARGS
+                               -Dquarkus.native.builder-image=${{ matrix.builder-image }}
 
       - name: Prepare binary for release
         run: |
@@ -286,24 +268,14 @@ jobs:
             Download the native MCP connector for your platform:
             
             ```bash
-            # Linux x86_64
+            # Linux x86_64 (currently supported)
             curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ needs.validate-release.outputs.version }}/synaptik-mcp-linux-amd64 -o synaptik-mcp && chmod +x synaptik-mcp
-            
-            # Linux ARM64
-            curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ needs.validate-release.outputs.version }}/synaptik-mcp-linux-arm64 -o synaptik-mcp && chmod +x synaptik-mcp
-            
-            # macOS Intel
-            curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ needs.validate-release.outputs.version }}/synaptik-mcp-darwin-amd64 -o synaptik-mcp && chmod +x synaptik-mcp
-            
-            # macOS Apple Silicon
-            curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ needs.validate-release.outputs.version }}/synaptik-mcp-darwin-arm64 -o synaptik-mcp && chmod +x synaptik-mcp
             ```
             
             **Available Binaries:**
             - `synaptik-mcp-linux-amd64` - Linux x86_64
-            - `synaptik-mcp-linux-arm64` - Linux ARM64  
-            - `synaptik-mcp-darwin-amd64` - macOS Intel
-            - `synaptik-mcp-darwin-arm64` - macOS Apple Silicon
+            
+            *Note: Additional platforms (ARM64, macOS) will be available in future releases.*
             
             ### 🚀 Quick Start
             ```bash
