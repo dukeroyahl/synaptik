@@ -141,8 +141,24 @@ public class TaskResource {
     @Operation(summary = "Create task from natural language or TaskWarrior syntax")
     @Blocking
     public Uni<Response> captureTask(String input) {
-        Task parsedTask = nlpParser.parseNaturalLanguage(input);
-        return taskService.createTask(parsedTask)
-            .onItem().transform(createdTask -> Response.status(Response.Status.CREATED).entity(createdTask).build());
+        try {
+            Task parsedTask = nlpParser.parseNaturalLanguage(input);
+            return taskService.createTask(parsedTask)
+                .onItem().transform(createdTask -> Response.status(Response.Status.CREATED).entity(createdTask).build());
+        } catch (IllegalArgumentException e) {
+            return Uni.createFrom().item(
+                Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"" + e.getMessage() + "\"}")
+                    .type(MediaType.APPLICATION_JSON)
+                    .build()
+            );
+        } catch (Exception e) {
+            return Uni.createFrom().item(
+                Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity("{\"error\": \"Failed to process task: " + e.getMessage() + "\"}")
+                    .type(MediaType.APPLICATION_JSON)
+                    .build()
+            );
+        }
     }
 }

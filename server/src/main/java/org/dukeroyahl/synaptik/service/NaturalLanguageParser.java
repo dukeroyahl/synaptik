@@ -39,14 +39,26 @@ public class NaturalLanguageParser {
     public Task parseNaturalLanguage(String input) {
         logger.infof("Parsing input with Stanford NLP: %s", input);
         
+        // Validate input
+        if (input == null || input.trim().isEmpty()) {
+            throw new IllegalArgumentException("Task input cannot be null or empty");
+        }
+        
+        // Sanitize input - limit length to prevent memory issues
+        String sanitizedInput = input.trim();
+        if (sanitizedInput.length() > 10000) {
+            logger.warnf("Input too long (%d chars), truncating to 10000 chars", sanitizedInput.length());
+            sanitizedInput = sanitizedInput.substring(0, 10000);
+        }
+        
         // First try TaskWarrior syntax - if it contains structured syntax, use existing parser
-        if (containsTaskWarriorSyntax(input)) {
+        if (containsTaskWarriorSyntax(sanitizedInput)) {
             logger.info("Input contains TaskWarrior syntax, using structured parser");
-            return TaskWarriorParser.parseTaskWarriorInput(input);
+            return TaskWarriorParser.parseTaskWarriorInput(sanitizedInput);
         }
         
         // Use Stanford NLP for natural language parsing
-        return parseWithStanfordNLP(input);
+        return parseWithStanfordNLP(sanitizedInput);
     }
     
     private boolean containsTaskWarriorSyntax(String input) {

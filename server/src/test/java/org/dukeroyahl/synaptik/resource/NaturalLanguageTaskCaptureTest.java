@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Order;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.Matchers.anyOf;
 
 @QuarkusTest
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -300,5 +301,235 @@ public class NaturalLanguageTaskCaptureTest {
         System.out.println("Due Date: " + response.path("dueDate"));
         System.out.println("Tags: " + response.path("tags"));
         System.out.println("===========================================\n");
+    }
+
+    // NEGATIVE TEST CASES
+    
+    @Test
+    @Order(11)
+    public void testEmptyInput() {
+        String input = "";
+        
+        Response response = given()
+            .contentType("text/plain")
+            .body(input)
+            .when()
+            .post("/api/tasks/capture")
+            .then()
+            .statusCode(400)
+            .extract()
+            .response();
+        
+        System.out.println("\n=== Negative Test 1: Empty Input ===");
+        System.out.println("Input: '" + input + "'");
+        System.out.println("Response Status: " + response.getStatusCode());
+        System.out.println("Response: " + response.asString());
+        System.out.println("=====================================\n");
+    }
+    
+    @Test
+    @Order(12)
+    public void testWhitespaceOnlyInput() {
+        String input = "   \n\t   ";
+        
+        Response response = given()
+            .contentType("text/plain")
+            .body(input)
+            .when()
+            .post("/api/tasks/capture")
+            .then()
+            .statusCode(400)
+            .extract()
+            .response();
+        
+        System.out.println("\n=== Negative Test 2: Whitespace Only ===");
+        System.out.println("Input: '" + input + "'");
+        System.out.println("Response Status: " + response.getStatusCode());
+        System.out.println("Response: " + response.asString());
+        System.out.println("=====================================\n");
+    }
+    
+    @Test
+    @Order(13)
+    public void testVeryLongInput() {
+        StringBuilder longInput = new StringBuilder();
+        for (int i = 0; i < 1000; i++) {
+            longInput.append("This is a very long task description that might cause issues. ");
+        }
+        String input = longInput.toString();
+        
+        Response response = given()
+            .contentType("text/plain")
+            .body(input)
+            .when()
+            .post("/api/tasks/capture")
+            .then()
+            .statusCode(anyOf(is(201), is(400), is(413))) // Accept created, bad request, or payload too large
+            .extract()
+            .response();
+        
+        System.out.println("\n=== Negative Test 3: Very Long Input ===");
+        System.out.println("Input Length: " + input.length() + " characters");
+        System.out.println("Response Status: " + response.getStatusCode());
+        System.out.println("Response: " + response.asString().substring(0, Math.min(200, response.asString().length())) + "...");
+        System.out.println("=========================================\n");
+    }
+    
+    @Test
+    @Order(14)
+    public void testSpecialCharactersInput() {
+        String input = "Task with special chars: @#$%^&*(){}[]|\\:;\"'<>?,./~`!";
+        
+        Response response = given()
+            .contentType("text/plain")
+            .body(input)
+            .when()
+            .post("/api/tasks/capture")
+            .then()
+            .statusCode(201)
+            .contentType("application/json")
+            .body("title", notNullValue())
+            .extract()
+            .response();
+        
+        System.out.println("\n=== Negative Test 4: Special Characters ===");
+        System.out.println("Input: " + input);
+        System.out.println("Created Task: " + response.asString());
+        System.out.println("Title: " + response.path("title"));
+        System.out.println("==========================================\n");
+    }
+    
+    @Test
+    @Order(15)
+    public void testUnicodeInput() {
+        String input = "Встреча с 张三 в café à 15h00 pour discuter du 项目";
+        
+        Response response = given()
+            .contentType("text/plain")
+            .body(input)
+            .when()
+            .post("/api/tasks/capture")
+            .then()
+            .statusCode(201)
+            .contentType("application/json")
+            .body("title", notNullValue())
+            .extract()
+            .response();
+        
+        System.out.println("\n=== Negative Test 5: Unicode/Multilingual ===");
+        System.out.println("Input: " + input);
+        System.out.println("Created Task: " + response.asString());
+        System.out.println("Title: " + response.path("title"));
+        System.out.println("==========================================\n");
+    }
+    
+    @Test
+    @Order(16)
+    public void testInvalidTimeFormat() {
+        String input = "Meeting at 25:70 tomorrow";
+        
+        Response response = given()
+            .contentType("text/plain")
+            .body(input)
+            .when()
+            .post("/api/tasks/capture")
+            .then()
+            .statusCode(201) // Should still create task, just ignore invalid time
+            .contentType("application/json")
+            .body("title", notNullValue())
+            .extract()
+            .response();
+        
+        System.out.println("\n=== Negative Test 6: Invalid Time Format ===");
+        System.out.println("Input: " + input);
+        System.out.println("Created Task: " + response.asString());
+        System.out.println("Title: " + response.path("title"));
+        System.out.println("Due Date: " + response.path("dueDate")); // Should be null or default
+        System.out.println("==========================================\n");
+    }
+    
+    @Test
+    @Order(17)
+    public void testMalformedTaskWarriorSyntax() {
+        String input = "Task due: +tag priority: project:";
+        
+        Response response = given()
+            .contentType("text/plain")
+            .body(input)
+            .when()
+            .post("/api/tasks/capture")
+            .then()
+            .statusCode(201) // Should handle gracefully
+            .contentType("application/json")
+            .body("title", notNullValue())
+            .extract()
+            .response();
+        
+        System.out.println("\n=== Negative Test 7: Malformed TaskWarrior Syntax ===");
+        System.out.println("Input: " + input);
+        System.out.println("Created Task: " + response.asString());
+        System.out.println("Title: " + response.path("title"));
+        System.out.println("Priority: " + response.path("priority"));
+        System.out.println("Project: " + response.path("project"));
+        System.out.println("================================================\n");
+    }
+    
+    @Test
+    @Order(18)
+    public void testNullInput() {
+        // Test without body parameter to simulate null input
+        given()
+            .contentType("text/plain")
+            .when()
+            .post("/api/tasks/capture")
+            .then()
+            .statusCode(400); // Should return bad request for null input
+
+        System.out.println("\n=== Negative Test 8: Null Input ===");
+        System.out.println("Input: (no body)");
+        System.out.println("Expected: 400 Bad Request");
+        System.out.println("=====================================\n");
+    }    @Test
+    @Order(19)
+    public void testNumericOnlyInput() {
+        String input = "123456789";
+        
+        Response response = given()
+            .contentType("text/plain")
+            .body(input)
+            .when()
+            .post("/api/tasks/capture")
+            .then()
+            .statusCode(201)
+            .contentType("application/json")
+            .body("title", notNullValue())
+            .extract()
+            .response();
+        
+        System.out.println("\n=== Negative Test 9: Numeric Only Input ===");
+        System.out.println("Input: " + input);
+        System.out.println("Created Task: " + response.asString());
+        System.out.println("Title: " + response.path("title"));
+        System.out.println("==========================================\n");
+    }
+    
+    @Test
+    @Order(20)
+    public void testInvalidContentType() {
+        String input = "Valid task description";
+        
+        given()
+            .contentType("application/json") // Wrong content type
+            .body("{\"text\": \"" + input + "\"}")
+            .when()
+            .post("/api/tasks/capture")
+            .then()
+            .statusCode(415); // Unsupported Media Type
+        
+        System.out.println("\n=== Negative Test 10: Invalid Content Type ===");
+        System.out.println("Input: " + input);
+        System.out.println("Content-Type: application/json (should be text/plain)");
+        System.out.println("Expected: 415 Unsupported Media Type");
+        System.out.println("===============================================\n");
     }
 }
