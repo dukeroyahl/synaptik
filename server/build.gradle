@@ -12,9 +12,11 @@ repositories {
 dependencies {
     implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
     implementation 'io.quarkus:quarkus-rest-jackson'
+    implementation 'io.quarkus:quarkus-rest-client'
     implementation 'io.quarkus:quarkus-mongodb-panache'
     implementation 'io.quarkus:quarkus-hibernate-validator'
     implementation 'io.quarkus:quarkus-smallrye-openapi'
+    implementation 'io.quarkiverse.mcp:quarkus-mcp-server-stdio:1.4.0'
     implementation 'io.quarkiverse.mcp:quarkus-mcp-server-sse:1.4.0'
     implementation 'io.quarkus:quarkus-smallrye-health'
     implementation 'io.quarkus:quarkus-arc'
@@ -78,3 +80,15 @@ test {
 
 // Ensure jacoco report is generated after tests run
 jacocoTestReport.mustRunAfter test
+
+// Native compilation configuration
+tasks.register('buildMcpNative') {
+    group = 'build'
+    description = 'Build native MCP server binary'
+    dependsOn 'build'
+    doLast {
+        exec {
+            commandLine './gradlew', 'build', '-Dquarkus.package.type=native', '-Dquarkus.profile=mcp'
+        }
+    }
+}

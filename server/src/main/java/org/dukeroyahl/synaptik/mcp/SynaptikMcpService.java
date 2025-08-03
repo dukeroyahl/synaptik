@@ -26,6 +26,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 @ApplicationScoped
+@io.quarkus.arc.profile.UnlessBuildProfile("mcp")
 public class SynaptikMcpService {
 
     @Inject
