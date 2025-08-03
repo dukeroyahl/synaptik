@@ -217,3 +217,23 @@ memory-*.json
 # ===========================
 *.backup
 *.bak
+
+# ===========================
+# PROJECT SPECIFIC
+# ===========================
+# Build artifacts
+dist/
+docker/
+
+# Test files
+test.txt
+*.test
+
+# Old scripts and configs
+synaptik.sh
+
+# Application logs
+app.log
+quarkus-dev.log
+quarkus.log
+test_output.log

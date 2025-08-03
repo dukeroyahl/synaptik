@@ -26,7 +26,6 @@ updates:
       - dependency-name: "react-dom"
         update-types: ["version-update:semver-major"]
 
-
   # Root package.json dependencies
   - package-ecosystem: "npm"
     directory: "/"
@@ -106,4 +105,3 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
-
