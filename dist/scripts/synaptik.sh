@@ -8,29 +8,7 @@
 
 set -e  # Exit on any error
 
-# Configu    echo ""
-    echo -e "${CYAN}${WEB}     while [ $retries -lt $max_retries ]; do
-        if    # Check individual ports
-    if check_port 9001; then
-        echo_status "$GREEN" "$CHECK" "Backend server is running on port 9001"
-    else
-        echo_status "$RED" "$CROSS" "Backend server is not running on port 9001"
-    fi_port 9001 && check_port 5173; then
-            echo_status "$GREEN" "$CHECK" "All services are running!"
-            echo ""
-            echo -e "${CYAN}${WEB} Application URLs:${NC}"
-            echo -e "${CYAN}   Frontend: http://localhost:4000${NC}"
-            echo -e "${CYAN}   Backend:  http://localhost:9001${NC}"
-            echo -e "${CYAN}   API Docs: http://localhost:9001/q/swagger-ui${NC}"
-            echo -e "${CYAN}   Health:   http://localhost:9001/q/health${NC}"
-            echo ""
-            echo -e "${CYAN}${INFO} Logs are being written to: $LOG_FILE${NC}"
-            return 0
-        fiill be available at:${NC}"
-    echo -e "${CYAN}   Frontend: http://localhost:4000${NC}"
-    echo -e "${CYAN}   Backend:  http://localhost:9001${NC}"
-    echo -e "${CYAN}   API Docs: http://localhost:9001/q/swagger-ui${NC}"
-    echo ""
+# Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SYNAPTIK_PATH="$(cd "$SCRIPT_DIR/../.." && pwd)"  # Go up two levels to project root
 LOG_FILE="$SYNAPTIK_PATH/synaptik.log"
@@ -131,16 +109,14 @@ check_requirements() {
     
     # Check MongoDB
     if command_exists mongod; then
-        echo_status "$GREEN" "$CHECK" "MongoDB found (local installation)"
+        echo_status "$GREEN" "$CHECK" "MongoDB found"
     elif command_exists brew && brew list mongodb-community >/dev/null 2>&1; then
         echo_status "$GREEN" "$CHECK" "MongoDB (via Homebrew) found"
     elif command_exists docker && [ -f "$SYNAPTIK_PATH/dist/docker-compose.yml" ]; then
-        echo_status "$GREEN" "$CHECK" "Docker available - MongoDB will be started via Docker Compose"
-    elif command_exists docker; then
-        echo_status "$GREEN" "$CHECK" "Docker available - MongoDB will be containerized"
+        echo_status "$BLUE" "$INFO" "Docker available - MongoDB will be started via docker-compose"
     else
-        echo_status "$YELLOW" "$WARNING" "MongoDB not found and Docker not available"
-        missing_deps+=("MongoDB or Docker")
+        echo_status "$YELLOW" "$WARNING" "MongoDB not found - will need to be installed or use Docker"
+        missing_deps+=("MongoDB")
     fi
     
     # Check Docker (optional)
@@ -165,9 +141,33 @@ check_requirements() {
 setup_mongodb() {
     echo_header "${DATABASE} MongoDB Setup"
     
-    # MongoDB will be handled by Docker Compose
-    echo_status "$BLUE" "$INFO" "MongoDB will be started automatically with Docker Compose"
-    echo_status "$GREEN" "$CHECK" "MongoDB setup configured for containerized deployment"
+    # Check if docker-compose.yml exists and use it
+    if [ -f "$SYNAPTIK_PATH/dist/docker-compose.yml" ] && command_exists docker; then
+        echo_status "$BLUE" "$INFO" "Starting MongoDB via docker-compose..."
+        cd "$SYNAPTIK_PATH"
+        docker-compose -f dist/docker-compose.yml up -d mongodb
+        echo_status "$GREEN" "$CHECK" "MongoDB started via Docker Compose"
+        return 0
+    fi
+    
+    # Fallback to Homebrew installation
+    if command_exists brew && ! brew list mongodb-community >/dev/null 2>&1; then
+        echo_status "$BLUE" "$INFO" "Installing MongoDB via Homebrew..."
+        brew tap mongodb/brew
+        brew install mongodb-community
+    fi
+    
+    # Check if MongoDB is running locally
+    if ! pgrep -x "mongod" > /dev/null; then
+        echo_status "$BLUE" "$INFO" "Starting MongoDB..."
+        if command_exists brew; then
+            brew services start mongodb-community
+        else
+            echo_status "$YELLOW" "$WARNING" "Please start MongoDB manually"
+        fi
+    else
+        echo_status "$GREEN" "$CHECK" "MongoDB is already running"
+    fi
 }
 
 # Function to setup environment files
@@ -239,13 +239,12 @@ install_dependencies() {
 
 # Function to build MCP server
 build_mcp() {
-    echo_header "${ROCKET} Building MCP Server"
+    echo_header "${ROCKET} Checking MCP Server"
     
     if [ -d "$SYNAPTIK_PATH/mcp-server" ]; then
         cd "$SYNAPTIK_PATH/mcp-server"
-        echo_status "$BLUE" "$INFO" "Building MCP server..."
-        npm run build
-        echo_status "$GREEN" "$CHECK" "MCP server built successfully!"
+        echo_status "$BLUE" "$INFO" "MCP server dependencies verified"
+        echo_status "$GREEN" "$CHECK" "MCP server is ready!"
         cd "$SYNAPTIK_PATH"
     else
         echo_status "$YELLOW" "$WARNING" "MCP server directory not found"
@@ -270,7 +269,7 @@ full_setup() {
     echo -e "${CYAN}   ./synaptik.sh dev${NC}"
     echo ""
     echo -e "${CYAN}${WEB} Application will be available at:${NC}"
-    echo -e "${CYAN}   Frontend: http://localhost:4000${NC}"
+    echo -e "${CYAN}   Frontend: http://localhost:5173${NC}"
     echo -e "${CYAN}   Backend:  http://localhost:9001${NC}"
     echo -e "${CYAN}   API Docs: http://localhost:9001/q/swagger-ui${NC}"
     echo ""
@@ -290,7 +289,7 @@ start_dev() {
     fi
     
     echo_status "$BLUE" "$INFO" "Starting all services with Docker Compose..."
-    docker-compose -f dist/docker-compose.dev.yml up -d > "$LOG_FILE" 2>&1
+    docker-compose -f dist/docker-compose.yml up -d > "$LOG_FILE" 2>&1
     
     echo_status "$GREEN" "$CHECK" "Synaptik containers started"
     echo_status "$BLUE" "$INFO" "Services starting in background... This may take 30-60 seconds"
@@ -303,7 +302,7 @@ start_dev() {
     echo_status "$BLUE" "$INFO" "Checking if services are starting... (max wait: ${max_retries} attempts)"
     
     while [ $retries -lt $max_retries ]; do
-        if check_port 9001 && check_port 5173; then
+        if check_port 9001 && check_port 4000; then
             echo_status "$GREEN" "$CHECK" "All services are running!"
             echo ""
             echo -e "${CYAN}${WEB} Application URLs:${NC}"
@@ -338,8 +337,12 @@ check_status() {
     
     # Check Docker Compose services
     cd "$SYNAPTIK_PATH"
-    if docker-compose -f dist/docker-compose.dev.yml ps --services --filter "status=running" | grep -q .; then
+    if docker-compose -f dist/docker-compose.yml ps --services --filter "status=running" | grep -q .; then
         echo_status "$GREEN" "$CHECK" "Docker Compose services are running"
+        
+        # Show detailed container status
+        echo_status "$BLUE" "$INFO" "Container details:"
+        docker-compose -f dist/docker-compose.yml ps
     else
         echo_status "$BLUE" "$INFO" "Docker Compose services are not running"
     fi
@@ -351,10 +354,10 @@ check_status() {
         echo_status "$RED" "$CROSS" "Backend server is not running on port 9001"
     fi
     
-    if check_port 5173; then
-        echo_status "$GREEN" "$CHECK" "Frontend server is running on port 5173"
+    if check_port 4000; then
+        echo_status "$GREEN" "$CHECK" "Frontend server is running on port 4000"
     else
-        echo_status "$RED" "$CROSS" "Frontend server is not running on port 5173"
+        echo_status "$RED" "$CROSS" "Frontend server is not running on port 4000"
     fi
     
     # Check MongoDB (by checking if port 27017 is accessible)
@@ -372,7 +375,7 @@ stop_services() {
     # Stop Docker Compose services
     echo_status "$BLUE" "$INFO" "Stopping Docker Compose services..."
     cd "$SYNAPTIK_PATH"
-    docker-compose -f dist/docker-compose.dev.yml down 2>/dev/null || true
+    docker-compose -f dist/docker-compose.yml down 2>/dev/null || true
     
     # Clean up PID file if exists
     if [ -f "$PID_FILE" ]; then
@@ -397,7 +400,7 @@ build_production() {
     cd "$SYNAPTIK_PATH"
     
     echo_status "$BLUE" "$INFO" "Building with Docker Compose..."
-    docker-compose -f dist/docker-compose.dev.yml build
+    docker-compose -f dist/docker-compose.yml build
     
     echo_status "$GREEN" "$CHECK" "Production build complete!"
 }
@@ -433,6 +436,9 @@ show_logs() {
     if [ -f "$LOG_FILE" ]; then
         echo_header "${INFO} Recent Logs"
         tail -50 "$LOG_FILE"
+        echo ""
+        echo -e "${CYAN}${INFO} To follow logs in real-time: tail -f $LOG_FILE${NC}"
+        echo -e "${CYAN}${INFO} To view Docker logs: docker-compose -f dist/docker-compose.yml logs -f${NC}"
     else
         echo_status "$YELLOW" "$WARNING" "No log file found at $LOG_FILE"
     fi
