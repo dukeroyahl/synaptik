@@ -170,7 +170,7 @@ jobs:
             ${{ runner.os }}-buildx-
 
       - name: Build and push component image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./dist/docker/Dockerfile.${{ matrix.component }}
