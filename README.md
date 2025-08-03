@@ -56,6 +56,8 @@ docker-compose up -d
 - **Web App**: http://localhost:4000
 - **API**: http://localhost:9001
 - **API Documentation**: http://localhost:9001/q/swagger-ui
+- **MCP Server** (HTTP): http://localhost:9002/mcp
+- **MCP Server** (SSE): http://localhost:9002/mcp/sse
 
 
 ---
@@ -76,6 +78,7 @@ This installs the complete Synaptik application with:
 - **Web Interface**: http://localhost:4000
 - **REST API**: http://localhost:9001  
 - **API Documentation**: http://localhost:9001/q/swagger-ui
+- **MCP Server**: Multi-protocol support (stdio, HTTP, SSE)
 
 #### Step 2: Download Claude Desktop Connector
 ```bash
@@ -99,11 +102,34 @@ Add this to your Claude Desktop configuration:
 - **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
 - **Linux**: `~/.config/Claude/claude_desktop_config.json`
 
+**Option A: stdio Mode (Recommended)**
 ```json
 {
   "mcpServers": {
     "synaptik": {
       "command": "/path/to/synaptik-mcp"
+    }
+  }
+}
+```
+
+**Option B: HTTP Mode**
+```json
+{
+  "mcpServers": {
+    "synaptik": {
+      "url": "http://localhost:9002/mcp"
+    }
+  }
+}
+```
+
+**Option C: SSE Mode**
+```json
+{
+  "mcpServers": {
+    "synaptik": {
+      "url": "http://localhost:9002/mcp/sse"
     }
   }
 }
