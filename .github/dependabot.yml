@@ -1,0 +1,143 @@
+version: 2
+updates:
+  # Frontend dependencies (React/Vite)
+  - package-ecosystem: "npm"
+    directory: "/client"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "03:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "Dukeroyahl"
+    assignees:
+      - "Dukeroyahl"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "frontend"
+    ignore:
+      # Ignore major version updates for stable packages
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+
+  # MCP Server dependencies (Node.js)
+  - package-ecosystem: "npm"
+    directory: "/mcp-server"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "03:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "Dukeroyahl"
+    assignees:
+      - "Dukeroyahl"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "mcp-server"
+
+  # Root package.json dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "03:00"
+    open-pull-requests-limit: 2
+    reviewers:
+      - "Dukeroyahl"
+    assignees:
+      - "Dukeroyahl"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "root"
+
+  # Backend dependencies (Gradle/Java)
+  - package-ecosystem: "gradle"
+    directory: "/server"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "03:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "Dukeroyahl"
+    assignees:
+      - "Dukeroyahl"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "backend"
+    ignore:
+      # Ignore Quarkus major updates for stability
+      - dependency-name: "io.quarkus:*"
+        update-types: ["version-update:semver-major"]
+
+  # MCP Quarkus Server dependencies
+  - package-ecosystem: "gradle"
+    directory: "/mcp-quarkus-server"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "03:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "Dukeroyahl"
+    assignees:
+      - "Dukeroyahl"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "mcp-quarkus-server"
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "sunday"
+      time: "03:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "Dukeroyahl"
+    assignees:
+      - "Dukeroyahl"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+
+  # Docker dependencies
+  - package-ecosystem: "docker"
+    directory: "/dist/docker"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    reviewers:
+      - "Dukeroyahl"
+    assignees:
+      - "Dukeroyahl"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "docker"
