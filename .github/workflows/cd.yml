@@ -120,8 +120,17 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        platform: [linux-amd64, linux-arm64, darwin-amd64, darwin-arm64]
+        include:
+          - platform: linux-amd64
+            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-21-mandrel-24.0
+          - platform: linux-arm64
+            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-21-mandrel-24.0-arm64
+          - platform: darwin-amd64
+            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-21-mandrel-24.0
+          - platform: darwin-arm64
+            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-21-mandrel-24.0-arm64
       fail-fast: false
+    
     steps:
       - uses: actions/checkout@v4
 
@@ -131,32 +140,57 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Build native binary
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            mcp-quarkus-server/.gradle
+          key: gradle-mcp-${{ runner.os }}-${{ hashFiles('mcp-quarkus-server/**/*.gradle*') }}
+          restore-keys: gradle-mcp-${{ runner.os }}-
+
+      - name: Build MCP native binary
         run: |
           cd mcp-quarkus-server
           chmod +x gradlew
+          
+          # Set platform-specific build args
+          EXTRA_ARGS=""
           case "${{ matrix.platform }}" in
-            "linux-amd64")
-              ./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=true
+            "darwin-amd64")
+              EXTRA_ARGS="-Dquarkus.native.additional-build-args=--target=x86_64-apple-darwin"
               ;;
-            "linux-arm64")
-              ./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=quay.io/quarkus/ubi-quarkus-graalvmce-builder-image:jdk-21-arch-arm64
-              ;;
-            "darwin-amd64"|"darwin-arm64")
-              # For macOS, we'll use container build targeting Linux for now
-              # Future enhancement: use native macOS builds
-              ./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=true
+            "darwin-arm64")
+              EXTRA_ARGS="-Dquarkus.native.additional-build-args=--target=aarch64-apple-darwin"
               ;;
           esac
+          
+          # Build native executable
+          ./gradlew build -Dquarkus.native.enabled=true \
+                         -Dquarkus.native.container-build=true \
+                         -Dquarkus.native.builder-image=${{ matrix.builder-image }} \
+                         $EXTRA_ARGS
 
-      - name: Rename binary
+      - name: Prepare binary for release
         run: |
           cd mcp-quarkus-server/build
-          if [ -f "synaptik-mcp-${{ needs.validate-release.outputs.version }}-runner" ]; then
-            mv "synaptik-mcp-${{ needs.validate-release.outputs.version }}-runner" "synaptik-mcp-${{ matrix.platform }}"
-          elif [ -f "*-runner" ]; then
-            mv *-runner "synaptik-mcp-${{ matrix.platform }}"
+          
+          # Find the generated native binary
+          BINARY_NAME=$(find . -name "*-runner" -type f | head -n 1)
+          if [ -z "$BINARY_NAME" ]; then
+            echo "❌ No native binary found!"
+            find . -type f -name "*" | grep -E "(build|target)" || true
+            exit 1
           fi
+          
+          # Rename to standard format
+          mv "$BINARY_NAME" "synaptik-mcp-${{ matrix.platform }}"
+          chmod +x "synaptik-mcp-${{ matrix.platform }}"
+          
+          # Verify binary
+          file "synaptik-mcp-${{ matrix.platform }}"
+          ls -la "synaptik-mcp-${{ matrix.platform }}"
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
@@ -164,6 +198,7 @@ jobs:
           name: synaptik-mcp-${{ matrix.platform }}
           path: mcp-quarkus-server/build/synaptik-mcp-${{ matrix.platform }}
           retention-days: 7
+          compression-level: 9
 
   create-github-release:
     needs: [validate-release, build-docker-images, build-native-binaries]
@@ -178,6 +213,20 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ./binaries
+          merge-multiple: true
+
+      - name: Prepare release assets
+        run: |
+          # Organize binaries for release
+          mkdir -p release-assets
+          find ./binaries -name "synaptik-mcp-*" -type f -exec cp {} release-assets/ \;
+          
+          # List and verify all binaries
+          echo "📦 Release assets prepared:"
+          ls -la release-assets/
+          
+          # Make all binaries executable
+          chmod +x release-assets/synaptik-mcp-*
 
       - name: Generate changelog
         id: changelog
@@ -215,7 +264,7 @@ jobs:
         with:
           tag_name: v${{ needs.validate-release.outputs.version }}
           name: 🚀 Synaptik v${{ needs.validate-release.outputs.version }}
-          files: ./binaries/*/synaptik-mcp-*
+          files: release-assets/synaptik-mcp-*
           body: |
             ## 🚀 Synaptik Release v${{ needs.validate-release.outputs.version }}
             
@@ -231,7 +280,24 @@ jobs:
             docker pull ghcr.io/${{ github.repository }}:backend-${{ needs.validate-release.outputs.version }}
             ```
             
-            ### 📦 Native MCP Binaries
+            ### 📦 Native MCP Binaries (GitHub Packages)
+            Download the native MCP connector for your platform:
+            
+            ```bash
+            # Linux x86_64
+            curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ needs.validate-release.outputs.version }}/synaptik-mcp-linux-amd64 -o synaptik-mcp && chmod +x synaptik-mcp
+            
+            # Linux ARM64
+            curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ needs.validate-release.outputs.version }}/synaptik-mcp-linux-arm64 -o synaptik-mcp && chmod +x synaptik-mcp
+            
+            # macOS Intel
+            curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ needs.validate-release.outputs.version }}/synaptik-mcp-darwin-amd64 -o synaptik-mcp && chmod +x synaptik-mcp
+            
+            # macOS Apple Silicon
+            curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ needs.validate-release.outputs.version }}/synaptik-mcp-darwin-arm64 -o synaptik-mcp && chmod +x synaptik-mcp
+            ```
+            
+            **Available Binaries:**
             - `synaptik-mcp-linux-amd64` - Linux x86_64
             - `synaptik-mcp-linux-arm64` - Linux ARM64  
             - `synaptik-mcp-darwin-amd64` - macOS Intel
@@ -262,12 +328,26 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ./binaries
+          merge-multiple: true
+
+      - name: Prepare release assets
+        run: |
+          # Organize binaries for release
+          mkdir -p release-assets
+          find ./binaries -name "synaptik-mcp-*" -type f -exec cp {} release-assets/ \;
+          
+          # Make all binaries executable
+          chmod +x release-assets/synaptik-mcp-*
+          
+          # List prepared assets
+          echo "📦 Uploading release assets:"
+          ls -la release-assets/
 
       - name: Upload artifacts to existing release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.event.release.tag_name }}
-          files: ./binaries/*/synaptik-mcp-*
+          files: release-assets/synaptik-mcp-*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
