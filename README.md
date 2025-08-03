@@ -77,15 +77,19 @@ This installs the complete Synaptik application with:
 - **REST API**: http://localhost:9001  
 - **API Documentation**: http://localhost:9001/q/swagger-ui
 
-#### Step 2: Add Claude Desktop Integration
+#### Step 2: Download Claude Desktop Connector
 ```bash
-# Clone repository and build Claude Desktop connector
-git clone https://github.com/Dukeroyahl/synaptik.git
-cd synaptik
-./build-mcp-native.sh
+# Download the native binary for your platform
+curl -sSL https://github.com/Dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux -o synaptik-mcp
+chmod +x synaptik-mcp
 ```
 
-> **Note**: The build script creates a native binary (no Node.js required for customers). GraalVM is needed only for building, which the script handles automatically.
+**Available Platforms:**
+- **Linux**: `synaptik-mcp-linux`
+- **macOS**: `synaptik-mcp-macos` 
+- **Windows**: `synaptik-mcp-windows.exe`
+
+> **Note**: These are native executables with no dependencies - just download and run!
 
 #### Step 3: Configure Claude Desktop
 Add this to your Claude Desktop configuration:
@@ -99,11 +103,15 @@ Add this to your Claude Desktop configuration:
 {
   "mcpServers": {
     "synaptik": {
-      "command": "/path/to/synaptik/dist/native/synaptik-mcp"
+      "command": "/path/to/synaptik-mcp"
     }
   }
 }
 ```
+
+**Example paths:**
+- **Linux/macOS**: `"/home/user/synaptik-mcp"` or `"/Users/user/synaptik-mcp"`
+- **Windows**: `"C:\\Users\\user\\synaptik-mcp.exe"`
 
 #### Step 4: Restart Claude Desktop
 Restart Claude Desktop and you're ready to go!
