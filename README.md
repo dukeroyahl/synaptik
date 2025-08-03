@@ -56,8 +56,6 @@ docker-compose up -d
 - **Web App**: http://localhost:4000
 - **API**: http://localhost:9001
 - **API Documentation**: http://localhost:9001/q/swagger-ui
-- **MCP Server** (HTTP): http://localhost:9002/mcp
-- **MCP Server** (SSE): http://localhost:9002/mcp/sse
 
 
 ---
@@ -78,9 +76,9 @@ This installs the complete Synaptik application with:
 - **Web Interface**: http://localhost:4000
 - **REST API**: http://localhost:9001  
 - **API Documentation**: http://localhost:9001/q/swagger-ui
-- **MCP Server**: Multi-protocol support (stdio, HTTP, SSE)
+- **Docker Services**: Complete containerized backend
 
-#### Step 2: Download Claude Desktop Connector
+#### Step 2: Download MCP Connector (Native Binary)
 ```bash
 # Download the native binary for your platform
 curl -sSL https://github.com/Dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux -o synaptik-mcp
@@ -88,11 +86,11 @@ chmod +x synaptik-mcp
 ```
 
 **Available Platforms:**
-- **Linux**: `synaptik-mcp-linux`
-- **macOS**: `synaptik-mcp-macos` 
+- **Linux**: `synaptik-mcp-linux-amd64`, `synaptik-mcp-linux-arm64`
+- **macOS**: `synaptik-mcp-darwin-amd64`, `synaptik-mcp-darwin-arm64` 
 - **Windows**: `synaptik-mcp-windows.exe`
 
-> **Note**: These are native executables with no dependencies - just download and run!
+> **Architecture**: The MCP server is a standalone native executable that connects to your Dockerized Synaptik server on port 9001. No dependencies required!
 
 #### Step 3: Configure Claude Desktop
 Add this to your Claude Desktop configuration:
@@ -102,7 +100,6 @@ Add this to your Claude Desktop configuration:
 - **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
 - **Linux**: `~/.config/Claude/claude_desktop_config.json`
 
-**Option A: stdio Mode (Recommended)**
 ```json
 {
   "mcpServers": {
@@ -113,33 +110,20 @@ Add this to your Claude Desktop configuration:
 }
 ```
 
-**Option B: HTTP Mode**
-```json
-{
-  "mcpServers": {
-    "synaptik": {
-      "url": "http://localhost:9002/mcp"
-    }
-  }
-}
-```
-
-**Option C: SSE Mode**
-```json
-{
-  "mcpServers": {
-    "synaptik": {
-      "url": "http://localhost:9002/mcp/sse"
-    }
-  }
-}
-```
+> **How it works**: The native MCP binary runs in stdio mode and communicates with Claude Desktop directly, while making HTTP calls to your Dockerized Synaptik server on port 9001.
 
 **Example paths:**
 - **Linux/macOS**: `"/home/user/synaptik-mcp"` or `"/Users/user/synaptik-mcp"`
 - **Windows**: `"C:\\Users\\user\\synaptik-mcp.exe"`
 
-#### Step 4: Restart Claude Desktop
+#### Step 4: Ensure Synaptik is Running
+Make sure your Synaptik Docker services are running:
+```bash
+# Check if Synaptik is running
+curl http://localhost:9001/health || echo "Start Synaptik first!"
+```
+
+#### Step 5: Restart Claude Desktop
 Restart Claude Desktop and you're ready to go!
 
 ### Available Claude Commands
