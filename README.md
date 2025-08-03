@@ -2,8 +2,9 @@
 
 # 🧠 Synaptik
 
-[![CI](https://github.com/dukeroyahl/synaptik/actions/workflows/ci.yml/badge.svg)](https://github.com/dukeroyahl/synaptik/actions/workflows/ci.yml)
-[![CD](https://github.com/dukeroyahl/synaptik/actions/workflows/cd.yml/badge.svg)](https://github.com/dukeroyahl/synaptik/actions/workflows/cd.yml)
+[![Latest Release](https://img.shields.io/github/v/release/dukeroyahl/synaptik?logo=github&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
+[![CI](https://github.com/dukeroyahl/synaptik/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dukeroyahl/synaptik/actions/workflows/ci.yml)
+[![CD](https://github.com/dukeroyahl/synaptik/actions/workflows/cd.yml/badge.svg?branch=main)](https://github.com/dukeroyahl/synaptik/actions/workflows/cd.yml)
 [![Java](https://img.shields.io/badge/Java-21+-orange.svg)](https://openjdk.java.net/)
 [![Quarkus](https://img.shields.io/badge/Quarkus-3.6+-blue.svg)](https://quarkus.io/)
 [![React](https://img.shields.io/badge/React-18+-61DAFB.svg)](https://reactjs.org/)
@@ -13,6 +14,7 @@
 [![Frontend](https://img.shields.io/badge/Frontend-GHCR-blue?logo=github&logoColor=white)](https://github.com/dukeroyahl/synaptik/pkgs/container/synaptik%2Ffrontend)
 [![Backend](https://img.shields.io/badge/Backend-GHCR-blue?logo=github&logoColor=white)](https://github.com/dukeroyahl/synaptik/pkgs/container/synaptik%2Fbackend)
 [![Native Binaries](https://img.shields.io/badge/Binaries-GitHub%20Releases-green?logo=github&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
+[![MCP Server](https://img.shields.io/badge/MCP%20Server-stdio-orange?logo=openai&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
 [![macOS ARM64](https://img.shields.io/badge/macOS%20ARM64-Primary%20Platform-success?logo=apple&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
 
 [🚀 Quick Start](#-quick-start) • [📚 Wiki Documentation](https://github.com/dukeroyahl/synaptik/wiki) • [🤝 Contributing](CONTRIBUTING.md)
@@ -23,16 +25,35 @@
 
 ## 🎯 What is Synaptik?
 
-**Synaptik** is where ideas connect—a next-generation task management application that combines TaskWarrior's powerful DNA with modern web technologies and AI integration. Built for productivity enthusiasts who need more than simple to-do lists, Synaptik offers natural language task capture, intelligent analytics, and seamless integration with AI assistants like Claude.
+**Synaptik is your smart task management companion.** Think of it as a super-powered to-do app that actually understands what you're trying to accomplish.
 
-**Key Features:**
-- 🧠 **TaskWarrior DNA**: Natural language task capture and powerful task management
-- ⚡ **Modern Stack**: Java 21 + Quarkus + React 18 for blazing-fast performance
-- 🤖 **AI-First**: Native Claude integration via Model Context Protocol (MCP)
-- 📊 **Smart Analytics**: Productivity insights and intelligent dashboards
-- 🐳 **Container-Ready**: Multi-architecture Docker images with semantic versioning
+**Why Synaptik is Different:**
+- 🧠 **Smart parsing**: Type naturally like "Meet with Sarah tomorrow at 3pm about the project" OR use TaskWarrior syntax
+- 🤖 **Works with Claude**: Ask Claude to manage your tasks - it connects directly to Synaptik
+- 📊 **Shows insights**: See patterns in your productivity and get suggestions
+- ⚡ **Blazing fast**: Modern technology that won't slow you down
+- 🌐 **Works anywhere**: Access from any device with a web browser
 
 ![Synaptik Application](docs/images/app-main.png)
+
+---
+
+## 🚀 Get Started in 2 Minutes
+
+**Step 1: Install Docker** (if you don't have it)
+- Download [Docker Desktop](https://www.docker.com/products/docker-desktop/) - it's free and easy to install
+
+**Step 2: Install Synaptik**
+Copy and paste this into your terminal:
+```bash
+curl -sSL https://raw.githubusercontent.com/dukeroyahl/synaptik/main/install.sh | bash
+```
+
+**Step 3: Start using Synaptik!**
+- Open your browser and go to: **http://localhost:4000**
+- Start adding tasks and see the magic happen ✨
+
+> **That's it!** Synaptik is now running on your computer. The installer sets everything up automatically.
 
 ---
 
@@ -47,8 +68,8 @@
 [![Backend Image](https://img.shields.io/badge/ghcr.io%2Fdukeroyahl%2Fsynaptik%2Fbackend-latest-blue?logo=docker&logoColor=white)](https://github.com/dukeroyahl/synaptik/pkgs/container/synaptik%2Fbackend)
 
 **Docker Hub:**
-[![Frontend Image](https://img.shields.io/badge/roudranil%2Fsynaptik%2Ffrontend-latest-blue?logo=docker&logoColor=white)](https://hub.docker.com/r/roudranil/synaptik/frontend)
-[![Backend Image](https://img.shields.io/badge/roudranil%2Fsynaptik%2Fbackend-latest-blue?logo=docker&logoColor=white)](https://hub.docker.com/r/roudranil/synaptik/backend)
+[![Frontend Image](https://img.shields.io/badge/roudranil%2Fsynaptik%2Ffrontend-latest-blue?logo=docker&logoColor=white)](https://hub.docker.com/r/roudranil/synaptik)
+[![Backend Image](https://img.shields.io/badge/roudranil%2Fsynaptik%2Fbackend-latest-blue?logo=docker&logoColor=white)](https://hub.docker.com/r/roudranil/synaptik)
 
 ```bash
 # GitHub Container Registry
@@ -72,37 +93,6 @@ chmod +x synaptik-mcp
 ```
 
 </div>
-
----
-
-## 🚀 Quick Start
-
-Get Synaptik running in under 2 minutes with Docker:
-
-### Prerequisites
-- **Docker Desktop** - [Download here](https://www.docker.com/products/docker-desktop/)
-
-### Installation Options
-
-**Option 1: One-Click Install (Recommended)**
-```bash
-curl -sSL https://raw.githubusercontent.com/dukeroyahl/synaptik/main/install.sh | bash
-```
-
-**Option 2: Docker Compose (Production-Ready)**
-```bash
-# Create dedicated folder, download configuration files and start
-mkdir synaptik && cd synaptik && \
-curl -sSL https://raw.githubusercontent.com/dukeroyahl/synaptik/main/docker/docker-compose.yml -o docker-compose.yml && \
-curl -sSL https://raw.githubusercontent.com/dukeroyahl/synaptik/main/docker/.env.example -o .env && \
-docker-compose up -d
-```
-
-### 🌐 Access Your Application
-- **Web App**: http://localhost:4000
-- **API**: http://localhost:9001
-- **API Documentation**: http://localhost:9001/q/swagger-ui
-
 
 ---
 

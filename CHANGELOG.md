@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 🔗 **MCP Server badge** - Added stdio badge for Model Context Protocol integration  
+- 🎨 **User-friendly README** - Simplified language for non-technical users
+- 📋 **Latest release badge** - Dynamic badge showing current version
 - 🏗️ **Complete project restructure for open source collaboration**
 - 📁 Organized directory structure with clear separation of concerns
 - 🐳 **Full Docker Compose deployment** - Complete containerized stack
@@ -22,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 📚 **Comprehensive GitHub Wiki** - Complete documentation moved to wiki
 
 ### Changed
+- 📁 **Directory rename** - `dist/` → `docker/` for clarity and safety
+- 🏗️ **MCP folder rename** - `mcp-quarkus-server/` → `mcp/` for cleaner structure
+- 🔄 **Organization update** - `Dukeroyahl` → `dukeroyahl` across all references
+- 📖 **README restructure** - Quick Start moved above GitHub Packages
+- 🚀 **Install script update** - Architecture-specific MCP binary downloads
+- 🔧 **CI/CD updates** - Fixed Quarkus build commands and Mandrel images
+- 📊 **Badge improvements** - Added branch specification and better links
 - 🔧 **Reorganized configuration files** - Moved to `config/` directory
 - 📜 **Moved scripts** - Centralized in `scripts/` directory  
 - 📖 **Moved documentation to wiki** - Complete guides now in GitHub Wiki
@@ -30,11 +40,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 🐳 **Improved Docker setup** - Production-ready multi-service deployment
 
 ### Fixed
+- 🐳 **Docker infrastructure restoration** - Recovered accidentally deleted Docker files
+- 🔧 **Gradle wrapper issue** - Added `gradle-wrapper.jar` to git tracking
+- 🏗️ **Quarkus build conflict** - Native-only builds instead of JAR+native
+- 📦 **Frontend npm dependencies** - Added `--legacy-peer-deps` for compatibility
+- 🔍 **GHCR lowercase names** - Fixed repository naming requirements
+- 🎯 **Cross-platform builds** - Improved native compilation for different architectures
 - 🐛 **Docker Compose issues** - Fixed MongoDB volume mounts
 - 🔧 **Setup script** - Better MongoDB detection and auto-start
 - 📦 **Package.json scripts** - Updated paths for reorganized structure
 
-## [1.0.0] - 2024-07-18
+## [1.0.0] - 2025-08-03
 
 ### Added
 - ✨ **Java/Quarkus Backend Migration** - Complete rewrite from Node.js

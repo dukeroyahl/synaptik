@@ -3,6 +3,7 @@ package org.dukeroyahl.synaptik.resource;
 import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
 import org.dukeroyahl.synaptik.service.TaskService;
+import org.dukeroyahl.synaptik.service.NaturalLanguageParser;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
@@ -23,6 +24,9 @@ public class TaskResource {
     
     @Inject
     TaskService taskService;
+    
+    @Inject
+    NaturalLanguageParser nlpParser;
     
     @GET
     @Operation(summary = "Get all tasks")
@@ -128,5 +132,15 @@ public class TaskResource {
     @Operation(summary = "Get today's tasks")
     public Uni<List<Task>> getTodayTasks() {
         return taskService.getTodayTasks();
+    }
+    
+    @POST
+    @Path("/capture")
+    @Consumes(MediaType.TEXT_PLAIN)
+    @Operation(summary = "Create task from natural language or TaskWarrior syntax")
+    public Uni<Response> captureTask(String input) {
+        Task parsedTask = nlpParser.parseNaturalLanguage(input);
+        return taskService.createTask(parsedTask)
+            .onItem().transform(createdTask -> Response.status(Response.Status.CREATED).entity(createdTask).build());
     }
 }

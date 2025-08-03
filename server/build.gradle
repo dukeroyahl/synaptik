@@ -20,6 +20,11 @@ dependencies {
     implementation 'io.quarkiverse.mcp:quarkus-mcp-server-sse:1.4.1'
     implementation 'io.quarkus:quarkus-smallrye-health'
     implementation 'io.quarkus:quarkus-arc'
+    
+    // Stanford NLP dependencies
+    implementation 'edu.stanford.nlp:stanford-corenlp:4.5.4'
+    implementation 'edu.stanford.nlp:stanford-corenlp:4.5.4:models'
+    
     testImplementation 'io.quarkus:quarkus-junit5'
     testImplementation 'io.rest-assured:rest-assured'
 }
