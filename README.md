@@ -60,38 +60,55 @@ docker-compose up -d
 
 ---
 
-## 🤖 AI Integration
+## 🤖 Claude Desktop Integration
 
-Connect Synaptik with Claude Desktop or other AI assistants using MCP (Model Context Protocol):
+Enhance your productivity by connecting Synaptik with Claude Desktop. Once configured, you can ask Claude to manage your tasks directly!
 
-### Claude Desktop Setup
-1. **Start Synaptik first** (using Option 1 or 2 from Quick Start above)
-2. **Add this to your Claude Desktop MCP configuration:**
+### Setup Instructions
+
+#### Step 1: Install Synaptik
+```bash
+# Quick install - sets up the full application
+curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/install.sh | bash
+```
+
+This installs the complete Synaptik application with:
+- **Web Interface**: http://localhost:4000
+- **REST API**: http://localhost:9001  
+- **API Documentation**: http://localhost:9001/q/swagger-ui
+
+#### Step 2: Add Claude Desktop Integration
+```bash
+# Clone repository and build Claude Desktop connector
+git clone https://github.com/Dukeroyahl/synaptik.git
+cd synaptik
+./build-mcp-native.sh
+```
+
+> **Note**: The build script creates a native binary (no Node.js required for customers). GraalVM is needed only for building, which the script handles automatically.
+
+#### Step 3: Configure Claude Desktop
+Add this to your Claude Desktop configuration:
+
+**Configuration File Locations:**
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
     "synaptik": {
-      "command": "docker",
-      "args": [
-        "run",
-        "-i",
-        "--rm",
-        "-e",
-        "SYNAPTIK_URL",
-        "roudranil/synaptik:mcp-server-latest"
-      ],
-      "env": {
-        "SYNAPTIK_URL": "http://host.docker.internal:9001"
-      }
+      "command": "/path/to/synaptik/dist/native/synaptik-mcp"
     }
   }
 }
 ```
 
-3. **Restart Claude Desktop** to load the MCP server
+#### Step 4: Restart Claude Desktop
+Restart Claude Desktop and you're ready to go!
 
-### Available MCP Tools
+### Available Claude Commands
 - **Task Management**: Create, update, complete, and delete tasks
 - **Smart Queries**: Get tasks by status, project, tags, or priority
 - **Data Import**: Import tasks from external sources
