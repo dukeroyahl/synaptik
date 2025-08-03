@@ -38,16 +38,26 @@
 
 ## 📦 GitHub Packages
 
-<div align="center">
+<div align="left">
 
-### 🐳 Docker Images (GitHub Container Registry)
+### 🐳 Docker Images 
+
+**GitHub Container Registry:**
 [![Frontend Image](https://img.shields.io/badge/ghcr.io%2Fdukeroyahl%2Fsynaptik%2Ffrontend-latest-blue?logo=docker&logoColor=white)](https://github.com/dukeroyahl/synaptik/pkgs/container/synaptik%2Ffrontend)
 [![Backend Image](https://img.shields.io/badge/ghcr.io%2Fdukeroyahl%2Fsynaptik%2Fbackend-latest-blue?logo=docker&logoColor=white)](https://github.com/dukeroyahl/synaptik/pkgs/container/synaptik%2Fbackend)
 
+**Docker Hub:**
+[![Frontend Image](https://img.shields.io/badge/roudranil%2Fsynaptik%2Ffrontend-latest-blue?logo=docker&logoColor=white)](https://hub.docker.com/r/roudranil/synaptik/frontend)
+[![Backend Image](https://img.shields.io/badge/roudranil%2Fsynaptik%2Fbackend-latest-blue?logo=docker&logoColor=white)](https://hub.docker.com/r/roudranil/synaptik/backend)
+
 ```bash
-# Pull latest images
+# GitHub Container Registry
 docker pull ghcr.io/dukeroyahl/synaptik/frontend:latest
 docker pull ghcr.io/dukeroyahl/synaptik/backend:latest
+
+# Docker Hub
+docker pull roudranil/synaptik/frontend:latest
+docker pull roudranil/synaptik/backend:latest
 ```
 
 ### 🔥 Native MCP Binaries (GitHub Releases)
