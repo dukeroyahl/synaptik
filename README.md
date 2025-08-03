@@ -40,7 +40,7 @@ Get Synaptik running in under 2 minutes with Docker:
 
 **Option 1: One-Click Install (Recommended)**
 ```bash
-curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/dukeroyahl/synaptik/main/install.sh | bash
 ```
 
 **Option 2: Docker Compose (Production-Ready)**
@@ -69,7 +69,7 @@ Enhance your productivity by connecting Synaptik with Claude Desktop. Once confi
 #### Step 1: Install Synaptik
 ```bash
 # Quick install - sets up the full application
-curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/dukeroyahl/synaptik/main/install.sh | bash
 ```
 
 This installs the complete Synaptik application with:
@@ -81,14 +81,15 @@ This installs the complete Synaptik application with:
 #### Step 2: Download MCP Connector (Native Binary)
 ```bash
 # Download the native binary for your platform
-curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux -o synaptik-mcp
+curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux-amd64 -o synaptik-mcp
 chmod +x synaptik-mcp
 ```
 
 **Available Platforms:**
-- **Linux**: `synaptik-mcp-linux-amd64`, `synaptik-mcp-linux-arm64`
-- **macOS**: `synaptik-mcp-darwin-amd64`, `synaptik-mcp-darwin-arm64` 
-- **Windows**: `synaptik-mcp-windows.exe`
+- **Linux x86_64**: `synaptik-mcp-linux-amd64`
+- **Linux ARM64**: `synaptik-mcp-linux-arm64`
+- **macOS Intel**: `synaptik-mcp-darwin-amd64`
+- **macOS Apple Silicon**: `synaptik-mcp-darwin-arm64`
 
 > **Architecture**: The MCP server is a standalone native executable that connects to your Dockerized Synaptik server on port 9001. No dependencies required!
 
@@ -113,8 +114,8 @@ Add this to your Claude Desktop configuration:
 > **How it works**: The native MCP binary runs in stdio mode and communicates with Claude Desktop directly, while making HTTP calls to your Dockerized Synaptik server on port 9001.
 
 **Example paths:**
-- **Linux/macOS**: `"/home/user/synaptik-mcp"` or `"/Users/user/synaptik-mcp"`
-- **Windows**: `"C:\\Users\\user\\synaptik-mcp.exe"`
+- **Linux**: `"/home/user/synaptik-mcp"`
+- **macOS**: `"/Users/user/synaptik-mcp"`
 
 #### Step 4: Ensure Synaptik is Running
 Make sure your Synaptik Docker services are running:
