@@ -2,25 +2,24 @@
 # DEPENDENCIES
 # ===========================
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # ===========================
 # BUILD OUTPUTS
 # ===========================
-/client/dist/
-/client/build/
-/server/build/
-/mcp-quarkus-server/build/
-.gradle/
-.quarkus/
+**/dist/
+**/build/
+**/.gradle/
+**/.quarkus/
+
+# ===========================
+# AI
+# ===========================
+.claude/
 
 # ===========================
 # ENVIRONMENT FILES
 # ===========================
-.env*
-!.env.example
+.env
 
 # ===========================
 # IDE FILES
@@ -56,15 +55,6 @@ Thumbs.db
 *.log
 logs/
 
-# ===========================
-# JAVA/GRADLE
-# ===========================
-*.class
-*.jar
-!gradle-wrapper.jar
-*.war
-*.nar
-*.ear
 
 # ===========================
 # RUNTIME FILES
@@ -88,20 +78,3 @@ temp/
 # ===========================
 .cache/
 .npm/
-
-# ===========================
-# DOCKER INFRASTRUCTURE
-# ===========================
-# Allow Docker infrastructure
-!docker/
-
-# ===========================
-# PROJECT SPECIFIC
-# ===========================
-# Test files
-test.txt
-*.test
-
-# Application specific logs
-synaptik.log
-quarkus-dev.log
