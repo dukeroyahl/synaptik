@@ -1,0 +1,42 @@
+plugins {
+    id 'java'
+    id 'io.quarkus' version '3.25.0'
+}
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+dependencies {
+    implementation enforcedPlatform('io.quarkus.platform:quarkus-bom:3.25.0')
+    implementation 'io.quarkus:quarkus-rest-jackson'
+    implementation 'io.quarkus:quarkus-rest-client'
+    implementation 'io.quarkiverse.mcp:quarkus-mcp-server-stdio:1.4.0'
+    testImplementation 'io.quarkus:quarkus-junit5'
+    testImplementation 'io.rest-assured:rest-assured'
+}
+
+group 'org.dukeroyahl.synaptik'
+version '0.0.5'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+test {
+    systemProperty "java.util.logging.manager", "org.jboss.logmanager.LogManager"
+}
+
+compileJava {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-parameters'
+}
+
+compileTestJava {
+    options.encoding = 'UTF-8'
+}
+
+// Use Quarkus built-in buildNative task
+// Run: ./gradlew buildNative
