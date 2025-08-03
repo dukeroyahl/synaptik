@@ -230,6 +230,7 @@ if [ "$IS_UPDATE" = true ]; then
 fi
 echo "📖 Documentation: https://github.com/dukeroyahl/synaptik/wiki"
 echo "🐛 Issues: https://github.com/dukeroyahl/synaptik/issues"
+echo "📦 Docker Images: ghcr.io/dukeroyahl/synaptik/frontend:latest & backend:latest"
 
 # Show Claude Desktop integration info
 echo ""
@@ -238,17 +239,29 @@ echo "============================"
 log_info "Want to manage tasks with Claude Desktop? Follow these steps:"
 echo ""
 echo "1. Download the native connector for your platform:"
-case "$(uname)" in
-    Darwin*) 
-        echo "   curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-macos -o synaptik-mcp"
+case "$(uname -m)" in
+    arm64)
+        case "$(uname)" in
+            Darwin*) 
+                echo "   curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-darwin-arm64 -o synaptik-mcp && chmod +x synaptik-mcp"
+                ;;
+            Linux*)
+                echo "   curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux-arm64 -o synaptik-mcp && chmod +x synaptik-mcp"
+                ;;
+        esac
         ;;
-    Linux*)
-        echo "   curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux -o synaptik-mcp"
-        ;;
-    MINGW*|CYGWIN*|MSYS*)
-        echo "   curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-windows.exe -o synaptik-mcp.exe"
+    x86_64|amd64)
+        case "$(uname)" in
+            Linux*)
+                echo "   curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux-amd64 -o synaptik-mcp && chmod +x synaptik-mcp"
+                ;;
+        esac
         ;;
     *)
+        echo "   Architecture $(uname -m) not yet supported. Available platforms:"
+        echo "   - macOS Apple Silicon: synaptik-mcp-darwin-arm64"
+        echo "   - Linux x86_64: synaptik-mcp-linux-amd64" 
+        echo "   - Linux ARM64: synaptik-mcp-linux-arm64"
         echo "   Visit: https://github.com/dukeroyahl/synaptik/releases/latest"
         ;;
 esac
