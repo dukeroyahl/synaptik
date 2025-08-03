@@ -1,185 +1,137 @@
 # Synaptik MCP Server
 
-A Model Context Protocol (MCP) server that provides Claude with tools to manage Synaptik tasks through a unified interface.
+🧠 **Where Ideas Connect** - MCP server for integrating Synaptik task management with Claude Desktop.
 
-## Overview
+## 🚀 Quick Setup
 
-This MCP server acts as a bridge between Claude and the Synaptik task management system, allowing Claude to:
-- Create, update, and manage tasks
-- Start and complete tasks
-- Query task status and dependencies
-- Import tasks from external sources
+### Prerequisites
+- **Node.js 18+** - [Download here](https://nodejs.org/)
+- **Synaptik backend** running on `http://localhost:9001`
 
-## Docker Images
+### Installation
 
-The MCP server is published as Docker images under the consolidated repository:
-
-- `roudranil/synaptik:mcp-server-latest` - Latest stable version
-- `roudranil/synaptik:mcp-server-{version}` - Specific version (e.g., `mcp-server-1.0.0`)
-
-## Quick Start
-
-### Using Docker (Recommended)
-
-1. **Pull the image:**
-   ```bash
-   docker pull roudranil/synaptik:mcp-server-latest
-   ```
-
-2. **Run the MCP server:**
-   ```bash
-   docker run -i --rm \
-     -e SYNAPTIK_URL=http://host.docker.internal:9001 \
-     roudranil/synaptik:mcp-server-latest
-   ```
-
-### Claude Desktop Configuration
-
-#### Recommended: Direct Docker Integration
-
-1. **Start Synaptik API first:**
-   ```bash
-   # Start just the core app (no MCP server in compose)
-   docker-compose -f dist/docker-compose.yml up -d
-   ```
-
-2. **Configure Claude Desktop:**
-   ```json
-   {
-     "mcpServers": {
-       "synaptik": {
-         "command": "docker",
-         "args": [
-           "run",
-           "-i",
-           "--rm",
-           "--network=synaptik-network",
-           "-e",
-           "SYNAPTIK_URL=http://api:9001",
-           "roudranil/synaptik:mcp-server-latest"
-         ]
-       }
-     }
-   }
-   ```
-
-#### Alternative: Self-Contained MCP Stack
-
-If you prefer to run MCP with its own API instance:
-
-1. **Use the standalone MCP stack:**
-   ```bash
-   docker-compose -f mcp-server/docker-compose.mcp.yml up -d
-   ```
-
-2. **Configure Claude Desktop:**
-   ```json
-   {
-     "mcpServers": {
-       "synaptik": {
-         "command": "docker",
-         "args": [
-           "exec",
-           "-i",
-           "synaptik-mcp-server",
-           "node",
-           "mcp-bridge.js"
-         ]
-       }
-     }
-   }
-   ```
-
-## Available Tools
-
-The MCP server provides the following tools for Claude:
-
-### Task Management
-- **createTask** - Create a new task with title, description, and optional metadata
-- **getTasks** - Retrieve tasks with optional filtering by status, project, or tags
-- **updateTask** - Update existing task properties
-- **deleteTask** - Delete a task by ID
-
-### Task Operations  
-- **startTask** - Mark a task as started/in-progress
-- **completeTask** - Mark a task as completed
-- **getTaskById** - Get detailed information about a specific task
-
-### Data Import
-- **importTasks** - Import tasks from external JSON data
-- **getActiveTasks** - Get all currently active/in-progress tasks
-
-## Environment Variables
-
-- `SYNAPTIK_URL` - URL of the Synaptik API server (required)
-- `NODE_ENV` - Environment mode (development/production)
-
-## Development
-
-### Building Locally
-
+**Option 1: Global Installation (Recommended)**
 ```bash
-# Build the Docker image
-docker build -f Dockerfile -t synaptik-mcp:local .
-
-# Run locally
-docker run -i --rm \
-  -e SYNAPTIK_URL=http://localhost:9001 \
-  synaptik-mcp:local
+npm install -g synaptik-mcp-server
 ```
 
-### Using the Build Script
-
+**Option 2: Local Installation**
 ```bash
-# Build with default latest tag
-./scripts/build-mcp-image.sh
-
-# Build with specific version
-./scripts/build-mcp-image.sh 1.0.0
+# Clone or download this directory
+cd synaptik/mcp-server
+npm install
 ```
 
-## Architecture
+## 🔧 Claude Desktop Configuration
 
-The MCP server consists of:
+Add this to your Claude Desktop MCP configuration file:
 
-- **mcp-bridge.js** - Main MCP server implementation using stdio transport
-- **package.json** - Dependencies and build configuration  
-- **Dockerfile** - Container build instructions
+**For Global Installation:**
+```json
+{
+  "mcpServers": {
+    "synaptik": {
+      "command": "synaptik-mcp",
+      "env": {
+        "SYNAPTIK_URL": "http://localhost:9001",
+        "LOG_LEVEL": "info"
+      }
+    }
+  }
+}
+```
 
-## Integration
+**For Local Installation:**
+```json
+{
+  "mcpServers": {
+    "synaptik": {
+      "command": "node",
+      "args": ["/path/to/synaptik/mcp-server/mcp-bridge.js"],
+      "env": {
+        "SYNAPTIK_URL": "http://localhost:9001", 
+        "LOG_LEVEL": "info"
+      }
+    }
+  }
+}
+```
 
-The MCP server communicates with:
-- **Synaptik API** - RESTful API for task management operations
-- **Claude** - Through MCP stdio protocol for tool execution
+### Configuration File Locations
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
 
-## Troubleshooting
+## 🛠️ Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SYNAPTIK_URL` | `http://localhost:9001` | Synaptik backend URL |
+| `LOG_LEVEL` | `info` | Logging level (`debug`, `info`, `error`) |
+| `MCP_LOG_FILE` | `~/.synaptik/logs/mcp-bridge.log` | Log file path |
+
+## 🔍 Available Tools
+
+The MCP server provides these tools for Claude:
+
+- **createTask** - Create a new task
+- **getTasks** - Get all tasks with optional filtering  
+- **getActiveTasks** - Get all active tasks
+- **getPendingTasks** - Get all pending tasks
+- **startTask** - Start a task (set to active)
+- **markTaskDone** - Mark task as completed
+- **getDashboard** - Get dashboard overview
+
+## 🐛 Troubleshooting
+
+### Enable Debug Logging
+```json
+{
+  "mcpServers": {
+    "synaptik": {
+      "command": "synaptik-mcp",
+      "env": {
+        "SYNAPTIK_URL": "http://localhost:9001",
+        "LOG_LEVEL": "debug"
+      }
+    }
+  }
+}
+```
+
+### Check Logs
+- **Default log location**: `~/.synaptik/logs/mcp-bridge.log`
+- **Custom log location**: Set `MCP_LOG_FILE` environment variable
 
 ### Common Issues
 
-1. **Connection refused to Synaptik API**
-   - Ensure `SYNAPTIK_URL` points to a running Synaptik instance
-   - Use `host.docker.internal` instead of `localhost` when running in Docker
+1. **"Command not found"** - Make sure Node.js is installed and in PATH
+2. **"Connection refused"** - Ensure Synaptik backend is running on the configured URL
+3. **"No tools available"** - Check Claude Desktop console for MCP startup errors
 
-2. **MCP server not responding**
-   - Check that the container is running with `-i` flag for interactive mode
-   - Verify Claude Desktop MCP configuration is correct
-
-3. **Tool execution errors**
-   - Check Synaptik API logs for authentication or validation errors
-   - Ensure task data format matches expected schema
-
-### Debugging
-
-Enable debug logging:
+### Test MCP Server Manually
 ```bash
-docker run -i --rm \
-  -e SYNAPTIK_URL=http://host.docker.internal:9001 \
-  -e NODE_ENV=development \
-  roudranil/synaptik:mcp-server-latest
+# Test the server directly
+synaptik-mcp
+
+# Or with custom settings
+SYNAPTIK_URL=http://localhost:9001 LOG_LEVEL=debug synaptik-mcp
 ```
 
-## Related
+## 📝 Example Usage in Claude
 
-- [Synaptik Main Documentation](../README.md)
-- [Docker Compose Setup](../dist/docker-compose.yml)
-- [API Documentation](../server/README.md)
+Once configured, you can ask Claude things like:
+- "Show me my active tasks"
+- "Create a task to review the quarterly report"
+- "Mark task 12345 as completed"
+- "What's on my dashboard?"
+
+## 🔗 Links
+
+- [Synaptik GitHub](https://github.com/Dukeroyahl/Synaptik)
+- [Claude Desktop MCP Documentation](https://docs.anthropic.com/claude/docs/tool-use)
+- [Model Context Protocol](https://modelcontextprotocol.io/)
+
+## 📄 License
+
+MIT License - see the [LICENSE](../LICENSE) file for details.
