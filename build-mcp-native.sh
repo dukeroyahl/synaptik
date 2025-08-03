@@ -71,10 +71,24 @@ build_platform() {
 
 # Build for current platform (for local testing)
 echo -e "${BLUE}Building for current platform...${NC}"
+
+# Detect if we're on Apple Silicon
+ARCH=$(uname -m)
+OS=$(uname -s)
+
+if [[ "$OS" == "Darwin" && "$ARCH" == "arm64" ]]; then
+    echo -e "${GREEN}🍎 Detected macOS Apple Silicon - using native build${NC}"
+    BUILD_ARGS="-Dquarkus.package.type=native -Dquarkus.native.container-build=false"
+elif [[ "$OS" == "Darwin" && "$ARCH" == "x86_64" ]]; then
+    echo -e "${GREEN}🍎 Detected macOS Intel - using native build${NC}"
+    BUILD_ARGS="-Dquarkus.package.type=native -Dquarkus.native.container-build=false"
+else
+    echo -e "${BLUE}🐧 Detected $OS $ARCH - using container build${NC}"
+    BUILD_ARGS="-Dquarkus.package.type=native -Dquarkus.native.container-build=true"
+fi
+
 ./gradlew clean
-./gradlew build -Dquarkus.package.type=native \
-    -Dquarkus.native.container-build=false \
-    -Dquarkus.native.additional-build-args=--verbose,--no-fallback
+./gradlew build $BUILD_ARGS -Dquarkus.native.additional-build-args=--verbose,--no-fallback
 
 # Check if build was successful
 if [ -f "build/synaptik-mcp-server-*-runner" ]; then

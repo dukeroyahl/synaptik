@@ -421,13 +421,78 @@ show_help() {
     echo -e "  ${GREEN}build${NC}     - Build for production"
     echo -e "  ${GREEN}check${NC}     - Check system requirements"
     echo -e "  ${GREEN}logs${NC}      - Show recent logs"
+    echo -e "  ${GREEN}mcp${NC}       - MCP server setup and info"
     echo -e "  ${GREEN}help${NC}      - Show this help message"
     echo ""
     echo -e "${CYAN}Examples:${NC}"
     echo -e "  ./synaptik.sh setup    # Initial setup"
     echo -e "  ./synaptik.sh dev      # Start development"
     echo -e "  ./synaptik.sh status   # Check what's running"
+    echo -e "  ./synaptik.sh mcp      # Setup Claude Desktop integration"
     echo -e "  ./synaptik.sh stop     # Stop everything"
+    echo ""
+}
+
+# Function to setup and show MCP server info
+setup_mcp() {
+    echo_header "${BRAIN} Claude Desktop MCP Integration"
+    
+    # Check if Node.js is available
+    if ! command_exists node; then
+        echo_status "$RED" "$CROSS" "Node.js is required for MCP server"
+        echo ""
+        echo -e "${CYAN}${INFO} Please install Node.js 18+ from: https://nodejs.org/${NC}"
+        return 1
+    fi
+    
+    local node_version=$(node --version | sed 's/v//')
+    echo_status "$GREEN" "$CHECK" "Node.js found: v$node_version"
+    
+    echo ""
+    echo -e "${CYAN}${ROCKET} MCP Server Setup Instructions:${NC}"
+    echo ""
+    echo -e "${CYAN}1. Install the MCP server globally:${NC}"
+    echo -e "   ${YELLOW}npm install -g synaptik-mcp-server${NC}"
+    echo ""
+    echo -e "${CYAN}2. Find your Claude Desktop config file:${NC}"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo -e "   ${YELLOW}~/Library/Application Support/Claude/claude_desktop_config.json${NC}"
+    elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+        echo -e "   ${YELLOW}%APPDATA%/Claude/claude_desktop_config.json${NC}"
+    else
+        echo -e "   ${YELLOW}~/.config/Claude/claude_desktop_config.json${NC}"
+    fi
+    echo ""
+    echo -e "${CYAN}3. Add this configuration:${NC}"
+    echo -e "${YELLOW}{${NC}"
+    echo -e "${YELLOW}  \"mcpServers\": {${NC}"
+    echo -e "${YELLOW}    \"synaptik\": {${NC}"
+    echo -e "${YELLOW}      \"command\": \"synaptik-mcp\",${NC}"
+    echo -e "${YELLOW}      \"env\": {${NC}"
+    echo -e "${YELLOW}        \"SYNAPTIK_URL\": \"http://localhost:9001\",${NC}"
+    echo -e "${YELLOW}        \"LOG_LEVEL\": \"info\"${NC}"
+    echo -e "${YELLOW}      }${NC}"
+    echo -e "${YELLOW}    }${NC}"
+    echo -e "${YELLOW}  }${NC}"
+    echo -e "${YELLOW}}${NC}"
+    echo ""
+    echo -e "${CYAN}4. Restart Claude Desktop${NC}"
+    echo ""
+    echo -e "${CYAN}${INFO} Available MCP Tools:${NC}"
+    echo -e "   • createTask - Create a new task"
+    echo -e "   • getTasks - Get all tasks with filtering"
+    echo -e "   • getActiveTasks - Get all active tasks"
+    echo -e "   • startTask - Start a task (set to active)"
+    echo -e "   • markTaskDone - Mark task as completed"
+    echo -e "   • getDashboard - Get dashboard overview"
+    echo ""
+    echo -e "${CYAN}${INFO} Test the MCP server:${NC}"
+    echo -e "   ${YELLOW}synaptik-mcp${NC} (after installation)"
+    echo ""
+    echo -e "${CYAN}${INFO} Troubleshooting:${NC}"
+    echo -e "   • Logs: ~/.synaptik/logs/mcp-bridge.log"
+    echo -e "   • Debug: Set LOG_LEVEL=debug in Claude config"
+    echo -e "   • Ensure Synaptik is running on http://localhost:9001"
     echo ""
 }
 
@@ -466,6 +531,9 @@ case "${1:-help}" in
         ;;
     check)
         check_requirements
+        ;;
+    mcp)
+        setup_mcp
         ;;
     logs)
         show_logs

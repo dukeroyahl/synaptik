@@ -71,6 +71,7 @@ fi
 
 log_success "Docker and Docker Compose are available"
 
+
 # Function to check latest release version
 get_latest_version() {
     local latest_version
@@ -86,6 +87,7 @@ get_current_version() {
         echo "unknown"
     fi
 }
+
 
 # Check versions if this is an update
 if [ "$IS_UPDATE" = true ]; then
@@ -191,6 +193,7 @@ else
     log_info "Check logs with: $DOCKER_COMPOSE_CMD logs"
 fi
 
+
 echo ""
 if [ "$IS_UPDATE" = true ]; then
     echo "🎉 Synaptik successfully updated!"
@@ -227,5 +230,37 @@ if [ "$IS_UPDATE" = true ]; then
 fi
 echo "📖 Documentation: https://github.com/Dukeroyahl/synaptik/wiki"
 echo "🐛 Issues: https://github.com/Dukeroyahl/synaptik/issues"
+
+# Show Claude Desktop integration info
+echo ""
+echo "🤖 Claude Desktop Integration"
+echo "============================"
+log_info "Want to manage tasks with Claude Desktop? Follow these steps:"
+echo ""
+echo "1. Download the native connector for your platform:"
+case "$(uname)" in
+    Darwin*) 
+        echo "   curl -sSL https://github.com/Dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-macos -o synaptik-mcp"
+        ;;
+    Linux*)
+        echo "   curl -sSL https://github.com/Dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux -o synaptik-mcp"
+        ;;
+    MINGW*|CYGWIN*|MSYS*)
+        echo "   curl -sSL https://github.com/Dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-windows.exe -o synaptik-mcp.exe"
+        ;;
+    *)
+        echo "   Visit: https://github.com/Dukeroyahl/synaptik/releases/latest"
+        ;;
+esac
+echo "   chmod +x synaptik-mcp"
+echo ""
+echo "2. Configure Claude Desktop to use the connector"
+echo "   See: https://github.com/Dukeroyahl/synaptik#-claude-desktop-integration"
+echo ""
+log_info "Once configured, ask Claude things like:"
+echo "   • 'Show me my active tasks'"
+echo "   • 'Create a task to review the quarterly report'"
+echo "   • 'What's on my dashboard?'"
+
 echo ""
 log_success "Installation complete! Your data persists across updates."
