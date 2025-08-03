@@ -16,7 +16,7 @@ services:
     volumes:
       # Development data (can be deleted safely)
       - synaptik_dev_data:/data/db
-      - ./temp/logs/mongodb:/var/log/mongodb
+      - ${SYNAPTIK_LOGS_DIR:-${HOME}/.synaptik/logs}/mongodb:/var/log/mongodb
     ports:
       - "27017:27017"  # Exposed for development tools
     healthcheck:
@@ -38,7 +38,6 @@ services:
     environment:
       # Development Configuration
       - QUARKUS_PROFILE=dev
-      - QUARKUS_LOG_LEVEL=DEBUG
       - QUARKUS_MONGODB_CONNECTION_STRING=mongodb://mongodb:27017/synaptik
       - QUARKUS_LIVE_RELOAD_INSTRUMENTATION=true
       - QUARKUS_HTTP_CORS_ORIGINS=*
@@ -49,7 +48,7 @@ services:
     volumes:
       # Source code for hot reload
       - ../server:/opt/synaptik/server
-      - ./temp/logs/backend:/opt/synaptik/logs
+      - ${SYNAPTIK_LOGS_DIR:-${HOME}/.synaptik/logs}/backend:/opt/synaptik/logs
     ports:
       - "9001:9001"
       - "5005:5005"  # Debug port
@@ -74,7 +73,7 @@ services:
     volumes:
       # Source code for hot reload
       - ../client:/app/client
-      - ./temp/logs/frontend:/app/logs
+      - ${SYNAPTIK_LOGS_DIR:-${HOME}/.synaptik/logs}/frontend:/app/logs
     ports:
       - "5173:5173"  # Vite dev server
     depends_on:
@@ -83,7 +82,9 @@ services:
     environment:
       - NODE_ENV=development
       - VITE_API_BASE_URL=http://localhost:9001
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+      - VITE_LOG_LEVEL=debug
+      - VITE_LOG_TO_FILE=true
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --logLevel debug"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5173/"]
       interval: 30s

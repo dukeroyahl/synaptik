@@ -15,7 +15,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme}
     volumes:
       - ${HOME}/.synaptik/data:/data/db
-      - ${HOME}/.synaptik/logs:/var/log/mongodb
+      - ${SYNAPTIK_LOGS_DIR:-${HOME}/.synaptik/logs}/mongodb:/var/log/mongodb
     expose:
       - "27017"
     healthcheck:
@@ -36,7 +36,8 @@ services:
     environment:
       - QUARKUS_PROFILE=prod
       - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-changeme}@mongodb:27017/synaptik?authSource=admin
-      - QUARKUS_LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ${SYNAPTIK_LOGS_DIR:-${HOME}/.synaptik/logs}/backend:/opt/synaptik/logs
     restart: unless-stopped
     depends_on:
       mongodb:

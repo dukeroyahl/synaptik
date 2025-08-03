@@ -9,8 +9,41 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
 
 const SYNAPTIK_BASE_URL = process.env.SYNAPTIK_URL || 'http://localhost:9001';
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+const LOG_FILE_PATH = process.env.MCP_LOG_FILE || `${process.env.HOME}/.synaptik/logs/mcp-bridge.log`;
+
+// Ensure log directory exists
+const logDir = path.dirname(LOG_FILE_PATH);
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true });
+}
+
+// Simple logging function
+function log(level, message, ...args) {
+  const timestamp = new Date().toISOString();
+  const logMessage = `${timestamp} [${level.toUpperCase()}] ${message}`;
+  
+  // Always log to stderr for MCP protocol
+  console.error(logMessage, ...args);
+  
+  // Also log to file if enabled
+  try {
+    fs.appendFileSync(LOG_FILE_PATH, logMessage + (args.length > 0 ? ' ' + JSON.stringify(args) : '') + '\n');
+  } catch (err) {
+    console.error('Failed to write to log file:', err.message);
+  }
+}
+
+// Debug logging helper
+function debug(message, ...args) {
+  if (LOG_LEVEL === 'debug') {
+    log('debug', message, ...args);
+  }
+}
 
 // Define tools that proxy to Synaptik HTTP endpoints
 const tools = [
@@ -94,6 +127,7 @@ const server = new Server(
 
 // Register tools/list handler
 server.setRequestHandler(ListToolsRequestSchema, async () => {
+  debug('Listing available tools', { toolCount: tools.length });
   return { tools };
 });
 
@@ -101,11 +135,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   
+  debug('Calling tool', { name, args });
+  log('info', `Executing tool: ${name}`);
+  
   try {
     const response = await axios.post(`${SYNAPTIK_BASE_URL}/mcp/tools/${name}`, args, {
       headers: { 'Content-Type': 'application/json' },
       timeout: 30000
     });
+    
+    debug('Tool response received', { name, status: response.status, dataType: typeof response.data });
+    log('info', `Tool ${name} executed successfully`);
     
     return {
       content: [{
@@ -114,7 +154,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }]
     };
   } catch (error) {
-    console.error(`Error calling tool ${name}:`, error.message);
+    log('error', `Error calling tool ${name}`, { error: error.message, args });
     return {
       content: [{
         type: 'text', 
@@ -127,12 +167,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 async function main() {
   try {
+    log('info', 'Starting Synaptik MCP Bridge', { 
+      synaptikUrl: SYNAPTIK_BASE_URL, 
+      logLevel: LOG_LEVEL,
+      logFile: LOG_FILE_PATH 
+    });
+    
     // Start stdio transport
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error('Synaptik MCP Bridge started');
+    log('info', 'Synaptik MCP Bridge started successfully');
   } catch (error) {
-    console.error('Failed to start MCP Bridge:', error);
+    log('error', 'Failed to start MCP Bridge', { error: error.message, stack: error.stack });
     process.exit(1);
   }
 }

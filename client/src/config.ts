@@ -8,3 +8,7 @@ export const APP_VERSION = '1.0.0';
 // Development/production environment check
 export const isDevelopment = import.meta.env.DEV;
 export const isProduction = import.meta.env.PROD;
+
+// Logging configuration
+export const LOG_LEVEL = import.meta.env.VITE_LOG_LEVEL || (isDevelopment ? 'debug' : 'info');
+export const LOG_TO_FILE = import.meta.env.VITE_LOG_TO_FILE === 'true';
