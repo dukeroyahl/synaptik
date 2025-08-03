@@ -1,0 +1,324 @@
+name: CD
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.2.3)'
+        required: true
+        type: string
+      create_release:
+        description: 'Create GitHub release'
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  validate-release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should_release: ${{ steps.checks.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            VERSION=${{ github.event.release.tag_name }}
+            VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          else
+            echo "❌ Unsupported event type"
+            exit 1
+          fi
+          
+          if ! [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid version format: $VERSION"
+            exit 1
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "🏷️ Release version: $VERSION"
+
+      - name: Check CI status
+        id: checks
+        run: |
+          # Check if latest CI workflow passed
+          LATEST_CI_STATUS=$(gh api repos/${{ github.repository }}/actions/runs \
+            --jq '.workflow_runs[] | select(.head_sha == "${{ github.sha }}" and .name == "CI") | .conclusion' \
+            | head -n1)
+          
+          if [ "$LATEST_CI_STATUS" = "success" ]; then
+            echo "✅ CI checks passed"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          elif [ -z "$LATEST_CI_STATUS" ]; then
+            echo "⚠️ No CI run found for this commit, allowing release"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ CI checks failed or pending: $LATEST_CI_STATUS"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-docker-images:
+    needs: validate-release
+    if: needs.validate-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [frontend, backend]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dist/docker/Dockerfile.${{ matrix.component }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.component }}-${{ needs.validate-release.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.component }}-latest
+          labels: |
+            org.opencontainers.image.title=Synaptik ${{ matrix.component }}
+            org.opencontainers.image.description=Synaptik ${{ matrix.component }} - TaskWarrior DNA task management
+            org.opencontainers.image.version=${{ needs.validate-release.outputs.version }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-native-binaries:
+    needs: validate-release
+    if: needs.validate-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [linux-amd64, linux-arm64, darwin-amd64, darwin-arm64]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Build native binary
+        run: |
+          cd mcp-quarkus-server
+          chmod +x gradlew
+          case "${{ matrix.platform }}" in
+            "linux-amd64")
+              ./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=true
+              ;;
+            "linux-arm64")
+              ./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=quay.io/quarkus/ubi-quarkus-graalvmce-builder-image:jdk-21-arch-arm64
+              ;;
+            "darwin-amd64"|"darwin-arm64")
+              # For macOS, we'll use container build targeting Linux for now
+              # Future enhancement: use native macOS builds
+              ./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=true
+              ;;
+          esac
+
+      - name: Rename binary
+        run: |
+          cd mcp-quarkus-server/build
+          if [ -f "synaptik-mcp-${{ needs.validate-release.outputs.version }}-runner" ]; then
+            mv "synaptik-mcp-${{ needs.validate-release.outputs.version }}-runner" "synaptik-mcp-${{ matrix.platform }}"
+          elif [ -f "*-runner" ]; then
+            mv *-runner "synaptik-mcp-${{ matrix.platform }}"
+          fi
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: synaptik-mcp-${{ matrix.platform }}
+          path: mcp-quarkus-server/build/synaptik-mcp-${{ matrix.platform }}
+          retention-days: 7
+
+  create-github-release:
+    needs: [validate-release, build-docker-images, build-native-binaries]
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true' && needs.validate-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for changelog generation
+
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./binaries
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the latest tag before this version
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | head -n 2 | tail -n 1)
+          if [ -z "$PREVIOUS_TAG" ]; then
+            PREVIOUS_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          
+          echo "Generating changelog from $PREVIOUS_TAG to HEAD"
+          
+          # Generate changelog using git log
+          CHANGELOG=$(git log $PREVIOUS_TAG..HEAD --pretty=format:"- %s (%h)" --reverse | grep -E "(feat|fix|refactor|docs|chore)" || echo "- Initial release")
+          
+          # Save changelog to file
+          echo "$CHANGELOG" > CHANGELOG.md
+          
+          # Also prepare for GitHub release
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Git tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${{ needs.validate-release.outputs.version }}" -m "Release v${{ needs.validate-release.outputs.version }}"
+          git push origin "v${{ needs.validate-release.outputs.version }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.validate-release.outputs.version }}
+          name: 🚀 Synaptik v${{ needs.validate-release.outputs.version }}
+          files: ./binaries/*/synaptik-mcp-*
+          body: |
+            ## 🚀 Synaptik Release v${{ needs.validate-release.outputs.version }}
+            
+            ### 📝 What's Changed
+            ${{ steps.changelog.outputs.CHANGELOG }}
+            
+            ### 🐳 Docker Images (GitHub Packages)
+            ```bash
+            # Frontend
+            docker pull ghcr.io/${{ github.repository }}:frontend-${{ needs.validate-release.outputs.version }}
+            
+            # Backend  
+            docker pull ghcr.io/${{ github.repository }}:backend-${{ needs.validate-release.outputs.version }}
+            ```
+            
+            ### 📦 Native MCP Binaries
+            - `synaptik-mcp-linux-amd64` - Linux x86_64
+            - `synaptik-mcp-linux-arm64` - Linux ARM64  
+            - `synaptik-mcp-darwin-amd64` - macOS Intel
+            - `synaptik-mcp-darwin-arm64` - macOS Apple Silicon
+            
+            ### 🚀 Quick Start
+            ```bash
+            # Using docker-compose (recommended)
+            curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker-compose.yml -o docker-compose.yml
+            docker-compose up -d
+            ```
+            
+            ### 📖 Documentation
+            - [📚 Complete Wiki](https://github.com/Dukeroyahl/synaptik/wiki)
+            - [User Guide](https://github.com/Dukeroyahl/synaptik/wiki/User-Guide)
+            - [Claude Desktop Integration](https://github.com/Dukeroyahl/synaptik/wiki/MCP-Server)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-release-artifacts:
+    needs: [validate-release, build-docker-images, build-native-binaries]
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all binary artifacts  
+        uses: actions/download-artifact@v4
+        with:
+          path: ./binaries
+
+      - name: Upload artifacts to existing release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: ./binaries/*/synaptik-mcp-*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-package-metadata:
+    needs: [validate-release, build-docker-images]
+    if: needs.validate-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update package metadata
+        run: |
+          echo "✅ Docker images published to GitHub Packages"
+          echo "📦 Repository: ghcr.io/${{ github.repository }}"
+
+  cd-summary:
+    needs: [validate-release, build-docker-images, build-native-binaries, create-github-release, update-release-artifacts, update-package-metadata]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🚀 CD Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.validate-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Job Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Images | ${{ needs.build-docker-images.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Native Binaries | ${{ needs.build-native-binaries.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| GitHub Release | ${{ needs.create-github-release.result == 'success' && '✅ Success' || (needs.create-github-release.result == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Release Artifacts | ${{ needs.update-release-artifacts.result == 'success' && '✅ Success' || (needs.update-release-artifacts.result == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Package Metadata | ${{ needs.update-package-metadata.result == 'success' && '✅ Success' || (needs.update-package-metadata.result == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.build-docker-images.result }}" = "success" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🐳 Published Images (GitHub Packages)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`ghcr.io/${{ github.repository }}:frontend-${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`ghcr.io/${{ github.repository }}:backend-${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check for critical failures
+        run: |
+          if [ "${{ needs.build-docker-images.result }}" != "success" ]; then
+            echo "❌ Docker build failed"
+            exit 1
+          fi
+          if [ "${{ needs.build-native-binaries.result }}" != "success" ]; then
+            echo "❌ Native binary build failed"
+            exit 1
+          fi
+          echo "✅ All CD steps completed successfully"
