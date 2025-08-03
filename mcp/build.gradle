@@ -37,6 +37,3 @@ compileJava {
 compileTestJava {
     options.encoding = 'UTF-8'
 }
-
-// Use Quarkus built-in buildNative task
-// Run: ./gradlew buildNative

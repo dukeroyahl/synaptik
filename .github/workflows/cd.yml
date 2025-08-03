@@ -1,12 +1,15 @@
-name: CD
+name: Release & Deployment
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - '*'
+  delete:
+    # Trigger when tags are deleted
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., 1.2.3)'
+        description: 'Version to build (e.g., 1.2.3)'
         required: true
         type: string
       create_release:
@@ -16,140 +19,270 @@ on:
         type: boolean
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: release-${{ github.ref || github.event.inputs.version }}
   cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true'
 
 jobs:
-  validate-release:
+  # ============================================================================
+  # TAG VALIDATION & RELEASE CREATION
+  # ============================================================================
+  
+  validate-tag:
     runs-on: ubuntu-latest
+    if: github.event_name != 'delete'
     outputs:
-      version: ${{ steps.version.outputs.version }}
-      should_release: ${{ steps.checks.outputs.should_release }}
+      is_semver: ${{ steps.check.outputs.is_semver }}
+      version: ${{ steps.check.outputs.version }}
+      should_create_release: ${{ steps.check.outputs.should_create_release }}
+      tag_name: ${{ steps.check.outputs.tag_name }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Extract version
-        id: version
+      - name: Check if tag/version is semantic version
+        id: check
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_NAME="v${{ github.event.inputs.version }}"
             VERSION="${{ github.event.inputs.version }}"
-          elif [ "${{ github.event_name }}" = "release" ]; then
-            VERSION=${{ github.event.release.tag_name }}
-            VERSION=${VERSION#v}  # Remove 'v' prefix if present
+            SHOULD_CREATE="${{ github.event.inputs.create_release }}"
           else
-            echo "❌ Unsupported event type"
-            exit 1
+            TAG_NAME="${{ github.ref_name }}"
+            VERSION=${TAG_NAME#v}  # Remove 'v' prefix if present
+            SHOULD_CREATE="true"
           fi
           
-          if ! [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "❌ Invalid version format: $VERSION"
-            exit 1
-          fi
+          echo "Checking tag: $TAG_NAME (version: $VERSION)"
           
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "🏷️ Release version: $VERSION"
+          # Check if it matches semantic versioning pattern
+          if [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "✅ Tag $TAG_NAME matches semantic versioning"
+            echo "is_semver=true" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+            echo "should_create_release=$SHOULD_CREATE" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️ Tag $TAG_NAME does not match semantic versioning (x.y.z) - ignoring"
+            echo "is_semver=false" >> $GITHUB_OUTPUT
+            echo "should_create_release=false" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Check CI status
-        id: checks
+  generate-release-notes:
+    needs: validate-tag
+    runs-on: ubuntu-latest
+    if: needs.validate-tag.outputs.should_create_release == 'true'
+    outputs:
+      release_notes: ${{ steps.notes.outputs.release_notes }}
+      previous_tag: ${{ steps.previous.outputs.previous_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get previous release tag
+        id: previous
         run: |
-          # Check if latest CI workflow passed
-          LATEST_CI_STATUS=$(gh api repos/${{ github.repository }}/actions/runs \
-            --jq '.workflow_runs[] | select(.head_sha == "${{ github.sha }}" and .name == "CI") | .conclusion' \
-            | head -n1)
-          
-          if [ "$LATEST_CI_STATUS" = "success" ]; then
-            echo "✅ CI checks passed"
-            echo "should_release=true" >> $GITHUB_OUTPUT
-          elif [ -z "$LATEST_CI_STATUS" ]; then
-            echo "⚠️ No CI run found for this commit, allowing release"
-            echo "should_release=true" >> $GITHUB_OUTPUT
-          else
-            echo "❌ CI checks failed or pending: $LATEST_CI_STATUS"
-            echo "should_release=true" >> $GITHUB_OUTPUT
+          # Get all tags sorted by version
+          PREVIOUS_TAG=$(git tag -l --sort=-version:refname | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '2p')
+          if [ -z "$PREVIOUS_TAG" ]; then
+            # If no previous tag, use first commit
+            PREVIOUS_TAG=$(git rev-list --max-parents=0 HEAD)
+            echo "No previous semantic version tag found, using first commit"
           fi
+          echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+          echo "Previous tag/commit: $PREVIOUS_TAG"
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          CURRENT_TAG="${{ needs.validate-tag.outputs.tag_name }}"
+          PREVIOUS_TAG="${{ steps.previous.outputs.previous_tag }}"
+          VERSION="${{ needs.validate-tag.outputs.version }}"
+          
+          echo "Generating release notes from $PREVIOUS_TAG to $CURRENT_TAG"
+          
+          # Create release notes
+          cat > release_notes.md << 'EOF'
+          ## 🚀 What's New in v$VERSION
+          
+          ### 📋 Changes Since Previous Release
+          EOF
+          
+          # Get commit messages between releases
+          if [ "$PREVIOUS_TAG" != "$CURRENT_TAG" ]; then
+            git log --pretty=format:"- %s" $PREVIOUS_TAG..$CURRENT_TAG >> release_notes.md
+          else
+            echo "- Initial release" >> release_notes.md
+          fi
+          
+          cat >> release_notes.md << 'EOF'
+          
+          ### 📦 Installation Options
+          
+          **Option 1: Quick Install (Recommended)**
+          ```bash
+          curl -sSL https://raw.githubusercontent.com/dukeroyahl/synaptik/main/install.sh | bash
+          ```
+          
+          **Option 2: Native MCP Binaries**
+          Download the appropriate binary for your platform:
+          - **macOS Apple Silicon**: `synaptik-mcp-darwin-arm64` 🍎 *(Primary Platform)*
+          - **Linux x86_64**: `synaptik-mcp-linux-amd64` 🐧
+          - **Linux ARM64**: `synaptik-mcp-linux-arm64` 🐧
+          
+          **Option 3: Docker Images**
+          ```bash
+          # Frontend
+          docker pull ghcr.io/dukeroyahl/synaptik/frontend:v$VERSION
+          
+          # Backend  
+          docker pull ghcr.io/dukeroyahl/synaptik/backend:v$VERSION
+          
+          # Or use latest
+          docker pull ghcr.io/dukeroyahl/synaptik/frontend:latest
+          docker pull ghcr.io/dukeroyahl/synaptik/backend:latest
+          ```
+          
+          ### 🤖 Claude Desktop Integration
+          1. Download the MCP binary for your platform (above)
+          2. Add to your Claude Desktop config:
+          ```json
+          {
+            "mcpServers": {
+              "synaptik": {
+                "command": "/path/to/synaptik-mcp-your-platform"
+              }
+            }
+          }
+          ```
+          3. Restart Claude Desktop and start managing tasks with AI!
+          
+          ### 🔗 Links
+          - 📚 [Documentation](https://github.com/dukeroyahl/synaptik/wiki)
+          - 🐳 [Docker Images](https://github.com/dukeroyahl/synaptik/pkgs/container/synaptik%2Ffrontend)
+          - 🤝 [Contributing](https://github.com/dukeroyahl/synaptik/blob/main/CONTRIBUTING.md)
+          - 🐛 [Report Issues](https://github.com/dukeroyahl/synaptik/issues)
+          
+          ---
+          
+          **Full Changelog**: https://github.com/dukeroyahl/synaptik/compare/$PREVIOUS_TAG...$CURRENT_TAG
+          EOF
+          
+          # Output the release notes (escape for GitHub Actions)
+          {
+            echo 'release_notes<<EOF'
+            cat release_notes.md
+            echo EOF
+          } >> $GITHUB_OUTPUT
+
+  create-release:
+    needs: [validate-tag, generate-release-notes]
+    runs-on: ubuntu-latest
+    if: needs.validate-tag.outputs.should_create_release == 'true'
+    outputs:
+      release_id: ${{ steps.create.outputs.release_id }}
+    steps:
+      - name: Create GitHub Release
+        id: create
+        run: |
+          TAG_NAME="${{ needs.validate-tag.outputs.tag_name }}"
+          VERSION="${{ needs.validate-tag.outputs.version }}"
+          
+          RELEASE_RESPONSE=$(gh api repos/dukeroyahl/synaptik/releases \
+            --method POST \
+            --field tag_name="$TAG_NAME" \
+            --field target_commitish="main" \
+            --field name="🚀 Synaptik v$VERSION" \
+            --field body="${{ needs.generate-release-notes.outputs.release_notes }}" \
+            --field draft=false \
+            --field prerelease=false)
+          
+          RELEASE_ID=$(echo "$RELEASE_RESPONSE" | jq -r '.id')
+          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+          echo "✅ Created release v$VERSION with ID: $RELEASE_ID"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================================
+  # BUILD & DEPLOYMENT
+  # ============================================================================
 
   build-docker-images:
-    needs: validate-release
-    if: needs.validate-release.outputs.should_release == 'true'
+    needs: [validate-tag, create-release]
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    if: needs.validate-tag.outputs.should_create_release == 'true'
     strategy:
       matrix:
         component: [frontend, backend]
-      fail-fast: true
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.component }}
+          tags: |
+            type=semver,pattern={{version}},value=v${{ needs.validate-tag.outputs.version }}
+            type=raw,value=latest
+
       - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ./docker/Dockerfile.${{ matrix.component }}
-          platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.component }}:${{ needs.validate-release.outputs.version }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.component }}:latest
-          labels: |
-            org.opencontainers.image.title=Synaptik ${{ matrix.component }}
-            org.opencontainers.image.description=Synaptik ${{ matrix.component }} - TaskWarrior DNA task management
-            org.opencontainers.image.version=${{ needs.validate-release.outputs.version }}
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
 
   build-native-binaries:
-    needs: validate-release
-    if: needs.validate-release.outputs.should_release == 'true'
+    needs: [validate-tag, create-release]
+    runs-on: ${{ matrix.runner }}
+    if: needs.validate-tag.outputs.should_create_release == 'true'
     strategy:
       matrix:
         include:
-          - platform: darwin-arm64
-            os: macos-14
-            use-native: true
           - platform: linux-amd64
-            os: ubuntu-latest
+            runner: ubuntu-latest
+            use-native: false
             builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-amd64
-      fail-fast: false
-    runs-on: ${{ matrix.os }}
-    
+          - platform: darwin-arm64
+            runner: macos-14
+            use-native: true
+            builder-image: ""
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm64
+            use-native: false
+            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-arm64
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup JDK
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v4
+      - name: Setup Gradle with caching
+        uses: gradle/actions/setup-gradle@v3
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            mcp/.gradle
-          key: gradle-mcp-${{ runner.os }}-${{ hashFiles('mcp/**/*.gradle*') }}
-          restore-keys: gradle-mcp-${{ runner.os }}-
+          cache-read-only: false
+          gradle-home-cache-cleanup: true
 
       - name: Install GraalVM (macOS only)
         if: matrix.use-native == true
@@ -162,14 +295,13 @@ jobs:
       - name: Build MCP native binary
         run: |
           cd mcp
-          chmod +x gradlew
           
           if [ "${{ matrix.use-native }}" = "true" ]; then
             # macOS: Use native GraalVM installation
-            ./gradlew buildNative
+            ./gradlew buildNative --parallel --build-cache -Dquarkus.native.enabled=true
           else
             # Linux: Use containerized Mandrel builder
-            ./gradlew buildNative -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=${{ matrix.builder-image }}
+            ./gradlew buildNative -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=${{ matrix.builder-image }} --parallel --build-cache -Dquarkus.native.enabled=true
           fi
 
       - name: Prepare binary for release
@@ -180,7 +312,7 @@ jobs:
           BINARY_NAME=$(find . -name "*-runner" -type f | head -n 1)
           if [ -z "$BINARY_NAME" ]; then
             echo "❌ No native binary found!"
-            find . -type f -name "*" | grep -E "(build|target)" || true
+            find . -type f -name "*" | head -20
             exit 1
           fi
           
@@ -192,209 +324,92 @@ jobs:
           file "synaptik-mcp-${{ matrix.platform }}"
           ls -la "synaptik-mcp-${{ matrix.platform }}"
 
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: synaptik-mcp-${{ matrix.platform }}
-          path: mcp/build/synaptik-mcp-${{ matrix.platform }}
-          retention-days: 7
-          compression-level: 9
-
-  create-github-release:
-    needs: [validate-release, build-docker-images, build-native-binaries]
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true' && needs.validate-release.outputs.should_release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Fetch full history for changelog generation
-
-      - name: Download all binary artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./binaries
-          merge-multiple: true
-
-      - name: Prepare release assets
+      - name: Upload binary to release
         run: |
-          # Organize binaries for release
-          mkdir -p release-assets
-          find ./binaries -name "synaptik-mcp-*" -type f -exec cp {} release-assets/ \;
+          TAG_NAME="${{ needs.validate-tag.outputs.tag_name }}"
+          BINARY_PATH="mcp/build/synaptik-mcp-${{ matrix.platform }}"
           
-          # List and verify all binaries
-          echo "📦 Release assets prepared:"
-          ls -la release-assets/
+          echo "📦 Uploading ${{ matrix.platform }} binary to release $TAG_NAME"
           
-          # Make all binaries executable
-          chmod +x release-assets/synaptik-mcp-*
-
-      - name: Generate changelog
-        id: changelog
-        run: |
-          # Get the latest tag before this version
-          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | head -n 2 | tail -n 1)
-          if [ -z "$PREVIOUS_TAG" ]; then
-            PREVIOUS_TAG=$(git rev-list --max-parents=0 HEAD)
-          fi
+          # Upload to release (with --clobber to replace if exists)
+          gh release upload "$TAG_NAME" "$BINARY_PATH" --clobber --repo dukeroyahl/synaptik
           
-          echo "Generating changelog from $PREVIOUS_TAG to HEAD"
-          
-          # Generate changelog using git log
-          CHANGELOG=$(git log $PREVIOUS_TAG..HEAD --pretty=format:"- %s (%h)" --reverse | grep -E "(feat|fix|refactor|docs|chore)" || echo "- Initial release")
-          
-          # Save changelog to file
-          echo "$CHANGELOG" > CHANGELOG.md
-          
-          # Also prepare for GitHub release
-          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Create Git tag
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "v${{ needs.validate-release.outputs.version }}" -m "Release v${{ needs.validate-release.outputs.version }}"
-          git push origin "v${{ needs.validate-release.outputs.version }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ needs.validate-release.outputs.version }}
-          name: 🚀 Synaptik v${{ needs.validate-release.outputs.version }}
-          files: release-assets/synaptik-mcp-*
-          body: |
-            ## 🚀 Synaptik Release v${{ needs.validate-release.outputs.version }}
-            
-            ### 📝 What's Changed
-            ${{ steps.changelog.outputs.CHANGELOG }}
-            
-            ### 🐳 Docker Images (GitHub Packages)
-            ```bash
-            # Frontend
-            docker pull ghcr.io/${{ github.repository }}/frontend:${{ needs.validate-release.outputs.version }}
-            
-            # Backend  
-            docker pull ghcr.io/${{ github.repository }}/backend:${{ needs.validate-release.outputs.version }}
-            ```
-            
-            ### 📦 Native MCP Binaries (GitHub Packages)
-            Download the native MCP connector for your platform:
-            
-            ```bash
-            # macOS Apple Silicon (Primary Platform)
-            curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ needs.validate-release.outputs.version }}/synaptik-mcp-darwin-arm64 -o synaptik-mcp && chmod +x synaptik-mcp
-            
-            # Linux x86_64
-            curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ needs.validate-release.outputs.version }}/synaptik-mcp-linux-amd64 -o synaptik-mcp && chmod +x synaptik-mcp
-            
-            # Linux ARM64
-            curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ needs.validate-release.outputs.version }}/synaptik-mcp-linux-arm64 -o synaptik-mcp && chmod +x synaptik-mcp
-            ```
-            
-            **Available Binaries:**
-            - `synaptik-mcp-darwin-arm64` - macOS Apple Silicon ⭐ **(Primary Platform)**
-            - `synaptik-mcp-linux-amd64` - Linux x86_64
-            - `synaptik-mcp-linux-arm64` - Linux ARM64
-            
-            ### 🚀 Quick Start
-            ```bash
-            # Using docker-compose (recommended)
-            curl -sSL https://raw.githubusercontent.com/Dukeroyahl/synaptik/main/dist/docker-compose.yml -o docker-compose.yml
-            docker-compose up -d
-            ```
-            
-            ### 📖 Documentation
-            - [📚 Complete Wiki](https://github.com/Dukeroyahl/synaptik/wiki)
-            - [User Guide](https://github.com/Dukeroyahl/synaptik/wiki/User-Guide)
-            - [Claude Desktop Integration](https://github.com/Dukeroyahl/synaptik/wiki/MCP-Server)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  update-release-artifacts:
-    needs: [validate-release, build-docker-images, build-native-binaries]
-    if: github.event_name == 'release'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download all binary artifacts  
-        uses: actions/download-artifact@v4
-        with:
-          path: ./binaries
-          merge-multiple: true
-
-      - name: Prepare release assets
-        run: |
-          # Organize binaries for release
-          mkdir -p release-assets
-          find ./binaries -name "synaptik-mcp-*" -type f -exec cp {} release-assets/ \;
-          
-          # Make all binaries executable
-          chmod +x release-assets/synaptik-mcp-*
-          
-          # List prepared assets
-          echo "📦 Uploading release assets:"
-          ls -la release-assets/
-
-      - name: Upload artifacts to existing release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.event.release.tag_name }}
-          files: release-assets/synaptik-mcp-*
+          echo "✅ Successfully uploaded synaptik-mcp-${{ matrix.platform }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   update-package-metadata:
-    needs: [validate-release, build-docker-images]
-    if: needs.validate-release.outputs.should_release == 'true'
+    needs: [build-docker-images]
     runs-on: ubuntu-latest
+    if: needs.validate-tag.outputs.should_create_release == 'true'
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Update package metadata
+      - name: Update package descriptions
         run: |
-          echo "✅ Docker images published to GitHub Packages"
-          echo "📦 Repository: ghcr.io/${{ github.repository }}"
-
-  cd-summary:
-    needs: [validate-release, build-docker-images, build-native-binaries, create-github-release, update-release-artifacts, update-package-metadata]
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Generate summary
-        run: |
-          echo "## 🚀 CD Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${{ needs.validate-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Job Results" >> $GITHUB_STEP_SUMMARY
-          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker Images | ${{ needs.build-docker-images.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Native Binaries | ${{ needs.build-native-binaries.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| GitHub Release | ${{ needs.create-github-release.result == 'success' && '✅ Success' || (needs.create-github-release.result == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Release Artifacts | ${{ needs.update-release-artifacts.result == 'success' && '✅ Success' || (needs.update-release-artifacts.result == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Package Metadata | ${{ needs.update-package-metadata.result == 'success' && '✅ Success' || (needs.update-package-metadata.result == 'skipped' && '⏭️ Skipped' || '❌ Failed') }} |" >> $GITHUB_STEP_SUMMARY
+          echo "📦 Updating Docker package metadata..."
           
-          if [ "${{ needs.build-docker-images.result }}" = "success" ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🐳 Published Images (GitHub Packages)" >> $GITHUB_STEP_SUMMARY
-            echo "- \`ghcr.io/${{ github.repository }}/frontend:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "- \`ghcr.io/${{ github.repository }}/backend:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          # Frontend package description
+          gh api --method PATCH /orgs/dukeroyahl/packages/container/synaptik%2Ffrontend \
+            --field description="🧠 Synaptik Frontend - Smart task management companion with React 18 + TypeScript. Works with Claude Desktop via MCP for AI-powered productivity insights." || true
+          
+          # Backend package description  
+          gh api --method PATCH /orgs/dukeroyahl/packages/container/synaptik%2Fbackend \
+            --field description="🧠 Synaptik Backend - Java 21 + Quarkus reactive API server with MongoDB. Provides TaskWarrior-compatible task management and MCP integration for AI assistants." || true
+          
+          echo "✅ Package metadata updated"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================================
+  # TAG DELETION CLEANUP
+  # ============================================================================
+  
+  cleanup-deleted-tag:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'delete' && github.event.ref_type == 'tag'
+    steps:
+      - name: Check if deleted tag was semantic version
+        id: check
+        run: |
+          DELETED_TAG="${{ github.event.ref }}"
+          VERSION=${DELETED_TAG#v}  # Remove 'v' prefix if present
+          
+          echo "Deleted tag: $DELETED_TAG (version: $VERSION)"
+          
+          # Check if it matches semantic versioning pattern
+          if [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "✅ Deleted tag $DELETED_TAG was a semantic version"
+            echo "should_cleanup=true" >> $GITHUB_OUTPUT
+            echo "tag_name=$DELETED_TAG" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️ Deleted tag $DELETED_TAG was not a semantic version - ignoring"
+            echo "should_cleanup=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Check for critical failures
+      - name: Delete corresponding release
+        if: steps.check.outputs.should_cleanup == 'true'
         run: |
-          if [ "${{ needs.build-docker-images.result }}" != "success" ]; then
-            echo "❌ Docker build failed"
-            exit 1
+          DELETED_TAG="${{ steps.check.outputs.tag_name }}"
+          
+          echo "🔍 Looking for release with tag: $DELETED_TAG"
+          
+          # Check if release exists
+          RELEASE_INFO=$(gh api repos/dukeroyahl/synaptik/releases/tags/$DELETED_TAG 2>/dev/null || echo "null")
+          
+          if [ "$RELEASE_INFO" = "null" ]; then
+            echo "ℹ️ No release found for tag $DELETED_TAG"
+            exit 0
           fi
-          if [ "${{ needs.build-native-binaries.result }}" != "success" ]; then
-            echo "❌ Native binary build failed"
-            exit 1
-          fi
-          echo "✅ All CD steps completed successfully"
+          
+          RELEASE_ID=$(echo "$RELEASE_INFO" | jq -r '.id')
+          RELEASE_NAME=$(echo "$RELEASE_INFO" | jq -r '.name')
+          
+          echo "🗑️ Deleting release: $RELEASE_NAME (ID: $RELEASE_ID)"
+          
+          # Delete the release
+          gh api repos/dukeroyahl/synaptik/releases/$RELEASE_ID --method DELETE
+          
+          echo "✅ Successfully deleted release for tag $DELETED_TAG"
+          echo "⚠️ Docker images ghcr.io/dukeroyahl/synaptik/frontend:v${DELETED_TAG#v} and backend:v${DELETED_TAG#v} may still exist"
+          echo "   Consider manual cleanup if needed: https://github.com/orgs/dukeroyahl/packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

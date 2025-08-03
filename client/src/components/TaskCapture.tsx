@@ -65,9 +65,12 @@ const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
   const examples = [
     'Buy groceries due:tomorrow +shopping',
     'Fix login bug priority:H project:webapp assignee:John',
+    'Meet with Sarah tomorrow at 3pm about the project',
     'Call mom scheduled:friday +family',
     'Review code priority:M +review project:synaptik assignee:Sarah',
-    'Write documentation due:3d +docs'
+    'Write documentation due:3d +docs',
+    'Send urgent email to client about the proposal',
+    'Schedule team meeting for next Monday at 2pm'
   ]
 
   return (
@@ -100,9 +103,15 @@ const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
           }
         >
           <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.875rem' }}>
-            TaskWarrior-style syntax:
+            Natural Language or TaskWarrior-style syntax:
           </Typography>
           <Typography variant="body2" component="div" sx={{ fontSize: '0.8rem' }}>
+            <strong>Natural Language:</strong><br/>
+            • "Meet with Sarah tomorrow at 3pm about the project"<br/>
+            • "Call client urgent regarding proposal"<br/>
+            • "Review code next Friday for the webapp"<br/>
+            <br/>
+            <strong>TaskWarrior Syntax:</strong><br/>
             • <strong>priority:</strong> H (High), M (Medium), L (Low)<br/>
             • <strong>project:</strong> Project name<br/>
             • <strong>assignee:</strong> Person name<br/>
@@ -148,13 +157,13 @@ const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
           <Grid item xs>
             <TextField
               fullWidth
-              placeholder="Buy groceries due:tomorrow +shopping priority:M"
+              placeholder="Meet with Sarah tomorrow at 3pm about the project"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={loading}
               variant="outlined"
               size="small"
-              helperText="Type your task with attributes"
+              helperText="Type naturally or use TaskWarrior syntax"
               sx={{
                 '& .MuiFormHelperText-root': {
                   fontSize: '0.75rem',

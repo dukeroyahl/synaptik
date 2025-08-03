@@ -35,6 +35,7 @@ permissions:
 env:
   NODE_VERSION: '20'
   JAVA_VERSION: '21'
+  GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true'
 
 jobs:
   # Determine what type of checks to run
@@ -84,7 +85,7 @@ jobs:
             echo "environment=test" >> $GITHUB_OUTPUT
           fi
 
-  # Fast checks for PRs
+  # Fast checks for PRs - optimized for speed
   fast-validation:
     needs: workflow-context
     if: needs.workflow-context.outputs.check_type == 'fast'
@@ -92,27 +93,42 @@ jobs:
     
     strategy:
       matrix:
-        check: [frontend-lint, backend-compile, security-basic]
+        include:
+          - check: frontend-lint
+            component: frontend
+          - check: backend-compile  
+            component: backend
+          - check: security-basic
+            component: security
       fail-fast: false
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup environments
-        run: |
-          if [[ "${{ matrix.check }}" == "frontend-lint" && "${{ needs.workflow-context.outputs.frontend_changed }}" == "true" ]]; then
-            echo "RUN_CHECK=true" >> $GITHUB_ENV
-          elif [[ "${{ matrix.check }}" == "backend-compile" && "${{ needs.workflow-context.outputs.backend_changed }}" == "true" ]]; then
-            echo "RUN_CHECK=true" >> $GITHUB_ENV
-          elif [[ "${{ matrix.check }}" == "security-basic" ]]; then
-            echo "RUN_CHECK=true" >> $GITHUB_ENV
-          else
-            echo "RUN_CHECK=false" >> $GITHUB_ENV
-          fi
+      - name: Setup Node.js for frontend
+        if: matrix.check == 'frontend-lint' && needs.workflow-context.outputs.frontend_changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Setup Java and Gradle for backend
+        if: matrix.check == 'backend-compile' && needs.workflow-context.outputs.backend_changed == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        if: matrix.check == 'backend-compile' && needs.workflow-context.outputs.backend_changed == 'true'
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: true
 
       - name: Frontend fast lint
-        if: env.RUN_CHECK == 'true' && matrix.check == 'frontend-lint'
+        if: matrix.check == 'frontend-lint' && needs.workflow-context.outputs.frontend_changed == 'true'
         run: |
           cd client
           npm ci --prefer-offline --no-audit
@@ -120,14 +136,13 @@ jobs:
           npm run type-check
 
       - name: Backend fast compile
-        if: env.RUN_CHECK == 'true' && matrix.check == 'backend-compile'
+        if: matrix.check == 'backend-compile' && needs.workflow-context.outputs.backend_changed == 'true'
         run: |
           cd server
-          chmod +x gradlew
-          ./gradlew compileJava compileTestJava --no-daemon
+          ./gradlew compileJava compileTestJava --no-daemon --parallel --build-cache
 
       - name: Basic security scan
-        if: env.RUN_CHECK == 'true' && matrix.check == 'security-basic'
+        if: matrix.check == 'security-basic'
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
@@ -145,7 +160,6 @@ jobs:
     strategy:
       matrix:
         component: [frontend, backend]
-        task: [test, build]
       fail-fast: false
     
     services:
@@ -164,72 +178,70 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        if: matrix.component == 'frontend'
+        if: matrix.component == 'frontend' && needs.workflow-context.outputs.frontend_changed == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: |
-            client/package-lock.json
+          cache-dependency-path: client/package-lock.json
 
-      - name: Setup JDK and Gradle cache
-        if: matrix.component == 'backend'
+      - name: Setup JDK with Gradle caching
+        if: matrix.component == 'backend' && needs.workflow-context.outputs.backend_changed == 'true'
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
-
-      - name: Cache Gradle dependencies
-        if: matrix.component == 'backend'
-        uses: actions/cache@v4
+          
+      - name: Setup Gradle with caching
+        if: matrix.component == 'backend' && needs.workflow-context.outputs.backend_changed == 'true'
+        uses: gradle/actions/setup-gradle@v3
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            server/.gradle
-          key: gradle-${{ runner.os }}-${{ hashFiles('server/**/*.gradle*', 'server/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+          gradle-home-cache-cleanup: true
 
-      - name: Frontend tasks
+      - name: Frontend build and test
         if: matrix.component == 'frontend' && needs.workflow-context.outputs.frontend_changed == 'true'
         run: |
           cd client
-          npm ci
+          npm ci --prefer-offline
           
-          if [ "${{ matrix.task }}" = "test" ]; then
-            npm run lint
-            npm run type-check
-            npm test -- --coverage --passWithNoTests --watchAll=false
-          elif [ "${{ matrix.task }}" = "build" ]; then
-            npm run build
-            # Bundle size analysis
-            echo "📦 Bundle Size Analysis" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            du -sh dist/ | tee -a $GITHUB_STEP_SUMMARY || echo "No dist directory" >> $GITHUB_STEP_SUMMARY
-            echo "Top 5 largest JS files:" >> $GITHUB_STEP_SUMMARY
-            find dist/ -name "*.js" -exec du -h {} + | sort -hr | head -5 | tee -a $GITHUB_STEP_SUMMARY || echo "No JS files found" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          fi
+          # Run all frontend tasks in optimal order
+          npm run lint
+          npm run type-check
+          npm test -- --coverage --passWithNoTests --watchAll=false
+          npm run build
+          
+          # Bundle size analysis
+          echo "📦 Bundle Size Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          du -sh dist/ | tee -a $GITHUB_STEP_SUMMARY || echo "No dist directory" >> $GITHUB_STEP_SUMMARY
+          echo "Top 5 largest JS files:" >> $GITHUB_STEP_SUMMARY
+          find dist/ -name "*.js" -exec du -h {} + | sort -hr | head -5 | tee -a $GITHUB_STEP_SUMMARY || echo "No JS files found" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
-
-      - name: Backend tasks
+      - name: Backend build and test
         if: matrix.component == 'backend' && needs.workflow-context.outputs.backend_changed == 'true'
         run: |
           cd server
-          chmod +x gradlew
           
-          if [ "${{ matrix.task }}" = "test" ]; then
-            if ! ./gradlew clean test jacocoTestReport 2>/dev/null; then
-              echo "⚠️ JaCoCo coverage failed, running tests without coverage..."
-              ./gradlew clean test
-            fi
-          elif [ "${{ matrix.task }}" = "build" ]; then
-            ./gradlew build -Dquarkus.package.type=uber-jar
+          # Single Gradle command for maximum efficiency - using Quarkus JaCoCo
+          ./gradlew clean test build -Dquarkus.package.jar.type=uber-jar -Dquarkus.jacoco.enabled=true --parallel --build-cache
+          
+          # Generate test report summary
+          echo "📊 Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ -f "build/test-results/test/TEST-*.xml" ]; then
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            find build/test-results/test -name "TEST-*.xml" -exec grep -h "testsuite" {} \; | head -5 >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Show JaCoCo coverage info if available
+          if [ -f "build/jacoco/jacoco.exec" ]; then
+            echo "📊 Code Coverage Generated: build/jacoco/jacoco.exec" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Upload test artifacts
-        if: matrix.task == 'test' && always()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.component }}
@@ -239,7 +251,17 @@ jobs:
             mcp/build/reports/
           retention-days: 3
 
-  # Security and quality checks
+      - name: Generate build summary
+        if: always()
+        run: |
+          echo "## 🚀 CI Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Component**: ${{ matrix.component }}" >> $GITHUB_STEP_SUMMARY  
+          echo "- **Strategy**: Build + Test Combined" >> $GITHUB_STEP_SUMMARY
+          echo "- **Gradle Caching**: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "- **Parallel Build**: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Cache**: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
+
+    # Security and quality checks  
   security-comprehensive:
     needs: workflow-context
     if: needs.workflow-context.outputs.check_type == 'comprehensive'
@@ -249,12 +271,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Full security scan
+      - name: Comprehensive security scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           format: 'sarif'
           output: 'trivy-results.sarif'
+          severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run dependency audit
+        run: |
+          # Frontend dependency audit
+          if [ -f "client/package.json" ]; then
+            cd client
+            npm audit --audit-level high || echo "⚠️ Frontend dependencies have vulnerabilities"
+            cd ..
+          fi
+          
+          # Backend dependency check would go here if using tools like OWASP dependency check
 
 
 
