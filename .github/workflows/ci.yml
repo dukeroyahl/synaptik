@@ -159,15 +159,7 @@ jobs:
     
     strategy:
       matrix:
-        include:
-          - component: frontend
-            task: test
-          - component: frontend  
-            task: build
-          - component: backend
-            task: test
-          - component: backend
-            task: build  
+        component: [frontend, backend]
       fail-fast: false
     
     services:
@@ -207,40 +199,49 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           gradle-home-cache-cleanup: true
 
-      - name: Frontend tasks
+      - name: Frontend build and test
         if: matrix.component == 'frontend' && needs.workflow-context.outputs.frontend_changed == 'true'
         run: |
           cd client
           npm ci --prefer-offline
           
-          if [ "${{ matrix.task }}" = "test" ]; then
-            npm run lint
-            npm run type-check
-            npm test -- --coverage --passWithNoTests --watchAll=false
-          elif [ "${{ matrix.task }}" = "build" ]; then
-            npm run build
-            # Bundle size analysis
-            echo "📦 Bundle Size Analysis" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            du -sh dist/ | tee -a $GITHUB_STEP_SUMMARY || echo "No dist directory" >> $GITHUB_STEP_SUMMARY
-            echo "Top 5 largest JS files:" >> $GITHUB_STEP_SUMMARY
-            find dist/ -name "*.js" -exec du -h {} + | sort -hr | head -5 | tee -a $GITHUB_STEP_SUMMARY || echo "No JS files found" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          fi
+          # Run all frontend tasks in optimal order
+          npm run lint
+          npm run type-check
+          npm test -- --coverage --passWithNoTests --watchAll=false
+          npm run build
+          
+          # Bundle size analysis
+          echo "📦 Bundle Size Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          du -sh dist/ | tee -a $GITHUB_STEP_SUMMARY || echo "No dist directory" >> $GITHUB_STEP_SUMMARY
+          echo "Top 5 largest JS files:" >> $GITHUB_STEP_SUMMARY
+          find dist/ -name "*.js" -exec du -h {} + | sort -hr | head -5 | tee -a $GITHUB_STEP_SUMMARY || echo "No JS files found" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
-      - name: Backend tasks
+      - name: Backend build and test
         if: matrix.component == 'backend' && needs.workflow-context.outputs.backend_changed == 'true'
         run: |
           cd server
           
-          if [ "${{ matrix.task }}" = "test" ]; then
-            ./gradlew clean test jacocoTestReport --parallel --build-cache
-          elif [ "${{ matrix.task }}" = "build" ]; then
-            ./gradlew build -Dquarkus.package.type=uber-jar --parallel --build-cache
+          # Single Gradle command for maximum efficiency - using Quarkus JaCoCo
+          ./gradlew clean test build -Dquarkus.package.jar.type=uber-jar -Dquarkus.jacoco.enabled=true --parallel --build-cache
+          
+          # Generate test report summary
+          echo "📊 Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ -f "build/test-results/test/TEST-*.xml" ]; then
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            find build/test-results/test -name "TEST-*.xml" -exec grep -h "testsuite" {} \; | head -5 >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Show JaCoCo coverage info if available
+          if [ -f "build/jacoco/jacoco.exec" ]; then
+            echo "📊 Code Coverage Generated: build/jacoco/jacoco.exec" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Upload test artifacts
-        if: matrix.task == 'test' && always()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.component }}
@@ -255,7 +256,7 @@ jobs:
         run: |
           echo "## 🚀 CI Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Component**: ${{ matrix.component }}" >> $GITHUB_STEP_SUMMARY  
-          echo "- **Task**: ${{ matrix.task }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Strategy**: Build + Test Combined" >> $GITHUB_STEP_SUMMARY
           echo "- **Gradle Caching**: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
           echo "- **Parallel Build**: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
           echo "- **Build Cache**: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
