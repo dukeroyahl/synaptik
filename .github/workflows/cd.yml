@@ -122,13 +122,13 @@ jobs:
       matrix:
         include:
           - platform: linux-amd64
-            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-21-mandrel-24.0
+            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-amd64
           - platform: linux-arm64
-            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-21-mandrel-24.0-arm64
+            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-arm64
           - platform: darwin-amd64
-            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-21-mandrel-24.0
+            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-amd64
           - platform: darwin-arm64
-            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-21-mandrel-24.0-arm64
+            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-arm64
       fail-fast: false
     
     steps:
