@@ -7,21 +7,20 @@ yarn-debug.log*
 yarn-error.log*
 
 # ===========================
-# PRODUCTION BUILDS
+# BUILD OUTPUTS
 # ===========================
 /client/dist/
 /client/build/
 /server/build/
-/mcp-server/dist/
+/mcp-quarkus-server/build/
+.gradle/
+.quarkus/
 
 # ===========================
 # ENVIRONMENT FILES
 # ===========================
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env*
+!.env.example
 
 # ===========================
 # IDE FILES
@@ -31,16 +30,9 @@ yarn-error.log*
 *.ipr
 *.iml
 *.iws
-/shelf/
-/workspace.xml
-/httpRequests/
-/mavenHomeManager.xml
-/dataSources/
-/dataSources.local.xml
 
 # Visual Studio Code
 .vscode/
-.factorypath
 
 # Eclipse
 .project
@@ -48,26 +40,14 @@ yarn-error.log*
 .settings/
 bin/
 
-# NetBeans
-nb-configuration.xml
-
-# Vim
-*.swp
-*.swo
-*~
-
 # ===========================
 # OS GENERATED FILES
 # ===========================
 # macOS
 .DS_Store
-.DS_Store?
 ._*
-.Spotlight-V100
-.Trashes
 
 # Windows
-ehthumbs.db
 Thumbs.db
 
 # ===========================
@@ -75,45 +55,21 @@ Thumbs.db
 # ===========================
 *.log
 logs/
-synaptik.log
+
+# ===========================
+# JAVA/GRADLE
+# ===========================
+*.class
+*.jar
+!gradle-wrapper.jar
+*.war
+*.nar
+*.ear
 
 # ===========================
 # RUNTIME FILES
 # ===========================
 *.pid
-.synaptik.pid
-
-# ===========================
-# GRADLE
-# ===========================
-.gradle/
-gradle-app.setting
-!gradle-wrapper.jar
-!gradle-wrapper.properties
-
-# ===========================
-# JAVA
-# ===========================
-*.class
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
-hs_err_pid*
-
-# ===========================
-# JAVASCRIPT/TYPESCRIPT
-# ===========================
-*.tsbuildinfo
-
-# ===========================
-# COVERAGE
-# ===========================
-coverage/
-*.lcov
 
 # ===========================
 # TEMPORARY FILES
@@ -125,119 +81,27 @@ temp/
 # DATABASE
 # ===========================
 *.db
-*.sqlite
-*.sqlite3
+*.sqlite*
 
 # ===========================
 # CACHE
 # ===========================
 .cache/
 .npm/
-.yarn/
 
 # ===========================
-# DOCKER
+# DOCKER INFRASTRUCTURE
 # ===========================
-.dockerignore
-
-# ===========================
-# QUARKUS
-# ===========================
-/.quarkus/cli/plugins/
-
-# ===========================
-# TLS CERTIFICATES
-# ===========================
-.certs/
-
-# ===========================
-# PATCH FILES
-# ===========================
-*.orig
-*.rej
-
-# ===========================
-# AI AGENTS & ASSISTANTS
-# ===========================
-# Claude/Anthropic
-.claude/
-claude-*
-.anthropic/
-
-# OpenAI
-.openai/
-openai-*
-
-# GitHub Copilot
-.copilot/
-
-# Cursor AI
-.cursor/
-
-# Codeium
-.codeium/
-
-# AI model outputs
-ai-outputs/
-ai-generated/
-*.ai-output
-
-# AI conversation logs
-conversation-*.json
-chat-*.json
-ai-session-*.log
-
-# AI configuration files (may contain API keys)
-ai-config.json
-.ai-config
-assistant-config.*
-
-# Local AI models and weights
-models/
-*.gguf
-*.bin
-*.safetensors
-*.pt
-*.pth
-
-# Vector databases and embeddings
-embeddings/
-vectordb/
-chroma/
-pinecone/
-*.faiss
-
-# AI agent memory and context
-agent-memory/
-context-store/
-memory-*.json
-
-# ===========================
-# BACKUP FILES
-# ===========================
-*.backup
-*.bak
+# Allow Docker infrastructure
+!docker/
 
 # ===========================
 # PROJECT SPECIFIC
 # ===========================
-# Build artifacts
-/client/dist/
-/server/build/
-/mcp-server/dist/
-
-# Allow Docker infrastructure
-!docker/
-
 # Test files
 test.txt
 *.test
 
-# Old scripts and configs
-synaptik.sh
-
-# Application logs
-app.log
+# Application specific logs
+synaptik.log
 quarkus-dev.log
-quarkus.log
-test_output.log
