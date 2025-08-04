@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'io.quarkus'
     id 'jacoco'
+    id 'com.adarshr.test-logger' version '4.0.0'
 }
 
 repositories {
@@ -30,7 +31,7 @@ dependencies {
 }
 
 group 'org.dukeroyahl.synaptik'
-version '1.0.0'
+version '0.0.1'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
@@ -75,7 +76,28 @@ jacocoTestReport {
 }
 
 test {
+    testlogger {
+        theme 'mocha'
+        showExceptions true
+        showStackTraces true
+        showFullStackTraces false
+        showCauses true
+        slowThreshold 2000
+        showSummary true
+        showSimpleNames false
+        showPassed true
+        showSkipped true
+        showFailed true
+        showOnlySlow false
+        showStandardStreams false
+        showPassedStandardStreams true
+        showSkippedStandardStreams true
+        showFailedStandardStreams true
+        logLevel 'lifecycle'
+    }
+    
     systemProperty "java.util.logging.manager", "org.jboss.logmanager.LogManager"
+    useJUnitPlatform()
     
     // Only enable JaCoCo if explicitly requested
     if (project.hasProperty('coverage') || gradle.taskGraph.hasTask('jacocoTestReport')) {
