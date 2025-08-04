@@ -130,7 +130,7 @@ jobs:
         if: env.RUN_CHECK == 'true' && matrix.check == 'backend-compile'
         run: |
           cd server
-          gradle compileJava compileTestJava --no-daemon --parallel --build-cache
+          gradle compileJava compileTestJava --no-daemon
 
       - name: Basic security scan
         if: env.RUN_CHECK == 'true' && matrix.check == 'security-basic'
@@ -232,9 +232,9 @@ jobs:
           
           if [ "${{ matrix.task }}" = "test" ]; then
             # Single command with Quarkus JaCoCo extension (enabled via application.properties)
-            gradle clean test --parallel --build-cache
+            gradle clean test
           elif [ "${{ matrix.task }}" = "build" ]; then
-            gradle build -Dquarkus.package.jar.type=uber-jar --parallel --build-cache
+            gradle build -Dquarkus.package.jar.type=uber-jar
           fi
 
       - name: Upload test artifacts

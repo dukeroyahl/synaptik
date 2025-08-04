@@ -171,10 +171,10 @@ jobs:
           
           if [ "${{ matrix.use-native }}" = "true" ]; then
             # macOS: Use native GraalVM installation
-            gradle buildNative --parallel --build-cache
+            gradle buildNative
           else
             # Linux: Use containerized Mandrel builder
-            gradle buildNative -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=${{ matrix.builder-image }} --parallel --build-cache
+            gradle buildNative -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=${{ matrix.builder-image }}
           fi
 
       - name: Prepare binary for release
