@@ -16,7 +16,6 @@ import {
   Help as HelpIcon,
   Close as CloseIcon
 } from '@mui/icons-material'
-import { getTimezoneHeaders } from '../utils/dateUtils'
 import { taskService } from '../services/taskService'
 
 interface TaskCaptureProps {
