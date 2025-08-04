@@ -4,9 +4,9 @@ import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.TaskPriority;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
 import org.dukeroyahl.synaptik.util.TaskWarriorParser;
-import org.dukeroyahl.synaptik.service.StanfordNLPService.NLPResult;
-import org.dukeroyahl.synaptik.service.StanfordNLPService.EntityInfo;
-import org.dukeroyahl.synaptik.service.StanfordNLPService.TimeInfo;
+import org.dukeroyahl.synaptik.service.OpenNLPService.NLPResult;
+import org.dukeroyahl.synaptik.service.OpenNLPService.EntityInfo;
+import org.dukeroyahl.synaptik.service.OpenNLPService.TimeInfo;
 import org.dukeroyahl.synaptik.util.DateTimeUtils;
 import org.jboss.logging.Logger;
 
@@ -24,16 +24,31 @@ public class NaturalLanguageParser {
     private static final Logger logger = Logger.getLogger(NaturalLanguageParser.class);
     
     @Inject
-    StanfordNLPService nlpService;
+    OpenNLPService nlpService;
     
     // Enhanced patterns for natural language parsing
     private static final Pattern PRIORITY_WORDS = Pattern.compile(
-        "\\b(urgent|asap|high\\s+priority|important|critical|low\\s+priority|when\\s+possible)\\b",
+        "\\b(urgent|asap|high\\s+priority|important|critical|low\\s+priority|when\\s+possible|must|should|need\\s+to|have\\s+to|deadline|due\\s+now)\\b",
         Pattern.CASE_INSENSITIVE
     );
     
     private static final Pattern ACTION_PATTERNS = Pattern.compile(
-        "\\b(send|email|call|meet|review|fix|update|write|create|schedule|plan|organize|catch)\\b",
+        "\\b(send|email|call|meet|review|fix|update|write|create|schedule|plan|organize|catch|discuss|present|submit|deliver|prepare|analyze|report)\\b",
+        Pattern.CASE_INSENSITIVE
+    );
+    
+    private static final Pattern COMPOUND_SEPARATOR = Pattern.compile(
+        "\\b(about|regarding|for|concerning|re:|on\\s+the\\s+topic\\s+of)\\b",
+        Pattern.CASE_INSENSITIVE
+    );
+    
+    private static final Pattern TIME_SPECIFIC_PATTERNS = Pattern.compile(
+        "\\b(at\\s+\\d{1,2}(?::\\d{2})?(?:am|pm)|by\\s+\\d{1,2}(?::\\d{2})?(?:am|pm)|before\\s+\\d{1,2}(?::\\d{2})?(?:am|pm))\\b",
+        Pattern.CASE_INSENSITIVE
+    );
+    
+    private static final Pattern LOCATION_PATTERNS = Pattern.compile(
+        "\\b(at|in|near|by)\\s+(?:the\\s+)?(office|home|library|restaurant|cafe|meeting\\s+room|conference\\s+room|[A-Z][a-zA-Z\\s]+(?:Building|Room|Street|Avenue|Drive))\\b",
         Pattern.CASE_INSENSITIVE
     );
     
@@ -62,8 +77,8 @@ public class NaturalLanguageParser {
             return TaskWarriorParser.parseTaskWarriorInput(sanitizedInput, userTimezone);
         }
         
-        // Use Stanford NLP for natural language parsing
-        return parseWithStanfordNLP(sanitizedInput, userTimezone);
+        // Use OpenNLP for natural language parsing
+        return parseWithOpenNLP(sanitizedInput, userTimezone);
     }
     
     private boolean containsTaskWarriorSyntax(String input) {
@@ -74,30 +89,83 @@ public class NaturalLanguageParser {
                input.contains("assignee:");
     }
     
-    private Task parseWithStanfordNLP(String input, String userTimezone) {
+    private Task parseWithOpenNLP(String input, String userTimezone) {
         Task task = new Task();
         
         // Store the original user input
         task.originalInput = input;
         
-        // Process with Stanford NLP
-        NLPResult nlpResult = nlpService.processText(input);
+        // Check for compound sentences and parse accordingly
+        CompoundTaskInfo compoundInfo = parseCompoundSentence(input);
+        String mainTaskText = compoundInfo.mainTask;
         
-        // Extract task components using NLP results
-        task.title = extractTitle(input, nlpResult);
-        task.assignee = extractAssignee(input, nlpResult);
-        task.project = extractProject(input, nlpResult);
-        task.dueDate = extractDueDate(input, nlpResult, userTimezone);
-        task.priority = extractPriority(input, nlpResult);
-        task.tags = extractTags(input, nlpResult);
+        // Process with OpenNLP
+        NLPResult nlpResult = nlpService.processText(mainTaskText);
+        
+        // Extract task components using enhanced NLP results
+        task.title = extractTitle(mainTaskText, nlpResult);
+        task.assignee = extractAssignee(mainTaskText, nlpResult);
+        task.project = extractProject(mainTaskText, nlpResult, compoundInfo);
+        task.dueDate = extractDueDate(mainTaskText, nlpResult, userTimezone);
+        task.priority = extractPriorityWithContext(mainTaskText, nlpResult, compoundInfo);
+        task.tags = extractTags(mainTaskText, nlpResult);
+        task.description = compoundInfo.context; // Use compound context as description
+        
+        // Extract location if present
+        String location = extractLocation(mainTaskText, nlpResult);
+        if (location != null && !location.isEmpty()) {
+            task.tags.add("location:" + location);
+        }
+        
+        // Extract task relationships and add as semantic tags
+        List<String> relationships = extractTaskRelationships(mainTaskText, nlpResult, compoundInfo);
+        if (!relationships.isEmpty()) {
+            task.tags.addAll(relationships);
+        }
         
         // Set default status
         task.status = TaskStatus.PENDING;
         
-        logger.infof("Parsed Stanford NLP task: title='%s', assignee='%s', due='%s', priority='%s'", 
-                    task.title, task.assignee, task.dueDate, task.priority);
+        logger.infof("Parsed enhanced OpenNLP task: title='%s', assignee='%s', due='%s', priority='%s', context='%s'", 
+                    task.title, task.assignee, task.dueDate, task.priority, task.description);
         
         return task;
+    }
+    
+    private CompoundTaskInfo parseCompoundSentence(String input) {
+        CompoundTaskInfo info = new CompoundTaskInfo();
+        info.originalInput = input;
+        
+        // Look for compound sentence patterns
+        Matcher compoundMatcher = COMPOUND_SEPARATOR.matcher(input);
+        if (compoundMatcher.find()) {
+            // Split the sentence
+            String beforeContext = input.substring(0, compoundMatcher.start()).trim();
+            String contextKeyword = compoundMatcher.group(1);
+            String afterContext = input.substring(compoundMatcher.end()).trim();
+            
+            // Determine which part is the main task and which is context
+            if (ACTION_PATTERNS.matcher(beforeContext).find()) {
+                info.mainTask = beforeContext;
+                info.context = afterContext;
+                info.contextType = contextKeyword;
+            } else {
+                info.mainTask = input; // Keep the whole sentence as main task
+                info.context = afterContext;
+                info.contextType = contextKeyword;
+            }
+        } else {
+            info.mainTask = input;
+        }
+        
+        return info;
+    }
+    
+    private static class CompoundTaskInfo {
+        String originalInput;
+        String mainTask;
+        String context;
+        String contextType;
     }
     
     private String extractTitle(String input, NLPResult nlpResult) {
@@ -129,33 +197,60 @@ public class NaturalLanguageParser {
     }
     
     private String extractAssignee(String input, NLPResult nlpResult) {
-        // First try to find PERSON entities from Stanford NLP, but filter out time words
+        // First try to find PERSON entities from OpenNLP, but filter out time and location words
         for (EntityInfo entity : nlpResult.entities) {
             if ("PERSON".equals(entity.type)) {
                 String personName = entity.value;
-                // Remove common time words from person names
-                personName = personName.replaceAll("\\s+(?:tomorrow|today|yesterday|tonight|morning|afternoon|evening|next|last|week|month|year|\\d+)\\b", "").trim();
-                if (!personName.isEmpty() && personName.length() > 0) {
+                // Remove common time and location words from person names
+                personName = personName.replaceAll("\\s+(?:tomorrow|today|yesterday|tonight|morning|afternoon|evening|next|last|week|month|year|at|in|on|the|office|home|\\d+)\\b", "").trim();
+                // Also remove prepositions that might be attached
+                personName = personName.replaceAll("\\s+(?:at|in|on|by|with|for)$", "").trim();
+                if (!personName.isEmpty() && personName.length() > 1 && !personName.matches("\\d+")) {
                     return personName;
                 }
             }
         }
         
-        // Fallback to pattern matching
+        // Enhanced fallback pattern matching - more precise
         Pattern assigneePattern = Pattern.compile(
-            "\\b(?:with|assign(?:ed)?\\s+to|for|call|meet(?:ing)?\\s+with)\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?)(?=\\s+(?:tomorrow|today|yesterday|next\\s+\\w+|at\\s+|on\\s+|in\\s+|\\d)|\\s*$)", 
+            "\\b(?:call|meet(?:ing)?(?:\\s+with)?|with|assign(?:ed)?\\s+to|for)\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?)(?=\\s+(?:at\\s+the|at\\s+|in\\s+the|in\\s+|on\\s+|about|regarding|tomorrow|today|yesterday|next\\s+\\w+|\\d)|\\s*$)", 
             Pattern.CASE_INSENSITIVE
         );
         Matcher matcher = assigneePattern.matcher(input);
         if (matcher.find()) {
-            return matcher.group(1);
+            String assignee = matcher.group(1);
+            // Additional filtering to avoid location words
+            if (!assignee.toLowerCase().matches(".*(office|home|library|restaurant|cafe|room|building|street|avenue|drive|at|in|on).*")) {
+                return assignee;
+            }
         }
         
         return null;
     }
     
-    private String extractProject(String input, NLPResult nlpResult) {
-        // Look for project-related keywords
+    private String extractProject(String input, NLPResult nlpResult, CompoundTaskInfo compoundInfo) {
+        // First check if context provides project information
+        if (compoundInfo.context != null && compoundInfo.contextType != null) {
+            if (compoundInfo.contextType.toLowerCase().contains("about") || 
+                compoundInfo.contextType.toLowerCase().contains("regarding")) {
+                // Extract project names from organizations in context
+                for (EntityInfo entity : nlpResult.entities) {
+                    if ("ORGANIZATION".equals(entity.type)) {
+                        return entity.value;
+                    }
+                }
+                
+                // If context contains "project", use it
+                if (compoundInfo.context.toLowerCase().contains("project")) {
+                    String contextProject = compoundInfo.context.replaceAll("(?i)\\bproject\\b", "").trim();
+                    if (contextProject.length() > 2) {
+                        return contextProject;
+                    }
+                }
+            }
+        }
+        
+        // Look for project-related keywords in main text
         Pattern projectPattern = Pattern.compile(
             "\\b(?:about|regarding|for|on)\\s+(?:the\\s+)?([\\w\\s]+?)(?:\\s+project|\\s+task|\\s+work|$)", 
             Pattern.CASE_INSENSITIVE
@@ -168,11 +263,117 @@ public class NaturalLanguageParser {
             }
         }
         
+        // Check for organization entities from OpenNLP
+        for (EntityInfo entity : nlpResult.entities) {
+            if ("ORGANIZATION".equals(entity.type)) {
+                return entity.value;
+            }
+        }
+        
         return null;
     }
     
+    private TaskPriority extractPriorityWithContext(String input, NLPResult nlpResult, CompoundTaskInfo compoundInfo) {
+        // Enhanced priority detection with contextual clues
+        
+        // Check for explicit priority words
+        Matcher priorityMatcher = PRIORITY_WORDS.matcher(input);
+        if (priorityMatcher.find()) {
+            String priorityWord = priorityMatcher.group(1).toLowerCase();
+            return switch (priorityWord) {
+                case "urgent", "asap", "high priority", "important", "critical", "must", "have to", "deadline", "due now" -> TaskPriority.HIGH;
+                case "low priority", "when possible", "should" -> TaskPriority.LOW;
+                case "need to" -> TaskPriority.MEDIUM;
+                default -> TaskPriority.MEDIUM;
+            };
+        }
+        
+        // Contextual priority inference
+        String fullContext = (compoundInfo.context != null ? compoundInfo.context : "") + " " + input;
+        
+        // High priority indicators
+        if (fullContext.toLowerCase().matches(".*(deadline|due|urgent|critical|asap|emergency|immediate).*")) {
+            return TaskPriority.HIGH;
+        }
+        
+        // Check for time-sensitive patterns
+        if (TIME_SPECIFIC_PATTERNS.matcher(fullContext).find() || 
+            fullContext.toLowerCase().matches(".*(today|tomorrow|this morning|this afternoon).*")) {
+            return TaskPriority.MEDIUM;
+        }
+        
+        // Business context priority
+        if (fullContext.toLowerCase().matches(".*(meeting|presentation|client|boss|manager|ceo).*")) {
+            return TaskPriority.MEDIUM;
+        }
+        
+        return TaskPriority.NONE;
+    }
+    
+    private String extractLocation(String input, NLPResult nlpResult) {
+        // Check OpenNLP location entities first
+        for (EntityInfo entity : nlpResult.entities) {
+            if ("LOCATION".equals(entity.type)) {
+                return entity.value;
+            }
+        }
+        
+        // Fallback to regex patterns
+        Matcher locationMatcher = LOCATION_PATTERNS.matcher(input);
+        if (locationMatcher.find()) {
+            return locationMatcher.group(2); // The location part
+        }
+        
+        return null;
+    }
+    
+    private List<String> extractTaskRelationships(String input, NLPResult nlpResult, CompoundTaskInfo compoundInfo) {
+        List<String> dependencies = new ArrayList<>();
+        
+        // Pattern for dependency keywords
+        Pattern dependencyPattern = Pattern.compile(
+            "\\b(?:after|before|depends\\s+on|wait\\s+for|when|once|if)\\s+([^.,]+?)(?:[.,]|$)",
+            Pattern.CASE_INSENSITIVE
+        );
+        
+        String fullContext = input;
+        if (compoundInfo.context != null) {
+            fullContext = input + " " + compoundInfo.context;
+        }
+        
+        Matcher depMatcher = dependencyPattern.matcher(fullContext);
+        while (depMatcher.find()) {
+            String dependencyText = depMatcher.group(1).trim();
+            
+            // Extract potential task titles from the dependency text
+            if (dependencyText.length() > 3 && !dependencyText.matches(".*\\b(tomorrow|today|yesterday|next|last|\\d+)\\b.*")) {
+                // Clean up the dependency text
+                dependencyText = dependencyText.replaceAll("\\b(?:the|a|an|is|are|has|have|been|being)\\b", "").trim();
+                if (!dependencyText.isEmpty()) {
+                    dependencies.add("task:" + dependencyText.toLowerCase());
+                }
+            }
+        }
+        
+        // Look for sequential task indicators
+        Pattern sequentialPattern = Pattern.compile(
+            "\\b(?:then|next|afterwards|subsequently)\\s+([^.,]+?)(?:[.,]|$)",
+            Pattern.CASE_INSENSITIVE
+        );
+        
+        Matcher seqMatcher = sequentialPattern.matcher(fullContext);
+        while (seqMatcher.find()) {
+            String nextTaskText = seqMatcher.group(1).trim();
+            if (nextTaskText.length() > 3) {
+                dependencies.add("sequence:" + nextTaskText.toLowerCase());
+            }
+        }
+        
+        return dependencies;
+    }
+    
     private String extractDueDate(String input, NLPResult nlpResult, String userTimezone) {
-        // Use Stanford NLP time expressions first
+        // Use OpenNLP time expressions first
         for (TimeInfo timeInfo : nlpResult.timeExpressions) {
             ZonedDateTime parsed = parseTimeExpression(timeInfo.value, userTimezone);
             if (parsed != null) {
@@ -197,16 +398,11 @@ public class NaturalLanguageParser {
     }
     
     private TaskPriority extractPriority(String input, NLPResult nlpResult) {
-        Matcher priorityMatcher = PRIORITY_WORDS.matcher(input);
-        if (priorityMatcher.find()) {
-            String priorityWord = priorityMatcher.group(1).toLowerCase();
-            return switch (priorityWord) {
-                case "urgent", "asap", "high priority", "important", "critical" -> TaskPriority.HIGH;
-                case "low priority", "when possible" -> TaskPriority.LOW;
-                default -> TaskPriority.MEDIUM;
-            };
-        }
-        return TaskPriority.NONE;
+        // This method is kept for backward compatibility but delegates to the enhanced version
+        CompoundTaskInfo dummyInfo = new CompoundTaskInfo();
+        dummyInfo.originalInput = input;
+        dummyInfo.mainTask = input;
+        return extractPriorityWithContext(input, nlpResult, dummyInfo);
     }
     
     private List<String> extractTags(String input, NLPResult nlpResult) {
@@ -214,44 +410,62 @@ public class NaturalLanguageParser {
         
         // Add contextual tags based on actions and keywords
         Matcher actionMatcher = ACTION_PATTERNS.matcher(input);
-        if (actionMatcher.find()) {
+        while (actionMatcher.find()) {
             String action = actionMatcher.group(1).toLowerCase();
             tags.add(action);
         }
         
-        // Add specific tags based on content
-        if (input.toLowerCase().contains("meet") || 
-            input.toLowerCase().contains("call") || 
-            input.toLowerCase().contains("catch up") ||
-            input.toLowerCase().contains("dinner") ||
-            input.toLowerCase().contains("lunch") ||
-            input.toLowerCase().contains("coffee")) {
+        // Enhanced content-based tagging
+        String lowerInput = input.toLowerCase();
+        
+        // Meeting-related tags
+        if (lowerInput.matches(".*(meet|call|catch up|dinner|lunch|coffee|breakfast|appointment|conference|discussion).*")) {
             tags.add("meeting");
         }
-        if (input.toLowerCase().contains("email") || input.toLowerCase().contains("mail")) {
-            tags.add("email");
+        
+        // Communication tags
+        if (lowerInput.matches(".*(email|mail|message|text|call|phone).*")) {
+            tags.add("communication");
         }
-        if (input.toLowerCase().contains("review") || input.toLowerCase().contains("check")) {
-            tags.add("review");
+        
+        // Work-related tags
+        if (lowerInput.matches(".*(review|check|analyze|report|presentation|document|file).*")) {
+            tags.add("work");
         }
-        if (input.toLowerCase().contains("dinner") || 
-            input.toLowerCase().contains("lunch") || 
-            input.toLowerCase().contains("coffee") ||
-            input.toLowerCase().contains("breakfast")) {
-            tags.add("meal");
+        
+        // Personal tags
+        if (lowerInput.matches(".*(personal|family|home|doctor|appointment|errands).*")) {
+            tags.add("personal");
         }
+        
+        // Time-sensitive tags
+        if (TIME_SPECIFIC_PATTERNS.matcher(input).find() || 
+            lowerInput.matches(".*(deadline|urgent|asap|today|tomorrow).*")) {
+            tags.add("time-sensitive");
+        }
+        
+        // Priority tags
         if (PRIORITY_WORDS.matcher(input).find()) {
             tags.add("priority");
         }
         
-        // Add Stanford NLP detected entity types as tags
+        // Add OpenNLP detected entity types as semantic tags
         for (EntityInfo entity : nlpResult.entities) {
-            if ("ORGANIZATION".equals(entity.type) || "LOCATION".equals(entity.type)) {
-                tags.add(entity.type.toLowerCase());
+            switch (entity.type) {
+                case "PERSON":
+                    tags.add("person:" + entity.value.toLowerCase());
+                    break;
+                case "ORGANIZATION":
+                    tags.add("organization:" + entity.value.toLowerCase());
+                    break;
+                case "LOCATION":
+                    tags.add("location:" + entity.value.toLowerCase());
+                    break;
             }
         }
         
-        return tags;
+        // Remove duplicates
+        return tags.stream().distinct().collect(java.util.stream.Collectors.toList());
     }
     
     private ZonedDateTime parseTimeExpression(String timeExpr, String userTimezone) {
