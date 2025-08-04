@@ -123,7 +123,7 @@ jobs:
 
       - name: Setup Gradle
         if: matrix.check == 'backend-compile' && needs.workflow-context.outputs.backend_changed == 'true'
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: true
 
@@ -139,7 +139,7 @@ jobs:
         if: matrix.check == 'backend-compile' && needs.workflow-context.outputs.backend_changed == 'true'
         run: |
           cd server
-          ./gradlew compileJava compileTestJava --no-daemon --parallel --build-cache
+          gradle compileJava compileTestJava
 
       - name: Basic security scan
         if: matrix.check == 'security-basic'
@@ -192,9 +192,9 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
           
-      - name: Setup Gradle with caching
+      - name: Setup Gradle
         if: matrix.component == 'backend' && needs.workflow-context.outputs.backend_changed == 'true'
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           gradle-home-cache-cleanup: true
@@ -225,7 +225,7 @@ jobs:
           cd server
           
           # Single Gradle command for maximum efficiency - using Quarkus JaCoCo
-          ./gradlew clean test build -Dquarkus.package.jar.type=uber-jar -Dquarkus.jacoco.enabled=true --parallel --build-cache
+          gradle clean test build
           
           # Generate test report summary
           echo "📊 Test Results" >> $GITHUB_STEP_SUMMARY

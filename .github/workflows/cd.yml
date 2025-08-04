@@ -278,8 +278,8 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Setup Gradle with caching
-        uses: gradle/actions/setup-gradle@v3
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: false
           gradle-home-cache-cleanup: true
@@ -298,10 +298,10 @@ jobs:
           
           if [ "${{ matrix.use-native }}" = "true" ]; then
             # macOS: Use native GraalVM installation
-            ./gradlew buildNative --parallel --build-cache -Dquarkus.native.enabled=true
+            gradle buildNative -Dquarkus.native.enabled=true
           else
             # Linux: Use containerized Mandrel builder
-            ./gradlew buildNative -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=${{ matrix.builder-image }} --parallel --build-cache -Dquarkus.native.enabled=true
+            gradle buildNative -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=${{ matrix.builder-image }} -Dquarkus.native.enabled=true
           fi
 
       - name: Prepare binary for release
