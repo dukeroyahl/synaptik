@@ -219,7 +219,7 @@ jobs:
           cd server
           
           # Single Gradle command for maximum efficiency - using Quarkus JaCoCo
-          gradle clean test build -Dquarkus.package.jar.type=uber-jar
+          gradle clean test build
           
           # Generate test report summary
           echo "📊 Test Results" >> $GITHUB_STEP_SUMMARY
