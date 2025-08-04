@@ -1,7 +1,7 @@
 plugins {
     id 'java'
     id 'io.quarkus'
-    id 'jacoco'
+    id 'com.adarshr.test-logger' version '4.0.0'
 }
 
 repositories {
@@ -25,12 +25,15 @@ dependencies {
     implementation 'edu.stanford.nlp:stanford-corenlp:4.5.4'
     implementation 'edu.stanford.nlp:stanford-corenlp:4.5.4:models'
     
+    // Quarkus JaCoCo extension for code coverage
+    testImplementation 'io.quarkus:quarkus-jacoco'
     testImplementation 'io.quarkus:quarkus-junit5'
     testImplementation 'io.rest-assured:rest-assured'
+    testImplementation 'org.mockito:mockito-core:5.8.0'
 }
 
 group 'org.dukeroyahl.synaptik'
-version '1.0.0'
+version '0.0.1'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
@@ -38,8 +41,35 @@ java {
 }
 
 test {
+    testlogger {
+        theme 'mocha'
+        showExceptions true
+        showStackTraces true
+        showFullStackTraces false
+        showCauses true
+        slowThreshold 2000
+        showSummary true
+        showSimpleNames false
+        showPassed true
+        showSkipped true
+        showFailed true
+        showOnlySlow false
+        showStandardStreams false
+        showPassedStandardStreams true
+        showSkippedStandardStreams true
+        showFailedStandardStreams true
+        logLevel 'lifecycle'
+    }
+    
     systemProperty "java.util.logging.manager", "org.jboss.logmanager.LogManager"
+    useJUnitPlatform()
+    
+    // Enable JaCoCo via system property - using Quarkus JaCoCo extension
+    systemProperty "quarkus.jacoco.enabled", "true"
+    systemProperty "quarkus.jacoco.output-directory", "${buildDir}/jacoco"
+    systemProperty "quarkus.jacoco.report", "true"
 }
+
 compileJava {
     options.encoding = 'UTF-8'
     options.compilerArgs << '-parameters'
@@ -48,43 +78,6 @@ compileJava {
 compileTestJava {
     options.encoding = 'UTF-8'
 }
-
-// JaCoCo configuration for code coverage
-jacoco {
-    toolVersion = "0.8.12"
-}
-
-jacocoTestReport {
-    dependsOn test
-    reports {
-        xml.required.set(true)
-        html.required.set(true)
-        csv.required.set(false)
-    }
-    executionData.setFrom(fileTree(dir: "${buildDir}/jacoco", include: "**/*.exec"))
-    
-    // Exclude problematic classes from coverage
-    afterEvaluate {
-        classDirectories.setFrom(files(classDirectories.files.collect {
-            fileTree(dir: it, exclude: [
-                '**/CLDRLocaleDataMetaInfo*',
-                'sun/util/resources/cldr/provider/**'
-            ])
-        }))
-    }
-}
-
-test {
-    systemProperty "java.util.logging.manager", "org.jboss.logmanager.LogManager"
-    
-    // Only enable JaCoCo if explicitly requested
-    if (project.hasProperty('coverage') || gradle.taskGraph.hasTask('jacocoTestReport')) {
-        finalizedBy jacocoTestReport
-    }
-}
-
-// Ensure jacoco report is generated after tests run
-jacocoTestReport.mustRunAfter test
 
 // Native compilation configuration
 tasks.register('buildMcpNative') {

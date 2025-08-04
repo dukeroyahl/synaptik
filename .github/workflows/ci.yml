@@ -35,6 +35,7 @@ permissions:
 env:
   NODE_VERSION: '20'
   JAVA_VERSION: '21'
+  GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true'
 
 jobs:
   # Determine what type of checks to run
@@ -119,12 +120,17 @@ jobs:
           npm run lint -- --max-warnings 0
           npm run type-check
 
+      - name: Setup Gradle Wrapper
+        if: env.RUN_CHECK == 'true' && matrix.check == 'backend-compile'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+
       - name: Backend fast compile
         if: env.RUN_CHECK == 'true' && matrix.check == 'backend-compile'
         run: |
           cd server
-          chmod +x gradlew
-          ./gradlew compileJava compileTestJava --no-daemon
+          gradle compileJava compileTestJava --no-daemon --parallel --build-cache
 
       - name: Basic security scan
         if: env.RUN_CHECK == 'true' && matrix.check == 'security-basic'
@@ -213,19 +219,22 @@ jobs:
           fi
 
 
+      - name: Setup Gradle Wrapper
+        if: matrix.component == 'backend' && needs.workflow-context.outputs.backend_changed == 'true'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+
       - name: Backend tasks
         if: matrix.component == 'backend' && needs.workflow-context.outputs.backend_changed == 'true'
         run: |
           cd server
-          chmod +x gradlew
           
           if [ "${{ matrix.task }}" = "test" ]; then
-            if ! ./gradlew clean test jacocoTestReport 2>/dev/null; then
-              echo "⚠️ JaCoCo coverage failed, running tests without coverage..."
-              ./gradlew clean test
-            fi
+            # Single command with Quarkus JaCoCo extension
+            gradle clean test -Dquarkus.jacoco.enabled=true --parallel --build-cache
           elif [ "${{ matrix.task }}" = "build" ]; then
-            ./gradlew build -Dquarkus.package.type=uber-jar
+            gradle build -Dquarkus.package.jar.type=uber-jar --parallel --build-cache
           fi
 
       - name: Upload test artifacts

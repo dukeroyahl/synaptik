@@ -22,6 +22,7 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true'
 
 jobs:
   validate-release:
@@ -159,17 +160,21 @@ jobs:
           distribution: 'graalvm'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup Gradle Wrapper
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+
       - name: Build MCP native binary
         run: |
           cd mcp
-          chmod +x gradlew
           
           if [ "${{ matrix.use-native }}" = "true" ]; then
             # macOS: Use native GraalVM installation
-            ./gradlew buildNative
+            gradle buildNative --parallel --build-cache
           else
             # Linux: Use containerized Mandrel builder
-            ./gradlew buildNative -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=${{ matrix.builder-image }}
+            gradle buildNative -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=${{ matrix.builder-image }} --parallel --build-cache
           fi
 
       - name: Prepare binary for release
