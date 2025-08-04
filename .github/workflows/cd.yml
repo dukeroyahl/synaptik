@@ -142,16 +142,6 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            mcp/.gradle
-          key: gradle-mcp-${{ runner.os }}-${{ hashFiles('mcp/**/*.gradle*') }}
-          restore-keys: gradle-mcp-${{ runner.os }}-
-
       - name: Install GraalVM (macOS only)
         if: matrix.use-native == true
         uses: graalvm/setup-graalvm@v1

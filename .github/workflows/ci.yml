@@ -178,24 +178,12 @@ jobs:
           cache-dependency-path: |
             client/package-lock.json
 
-      - name: Setup JDK and Gradle cache
+      - name: Setup JDK
         if: matrix.component == 'backend'
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
-
-      - name: Cache Gradle dependencies
-        if: matrix.component == 'backend'
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            server/.gradle
-          key: gradle-${{ runner.os }}-${{ hashFiles('server/**/*.gradle*', 'server/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
 
       - name: Frontend tasks
         if: matrix.component == 'frontend' && needs.workflow-context.outputs.frontend_changed == 'true'
