@@ -32,7 +32,7 @@ public class NaturalLanguageParser {
     );
     
     private static final Pattern ACTION_PATTERNS = Pattern.compile(
-        "\\b(send|email|call|meet|review|fix|update|write|create|schedule|plan|organize)\\b",
+        "\\b(send|email|call|meet|review|fix|update|write|create|schedule|plan|organize|catch)\\b",
         Pattern.CASE_INSENSITIVE
     );
     
@@ -120,7 +120,7 @@ public class NaturalLanguageParser {
         
         // Fallback to pattern matching
         Pattern assigneePattern = Pattern.compile(
-            "\\b(?:with|assign(?:ed)?\\s+to|for|call|meet(?:ing)?\\s+with)\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?)", 
+            "\\b(?:with|assign(?:ed)?\\s+to|for|call|meet(?:ing)?\\s+with)\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?)(?=\\s+(?:next|tomorrow|today|yesterday|at|on|in|a|the|over|about|for|\\d)|$)", 
             Pattern.CASE_INSENSITIVE
         );
         Matcher matcher = assigneePattern.matcher(input);
@@ -159,7 +159,7 @@ public class NaturalLanguageParser {
         
         // Fallback to manual pattern matching
         Pattern datePattern = Pattern.compile(
-            "\\b(today|tomorrow|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next\\s+\\w+|\\d+/\\d+)\\b",
+            "\\b(today|tomorrow|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next\\s+\\w+|in\\s+a\\s+week|a\\s+week\\s+from\\s+now|next\\s+week|\\d+\\s+weeks?\\s+from\\s+now|in\\s+\\d+\\s+weeks?|\\d+\\s+days?\\s+from\\s+now|in\\s+\\d+\\s+days?|\\d+/\\d+)\\b",
             Pattern.CASE_INSENSITIVE
         );
         Matcher matcher = datePattern.matcher(input);
@@ -194,7 +194,12 @@ public class NaturalLanguageParser {
         }
         
         // Add specific tags based on content
-        if (input.toLowerCase().contains("meet") || input.toLowerCase().contains("call")) {
+        if (input.toLowerCase().contains("meet") || 
+            input.toLowerCase().contains("call") || 
+            input.toLowerCase().contains("catch up") ||
+            input.toLowerCase().contains("dinner") ||
+            input.toLowerCase().contains("lunch") ||
+            input.toLowerCase().contains("coffee")) {
             tags.add("meeting");
         }
         if (input.toLowerCase().contains("email") || input.toLowerCase().contains("mail")) {
@@ -202,6 +207,12 @@ public class NaturalLanguageParser {
         }
         if (input.toLowerCase().contains("review") || input.toLowerCase().contains("check")) {
             tags.add("review");
+        }
+        if (input.toLowerCase().contains("dinner") || 
+            input.toLowerCase().contains("lunch") || 
+            input.toLowerCase().contains("coffee") ||
+            input.toLowerCase().contains("breakfast")) {
+            tags.add("meal");
         }
         if (PRIORITY_WORDS.matcher(input).find()) {
             tags.add("priority");
@@ -237,10 +248,30 @@ public class NaturalLanguageParser {
             case "friday" -> getNextDayOfWeek(now, 5);
             case "saturday" -> getNextDayOfWeek(now, 6);
             case "sunday" -> getNextDayOfWeek(now, 7);
+            case "next week" -> now.plusWeeks(1).withHour(23).withMinute(59);
+            case "in a week", "a week from now" -> now.plusWeeks(1).withHour(23).withMinute(59);
             default -> {
                 if (expr.startsWith("next ")) {
                     String day = expr.substring(5);
                     yield parseTimeExpression(day);
+                }
+                // Handle "X weeks from now" or "in X weeks"
+                if (expr.matches("\\d+\\s+weeks?\\s+from\\s+now") || expr.matches("in\\s+\\d+\\s+weeks?")) {
+                    Pattern weekPattern = Pattern.compile("(\\d+)\\s+weeks?");
+                    Matcher weekMatcher = weekPattern.matcher(expr);
+                    if (weekMatcher.find()) {
+                        int weeks = Integer.parseInt(weekMatcher.group(1));
+                        yield now.plusWeeks(weeks).withHour(23).withMinute(59);
+                    }
+                }
+                // Handle "X days from now" or "in X days"
+                if (expr.matches("\\d+\\s+days?\\s+from\\s+now") || expr.matches("in\\s+\\d+\\s+days?")) {
+                    Pattern dayPattern = Pattern.compile("(\\d+)\\s+days?");
+                    Matcher dayMatcher = dayPattern.matcher(expr);
+                    if (dayMatcher.find()) {
+                        int days = Integer.parseInt(dayMatcher.group(1));
+                        yield now.plusDays(days).withHour(23).withMinute(59);
+                    }
                 }
                 yield null;
             }

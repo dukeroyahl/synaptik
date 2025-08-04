@@ -19,9 +19,9 @@ public class StanfordNLPService {
     private boolean stanfordAvailable = false;
     
     // Fallback regex patterns for when Stanford NLP is not available
-    private static final Pattern PERSON_PATTERN = Pattern.compile("\\b(?:with|meet|call|talk\\s+to)\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?)\\b");
+    private static final Pattern PERSON_PATTERN = Pattern.compile("\\b(?:with|meet|call|talk\\s+to)\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?)(?=\\s+(?:next|tomorrow|today|yesterday|at|on|in|a|the|over|about|for|\\d)|$)", Pattern.CASE_INSENSITIVE);
     private static final Pattern TIME_PATTERN = Pattern.compile("\\b(?:at\\s+)?(\\d{1,2})(?::(\\d{2}))?(am|pm|AM|PM)?\\b");
-    private static final Pattern DATE_PATTERN = Pattern.compile("\\b(today|tomorrow|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next\\s+\\w+|\\d+/\\d+|\\d+-\\d+-\\d+)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern DATE_PATTERN = Pattern.compile("\\b(today|tomorrow|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next\\s+\\w+|in\\s+a\\s+week|a\\s+week\\s+from\\s+now|next\\s+week|\\d+\\s+weeks?\\s+from\\s+now|in\\s+\\d+\\s+weeks?|\\d+\\s+days?\\s+from\\s+now|in\\s+\\d+\\s+days?|\\d+/\\d+|\\d+-\\d+-\\d+)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern PRIORITY_PATTERN = Pattern.compile("\\b(urgent|asap|high\\s+priority|important|critical|low\\s+priority|when\\s+possible)\\b", Pattern.CASE_INSENSITIVE);
     
     @PostConstruct
