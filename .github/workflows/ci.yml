@@ -16,11 +16,6 @@ on:
         - test
         - staging
         - production
-      skip_tests:
-        description: 'Skip test execution'
-        required: false
-        default: false
-        type: boolean
 
 # Smart concurrency - cancel for PRs, don't cancel for main
 concurrency:
@@ -120,6 +115,13 @@ jobs:
           npm run lint -- --max-warnings 0
           npm run type-check
 
+      - name: Setup JDK for backend compile
+        if: env.RUN_CHECK == 'true' && matrix.check == 'backend-compile'
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
       - name: Setup Gradle Wrapper
         if: env.RUN_CHECK == 'true' && matrix.check == 'backend-compile'
         uses: gradle/actions/setup-gradle@v4
@@ -130,7 +132,7 @@ jobs:
         if: env.RUN_CHECK == 'true' && matrix.check == 'backend-compile'
         run: |
           cd server
-          gradle compileJava compileTestJava --no-daemon
+          gradle compileJava compileTestJava
 
       - name: Basic security scan
         if: env.RUN_CHECK == 'true' && matrix.check == 'security-basic'
@@ -151,7 +153,6 @@ jobs:
     strategy:
       matrix:
         component: [frontend, backend]
-        task: [test, build]
       fail-fast: false
     
     services:
@@ -185,26 +186,25 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
 
-      - name: Frontend tasks
+      - name: Frontend build and test
         if: matrix.component == 'frontend' && needs.workflow-context.outputs.frontend_changed == 'true'
         run: |
           cd client
           npm ci
           
-          if [ "${{ matrix.task }}" = "test" ]; then
-            npm run lint
-            npm run type-check
-            npm test -- --coverage --passWithNoTests --watchAll=false
-          elif [ "${{ matrix.task }}" = "build" ]; then
-            npm run build
-            # Bundle size analysis
-            echo "📦 Bundle Size Analysis" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            du -sh dist/ | tee -a $GITHUB_STEP_SUMMARY || echo "No dist directory" >> $GITHUB_STEP_SUMMARY
-            echo "Top 5 largest JS files:" >> $GITHUB_STEP_SUMMARY
-            find dist/ -name "*.js" -exec du -h {} + | sort -hr | head -5 | tee -a $GITHUB_STEP_SUMMARY || echo "No JS files found" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          fi
+          # Run all frontend tasks in optimal order
+          npm run lint
+          npm run type-check
+          npm test -- --coverage --passWithNoTests --watchAll=false
+          npm run build
+          
+          # Bundle size analysis
+          echo "📦 Bundle Size Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          du -sh dist/ | tee -a $GITHUB_STEP_SUMMARY || echo "No dist directory" >> $GITHUB_STEP_SUMMARY
+          echo "Top 5 largest JS files:" >> $GITHUB_STEP_SUMMARY
+          find dist/ -name "*.js" -exec du -h {} + | sort -hr | head -5 | tee -a $GITHUB_STEP_SUMMARY || echo "No JS files found" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
 
       - name: Setup Gradle Wrapper
@@ -213,27 +213,36 @@ jobs:
         with:
           gradle-version: wrapper
 
-      - name: Backend tasks
+      - name: Backend build and test
         if: matrix.component == 'backend' && needs.workflow-context.outputs.backend_changed == 'true'
         run: |
           cd server
           
-          if [ "${{ matrix.task }}" = "test" ]; then
-            # Single command with Quarkus JaCoCo extension (enabled via application.properties)
-            gradle clean test
-          elif [ "${{ matrix.task }}" = "build" ]; then
-            gradle build -Dquarkus.package.jar.type=uber-jar
+          # Single Gradle command for maximum efficiency - using Quarkus JaCoCo
+          gradle clean test build -Dquarkus.package.jar.type=uber-jar
+          
+          # Generate test report summary
+          echo "📊 Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ -f "build/test-results/test/TEST-*.xml" ]; then
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            find build/test-results/test -name "TEST-*.xml" -exec grep -h "testsuite" {} \; | head -5 >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Show JaCoCo coverage info if available
+          if [ -f "build/jacoco/jacoco.exec" ]; then
+            echo "📊 Code Coverage Generated: build/jacoco/jacoco.exec" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Upload test artifacts
-        if: matrix.task == 'test' && always()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.component }}
           path: |
             client/coverage/
             server/build/reports/
-            mcp/build/reports/
+            server/build/jacoco/
           retention-days: 3
 
   # Security and quality checks
