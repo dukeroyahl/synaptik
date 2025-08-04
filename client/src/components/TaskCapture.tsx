@@ -70,7 +70,9 @@ const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
     'Review code priority:M +review project:synaptik assignee:Sarah',
     'Write documentation due:3d +docs',
     'Send urgent email to client about the proposal',
-    'Schedule team meeting for next Monday at 2pm'
+    'Schedule team meeting for next Monday at 2pm',
+    'Meet Roy a week from now to discuss about project',
+    'Catch up with Tom next week over dinner'
   ]
 
   return (
@@ -110,12 +112,14 @@ const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
             • "Meet with Sarah tomorrow at 3pm about the project"<br/>
             • "Call client urgent regarding proposal"<br/>
             • "Review code next Friday for the webapp"<br/>
+            • "Meet Roy a week from now to discuss project"<br/>
+            • "Schedule meeting next week"<br/>
             <br/>
             <strong>TaskWarrior Syntax:</strong><br/>
             • <strong>priority:</strong> H (High), M (Medium), L (Low)<br/>
             • <strong>project:</strong> Project name<br/>
             • <strong>assignee:</strong> Person name<br/>
-            • <strong>due:</strong> today, tomorrow, friday, 3d, 2w, 2024-12-25<br/>
+            • <strong>due:</strong> today, tomorrow, friday, next week, a week from now, 3d, 2w, 2024-12-25<br/>
             • <strong>scheduled:</strong> Same as due<br/>
             • <strong>+tag:</strong> Add tags with + prefix<br/>
           </Typography>
@@ -157,7 +161,7 @@ const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
           <Grid item xs>
             <TextField
               fullWidth
-              placeholder="Meet with Sarah tomorrow at 3pm about the project"
+              placeholder="Meet Tom tomorrow at 3pm about the project"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={loading}
