@@ -62,16 +62,16 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
   // Memoize glass color calculation to prevent recalculating on every render
   const glassColor = useMemo(() => {
     // Priority-based colors (high contrast)
-    if (task.priority === 'H') {
+    if (task.priority === 'HIGH') {
       return 'linear-gradient(135deg, rgba(255,107,107,0.12) 0%, rgba(255,107,107,0.06) 50%, rgba(255,255,255,0.04) 100%)';
-    } else if (task.priority === 'M') {
+    } else if (task.priority === 'MEDIUM') {
       return 'linear-gradient(135deg, rgba(249,194,60,0.12) 0%, rgba(249,194,60,0.06) 50%, rgba(255,255,255,0.04) 100%)';
     }
     
     // Status-based colors (high contrast)
-    if (task.status === 'completed') {
+    if (task.status === 'COMPLETED') {
       return 'linear-gradient(135deg, rgba(86,211,100,0.12) 0%, rgba(86,211,100,0.06) 50%, rgba(255,255,255,0.04) 100%)';
-    } else if (task.status === 'active') {
+    } else if (task.status === 'ACTIVE') {
       return 'linear-gradient(135deg, rgba(88,166,255,0.12) 0%, rgba(88,166,255,0.06) 50%, rgba(255,255,255,0.04) 100%)';
     }
     
@@ -81,13 +81,13 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
   
   // Memoize border color calculation
   const borderColor = useMemo(() => {
-    if (task.priority === 'H') {
+    if (task.priority === 'HIGH') {
       return 'rgba(255,107,107,0.25)';
-    } else if (task.priority === 'M') {
+    } else if (task.priority === 'MEDIUM') {
       return 'rgba(249,194,60,0.25)';
-    } else if (task.status === 'completed') {
+    } else if (task.status === 'COMPLETED') {
       return 'rgba(86,211,100,0.25)';
-    } else if (task.status === 'active') {
+    } else if (task.status === 'ACTIVE') {
       return 'rgba(88,166,255,0.25)';
     }
     
@@ -150,7 +150,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
       sx={{ 
         mb: 0.5,
         position: 'relative',
-        opacity: task.status === 'completed' ? 0.85 : 1,
+        opacity: task.status === 'COMPLETED' ? 0.85 : 1,
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         cursor: draggable ? 'grab' : 'default',
         background: glassColor,
@@ -321,12 +321,12 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
               <Typography 
                 variant="h6" 
                 sx={{ 
-                  fontWeight: task.status === 'active' ? 700 : 600,
-                  textDecoration: task.status === 'completed' ? 'line-through' : 'none',
+                  fontWeight: task.status === 'ACTIVE' ? 700 : 600,
+                  textDecoration: task.status === 'COMPLETED' ? 'line-through' : 'none',
                   fontSize: '1.15rem',
                   lineHeight: 1.3,
                   flex: 1,
-                  color: task.status === 'completed' ? 'text.secondary' : 'text.primary',
+                  color: task.status === 'COMPLETED' ? 'text.secondary' : 'text.primary',
                   letterSpacing: '0.01em',
                 }}
               >

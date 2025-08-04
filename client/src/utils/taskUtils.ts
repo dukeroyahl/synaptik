@@ -28,16 +28,16 @@ export function getTaskCardClass(task: Task): string {
   }
   
   // Add priority class for glass effects
-  if (task.priority === 'H') {
+  if (task.priority === 'HIGH') {
     classes.push('priority-high');
-  } else if (task.priority === 'M') {
+  } else if (task.priority === 'MEDIUM') {
     classes.push('priority-medium');
   }
   
   // Add status class for glass effects
-  if (task.status === 'completed') {
+  if (task.status === 'COMPLETED') {
     classes.push('status-completed');
-  } else if (task.status === 'active') {
+  } else if (task.status === 'ACTIVE') {
     classes.push('status-active');
   }
   
@@ -166,9 +166,9 @@ export function isTaskOverdue(dueDate?: string): boolean {
  */
 export function getPriorityColor(priority: string): 'error' | 'warning' | 'info' | 'default' {
   switch (priority) {
-    case 'H': return 'error';
-    case 'M': return 'warning';
-    case 'L': return 'info';
+    case 'HIGH': return 'error';
+    case 'MEDIUM': return 'warning';
+    case 'LOW': return 'info';
     default: return 'default';
   }
 }
@@ -178,9 +178,9 @@ export function getPriorityColor(priority: string): 'error' | 'warning' | 'info'
  */
 export function getStatusColor(status: string): 'success' | 'warning' | 'default' {
   switch (status) {
-    case 'active': return 'success';
-    case 'waiting': return 'warning';
-    case 'completed': return 'success';
+    case 'ACTIVE': return 'success';
+    case 'WAITING': return 'warning';
+    case 'COMPLETED': return 'success';
     default: return 'default';
   }
 }

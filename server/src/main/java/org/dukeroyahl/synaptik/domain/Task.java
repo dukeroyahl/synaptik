@@ -3,7 +3,9 @@ package org.dukeroyahl.synaptik.domain;
 import io.quarkus.mongodb.panache.common.MongoEntity;
 import jakarta.validation.constraints.*;
 import org.bson.types.ObjectId;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
+import java.time.ZonedDateTime;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,8 +32,10 @@ public class Task extends BaseEntity {
     
     public String project;
     public String assignee;
-    public LocalDateTime dueDate;
-    public LocalDateTime waitUntil;
+    
+    // Store as string to avoid MongoDB serialization issues
+    public String dueDate;
+    public String waitUntil;
     
     public List<String> tags = new ArrayList<>();
     public List<TaskAnnotation> annotations = new ArrayList<>();
@@ -72,9 +76,11 @@ public class Task extends BaseEntity {
             case LOW -> urgency += 1.8;
         }
         
-        if (dueDate != null) {
-            LocalDateTime now = LocalDateTime.now();
-            long daysUntilDue = java.time.temporal.ChronoUnit.DAYS.between(now, dueDate);
+        if (dueDate != null && !dueDate.trim().isEmpty()) {
+            try {
+                ZonedDateTime due = ZonedDateTime.parse(dueDate);
+                ZonedDateTime now = ZonedDateTime.now();
+                long daysUntilDue = java.time.temporal.ChronoUnit.DAYS.between(now.toLocalDate(), due.toLocalDate());
             
             if (daysUntilDue < 0) {
                 urgency += 12 + Math.abs(daysUntilDue) * 0.2;
@@ -82,6 +88,9 @@ public class Task extends BaseEntity {
                 urgency += 12 - (daysUntilDue * 1.4);
             } else if (daysUntilDue <= 14) {
                 urgency += 5 - (daysUntilDue * 0.3);
+            }
+            } catch (Exception e) {
+                // Invalid date format, skip date-based urgency calculation
             }
         }
         

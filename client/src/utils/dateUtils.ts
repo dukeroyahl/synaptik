@@ -1,144 +1,120 @@
-import { format, isValid, parseISO, differenceInDays, isPast, isToday, isTomorrow, formatDistanceToNow } from 'date-fns'
+/**
+ * Simple timezone-aware date utilities
+ * Server returns ISO string with timezone info, browser handles locale conversion
+ */
 
-export class DateUtils {
-  /**
-   * Parse a date string into a Date object
-   * Handles both ISO strings and YYYY-MM-DD format
-   */
-  static parseTaskDate(dateStr: string | undefined): Date | null {
-    if (!dateStr) return null
+/**
+ * Get user's timezone (browser's timezone)
+ */
+export function getUserTimezone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+/**
+ * Parse a date string from the backend
+ * Backend format: "2025-08-10T23:59:22.443-05:00" (ISO string with timezone)
+ */
+export function parseBackendDate(dateStr: string): Date {
+  if (!dateStr) throw new Error('Date string is required');
+  
+  // Backend now sends ISO string with timezone info
+  // Browser's Date constructor handles timezone conversion automatically
+  return new Date(dateStr);
+}
+
+/**
+ * Check if a backend date string represents a past date
+ */
+export function isBackendDateInPast(dateStr: string): boolean {
+  if (!dateStr) return false;
+  
+  try {
+    const date = parseBackendDate(dateStr);
+    return date < new Date();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Format backend date for display using browser's locale
+ */
+export function formatBackendDateForDisplay(dateStr: string): string {
+  if (!dateStr) return '';
+  
+  try {
+    const date = parseBackendDate(dateStr);
+    const now = new Date();
     
-    try {
-      // Try parsing as ISO string first
-      const isoDate = parseISO(dateStr)
-      if (isValid(isoDate)) {
-        return isoDate
-      }
-      
-      // Try parsing as YYYY-MM-DD
-      const dashDate = new Date(dateStr + 'T00:00:00')
-      if (isValid(dashDate)) {
-        return dashDate
-      }
-      
-      return null
-    } catch {
-      return null
-    }
-  }
-
-  /**
-   * Format a date for display in the UI
-   */
-  static formatForDisplay(date: Date | string | undefined, includeTime = false): string {
-    const parsedDate = typeof date === 'string' ? this.parseTaskDate(date) : date
-    if (!parsedDate || !isValid(parsedDate)) return 'No date'
+    // Calculate difference in days
+    const diffMs = date.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
     
-    if (isToday(parsedDate)) {
-      return includeTime ? `Today ${format(parsedDate, 'HH:mm')}` : 'Today'
-    }
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Tomorrow';
+    if (diffDays === -1) return 'Yesterday';
+    if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`;
+    if (diffDays < 7) return `${diffDays}d`;
     
-    if (isTomorrow(parsedDate)) {
-      return includeTime ? `Tomorrow ${format(parsedDate, 'HH:mm')}` : 'Tomorrow'
-    }
+    // Use browser's native date formatting in user's locale
+    return date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      weekday: 'short'
+    });
+  } catch {
+    return 'Invalid date';
+  }
+}
+
+/**
+ * Get time remaining until a backend date
+ */
+export function getTimeRemainingFromBackendDate(dateStr: string): string | null {
+  if (!dateStr) return null;
+  
+  try {
+    const date = parseBackendDate(dateStr);
+    const now = new Date();
+    const diffMs = date.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
     
-    const formatStr = includeTime ? 'MMM d, yyyy HH:mm' : 'MMM d, yyyy'
-    return format(parsedDate, formatStr)
-  }
-
-  /**
-   * Get relative time string (e.g., "2 days ago", "in 3 hours")
-   */
-  static getRelativeTime(date: Date | string | undefined): string {
-    const parsedDate = typeof date === 'string' ? this.parseTaskDate(date) : date
-    if (!parsedDate || !isValid(parsedDate)) return ''
-    
-    return formatDistanceToNow(parsedDate, { addSuffix: true })
-  }
-
-  /**
-   * Check if a task date is overdue
-   */
-  static isOverdue(dueDate: string | undefined): boolean {
-    const date = this.parseTaskDate(dueDate)
-    return date ? isPast(date) && !isToday(date) : false
-  }
-
-  /**
-   * Check if a task is due today
-   */
-  static isDueToday(dueDate: string | undefined): boolean {
-    const date = this.parseTaskDate(dueDate)
-    return date ? isToday(date) : false
-  }
-
-  /**
-   * Check if a task is due tomorrow
-   */
-  static isDueTomorrow(dueDate: string | undefined): boolean {
-    const date = this.parseTaskDate(dueDate)
-    return date ? isTomorrow(date) : false
-  }
-
-  /**
-   * Get days until due (negative if overdue)
-   */
-  static getDaysUntilDue(dueDate: string | undefined): number | null {
-    const date = this.parseTaskDate(dueDate)
-    return date ? differenceInDays(date, new Date()) : null
-  }
-
-  /**
-   * Validate if a date string is valid for tasks
-   */
-  static isValidTaskDate(dateStr: string): boolean {
-    return this.parseTaskDate(dateStr) !== null
-  }
-
-  /**
-   * Format date for API submission (ISO string)
-   */
-  static formatForAPI(date: Date | string): string {
-    const parsedDate = typeof date === 'string' ? this.parseTaskDate(date) : date
-    if (!parsedDate || !isValid(parsedDate)) {
-      throw new Error('Invalid date provided for API formatting')
-    }
-    return parsedDate.toISOString()
-  }
-
-  /**
-   * Get urgency contribution based on due date
-   * Used for urgency calculations
-   */
-  static getUrgencyFromDueDate(dueDate: string | undefined): number {
-    const date = this.parseTaskDate(dueDate)
-    if (!date) return 0
-    
-    const daysUntilDue = differenceInDays(date, new Date())
-    
-    if (daysUntilDue < 0) return 12 // Overdue
-    if (daysUntilDue === 0) return 10 // Due today
-    if (daysUntilDue === 1) return 8 // Due tomorrow
-    if (daysUntilDue <= 7) return 6 // Due this week
-    if (daysUntilDue <= 30) return 3 // Due this month
-    
-    return 1 // Due later
-  }
-
-  /**
-   * Create date filter for API queries
-   */
-  static createDateFilter(startDate?: Date, endDate?: Date) {
-    const filter: { dueAfter?: string; dueBefore?: string } = {}
-    
-    if (startDate) {
-      filter.dueAfter = this.formatForAPI(startDate)
+    // If overdue
+    if (diffDays < 0) {
+      const overdueDays = Math.abs(diffDays);
+      if (overdueDays === 1) return '1 day overdue';
+      if (overdueDays < 7) return `${overdueDays} days overdue`;
+      if (overdueDays < 14) return `${Math.ceil(overdueDays / 7)} week${Math.ceil(overdueDays / 7) !== 1 ? 's' : ''} overdue`;
+      if (overdueDays < 60) return `${Math.ceil(overdueDays / 7)} weeks overdue`;
+      return `${Math.ceil(overdueDays / 30)} months overdue`;
     }
     
-    if (endDate) {
-      filter.dueBefore = this.formatForAPI(endDate)
-    }
-    
-    return filter
+    // If due today or in future
+    if (diffDays === 0) return 'Due today';
+    if (diffDays === 1) return '1 day left';
+    if (diffDays < 7) return `${diffDays} days left`;
+    if (diffDays < 14) return `${Math.ceil(diffDays / 7)} week${Math.ceil(diffDays / 7) !== 1 ? 's' : ''} left`;
+    if (diffDays < 60) return `${Math.ceil(diffDays / 7)} weeks left`;
+    return `${Math.ceil(diffDays / 30)} months left`;
+  } catch {
+    return null;
   }
+}
+
+/**
+ * Send user's timezone to backend in API calls
+ */
+export function getTimezoneHeaders(): Record<string, string> {
+  return {
+    'X-User-Timezone': getUserTimezone()
+  };
+}
+
+/**
+ * Format a date for backend submission (browser handles timezone)
+ */
+export function formatForBackend(date: Date): string {
+  // Send as ISO string with timezone info
+  return date.toISOString();
 }

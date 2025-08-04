@@ -85,7 +85,7 @@ const TaskActions: React.FC<TaskActionsProps> = memo(({
   );
   
   const showStop = useMemo(() => 
-    task.status !== 'completed' && task.status === 'active' && onStop, 
+    task.status !== 'completed' && task.status === 'ACTIVE' && onStop, 
     [task.status, onStop]
   );
   
@@ -95,7 +95,7 @@ const TaskActions: React.FC<TaskActionsProps> = memo(({
   );
   
   const showUnmarkDone = useMemo(() => 
-    task.status === 'completed' && onUnmarkDone, 
+    task.status === 'COMPLETED' && onUnmarkDone, 
     [task.status, onUnmarkDone]
   );
 

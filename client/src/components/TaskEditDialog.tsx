@@ -36,7 +36,7 @@ const TaskEditDialog: React.FC<TaskEditDialogProps> = ({
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    priority: '' as 'H' | 'M' | 'L' | '',
+    priority: 'NONE' as 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE',
     assignee: '',
     dueDate: '',
     project: '',
@@ -49,7 +49,7 @@ const TaskEditDialog: React.FC<TaskEditDialogProps> = ({
       setFormData({
         title: task.title || '',
         description: task.description || '',
-        priority: task.priority || '',
+        priority: task.priority || 'NONE',
         assignee: task.assignee || '',
         dueDate: task.dueDate ? task.dueDate.split('T')[0] : '', // Convert to YYYY-MM-DD format
         project: task.project || '',
@@ -141,10 +141,10 @@ const TaskEditDialog: React.FC<TaskEditDialogProps> = ({
                     onChange={(e) => handleChange('priority', e.target.value)}
                     label="Priority"
                   >
-                    <MenuItem value="">None</MenuItem>
-                    <MenuItem value="L">Low</MenuItem>
-                    <MenuItem value="M">Medium</MenuItem>
-                    <MenuItem value="H">High</MenuItem>
+                    <MenuItem value="NONE">None</MenuItem>
+                    <MenuItem value="LOW">Low</MenuItem>
+                    <MenuItem value="MEDIUM">Medium</MenuItem>
+                    <MenuItem value="HIGH">High</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>

@@ -114,7 +114,7 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
       variant="outlined" 
       sx={{ 
         mb: 1, 
-        opacity: task.status === 'completed' ? 0.7 : 1,
+        opacity: task.status === 'COMPLETED' ? 0.7 : 1,
         backgroundColor: isDependent ? 'action.hover' : 'background.paper'
       }}
     >
@@ -142,7 +142,7 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
             <Chip
               label={task.status.toUpperCase()}
               size="small"
-              color={task.status === 'completed' ? 'success' : task.status === 'active' ? 'primary' : 'default'}
+              color={task.status === 'COMPLETED' ? 'success' : task.status === 'ACTIVE' ? 'primary' : 'default'}
               sx={{ fontSize: '0.65rem' }}
             />
             {task.assignee && (

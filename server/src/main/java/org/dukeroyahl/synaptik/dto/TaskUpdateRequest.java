@@ -5,7 +5,6 @@ import org.dukeroyahl.synaptik.domain.TaskPriority;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
 import jakarta.validation.constraints.Size;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 public class TaskUpdateRequest {
@@ -20,8 +19,8 @@ public class TaskUpdateRequest {
     public TaskPriority priority;
     public String project;
     public String assignee;
-    public LocalDateTime dueDate;
-    public LocalDateTime waitUntil;
+    public String dueDate;
+    public String waitUntil;
     public List<String> tags;
     
     public Task toTask() {

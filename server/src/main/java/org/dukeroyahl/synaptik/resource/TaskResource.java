@@ -4,11 +4,14 @@ import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
 import org.dukeroyahl.synaptik.service.TaskService;
 import org.dukeroyahl.synaptik.service.NaturalLanguageParser;
+import org.dukeroyahl.synaptik.util.DateTimeUtils;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.common.annotation.Blocking;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.bson.types.ObjectId;
@@ -140,9 +143,10 @@ public class TaskResource {
     @Consumes(MediaType.TEXT_PLAIN)
     @Operation(summary = "Create task from natural language or TaskWarrior syntax")
     @Blocking
-    public Uni<Response> captureTask(String input) {
+    public Uni<Response> captureTask(String input, @Context HttpHeaders headers) {
         try {
-            Task parsedTask = nlpParser.parseNaturalLanguage(input);
+            String userTimezone = DateTimeUtils.getUserTimezoneFromHeaders(headers);
+            Task parsedTask = nlpParser.parseNaturalLanguage(input, userTimezone);
             return taskService.createTask(parsedTask)
                 .onItem().transform(createdTask -> Response.status(Response.Status.CREATED).entity(createdTask).build());
         } catch (IllegalArgumentException e) {

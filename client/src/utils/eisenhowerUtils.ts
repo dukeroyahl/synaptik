@@ -21,7 +21,7 @@ export function isUrgent(task: Task): boolean {
 
 // Determine if a task is important based on priority
 export function isImportant(task: Task): boolean {
-  return task.priority === 'H' || task.priority === 'M';
+  return task.priority === 'HIGH' || task.priority === 'MEDIUM';
 }
 
 // Get the Eisenhower quadrant for a task (0-3)

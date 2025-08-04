@@ -5,7 +5,7 @@ import org.dukeroyahl.synaptik.domain.TaskPriority;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
 import org.jboss.logging.Logger;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -25,6 +25,10 @@ public class TaskWarriorParser {
     private static final Pattern ANNOTATION_PATTERN = Pattern.compile("\\bannotation:\"([^\"]+)\"\\b");
     
     public static Task parseTaskWarriorInput(String input) {
+        return parseTaskWarriorInput(input, DateTimeUtils.DEFAULT_TIMEZONE);
+    }
+    
+    public static Task parseTaskWarriorInput(String input, String userTimezone) {
         logger.infof("Parsing TaskWarrior input: %s", input);
         
         Task task = new Task();
@@ -54,7 +58,10 @@ public class TaskWarriorParser {
         Matcher dueMatcher = DUE_PATTERN.matcher(workingInput);
         if (dueMatcher.find()) {
             String dueDateStr = dueMatcher.group(1);
-            task.dueDate = parseDateString(dueDateStr);
+            ZonedDateTime dueDateTime = parseDateString(dueDateStr, userTimezone);
+            if (dueDateTime != null) {
+                task.dueDate = dueDateTime.format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+            }
             workingInput = dueMatcher.replaceAll("").trim();
         }
         
@@ -62,7 +69,10 @@ public class TaskWarriorParser {
         Matcher waitMatcher = WAIT_PATTERN.matcher(workingInput);
         if (waitMatcher.find()) {
             String waitDateStr = waitMatcher.group(1);
-            task.waitUntil = parseDateString(waitDateStr);
+            ZonedDateTime waitDateTime = parseDateString(waitDateStr, userTimezone);
+            if (waitDateTime != null) {
+                task.waitUntil = waitDateTime.format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+            }
             workingInput = waitMatcher.replaceAll("").trim();
         }
         
@@ -91,8 +101,15 @@ public class TaskWarriorParser {
         task.status = TaskStatus.PENDING;
         
         // Set wait status if waitUntil is in the future
-        if (task.waitUntil != null && task.waitUntil.isAfter(LocalDateTime.now())) {
-            task.status = TaskStatus.WAITING;
+        if (task.waitUntil != null && !task.waitUntil.trim().isEmpty()) {
+            try {
+                ZonedDateTime waitDateTime = ZonedDateTime.parse(task.waitUntil);
+                if (waitDateTime.isAfter(DateTimeUtils.nowInUserTimezone(userTimezone))) {
+                    task.status = TaskStatus.WAITING;
+                }
+            } catch (Exception e) {
+                // Invalid date format, ignore
+            }
         }
         
         logger.infof("Parsed task: title='%s', priority=%s, project='%s', dueDate=%s, tags=%s", 
@@ -101,20 +118,17 @@ public class TaskWarriorParser {
         return task;
     }
     
-    private static LocalDateTime parseDateString(String dateStr) {
+    private static ZonedDateTime parseDateString(String dateStr, String userTimezone) {
         if (dateStr == null || dateStr.trim().isEmpty()) {
             return null;
         }
         
         String lowerDateStr = dateStr.toLowerCase().trim();
         
-        // Handle relative dates
-        LocalDateTime now = LocalDateTime.now();
-        
         return switch (lowerDateStr) {
-            case "today" -> now.toLocalDate().atStartOfDay();
-            case "tomorrow" -> now.plusDays(1).toLocalDate().atStartOfDay();
-            case "yesterday" -> now.minusDays(1).toLocalDate().atStartOfDay();
+            case "today" -> DateTimeUtils.todayEndInUserTimezone(userTimezone);
+            case "tomorrow" -> DateTimeUtils.tomorrowInUserTimezone(userTimezone);
+            case "yesterday" -> DateTimeUtils.yesterdayInUserTimezone(userTimezone);
             default -> {
                 // Try to parse as absolute date
                 try {
@@ -131,9 +145,9 @@ public class TaskWarriorParser {
                         try {
                             if (formatter == DateTimeFormatter.ISO_LOCAL_DATE || 
                                 formatter == DateTimeFormatter.ofPattern("yyyy-MM-dd")) {
-                                yield LocalDateTime.parse(dateStr + "T00:00:00");
+                                yield DateTimeUtils.parseWithTimezone(dateStr + "T23:59:59", userTimezone);
                             } else {
-                                yield LocalDateTime.parse(dateStr, formatter);
+                                yield DateTimeUtils.parseWithTimezone(dateStr, userTimezone);
                             }
                         } catch (DateTimeParseException e) {
                             // Try next formatter
@@ -164,12 +178,22 @@ public class TaskWarriorParser {
             sb.append(" project:").append(task.project);
         }
         
-        if (task.dueDate != null) {
-            sb.append(" due:").append(task.dueDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
+        if (task.dueDate != null && !task.dueDate.trim().isEmpty()) {
+            try {
+                ZonedDateTime dueDateTime = ZonedDateTime.parse(task.dueDate);
+                sb.append(" due:").append(dueDateTime.format(DateTimeFormatter.ISO_LOCAL_DATE));
+            } catch (Exception e) {
+                // Invalid date format, skip
+            }
         }
         
-        if (task.waitUntil != null) {
-            sb.append(" wait:").append(task.waitUntil.format(DateTimeFormatter.ISO_LOCAL_DATE));
+        if (task.waitUntil != null && !task.waitUntil.trim().isEmpty()) {
+            try {
+                ZonedDateTime waitDateTime = ZonedDateTime.parse(task.waitUntil);
+                sb.append(" wait:").append(waitDateTime.format(DateTimeFormatter.ISO_LOCAL_DATE));
+            } catch (Exception e) {
+                // Invalid date format, skip
+            }
         }
         
         if (task.tags != null && !task.tags.isEmpty()) {

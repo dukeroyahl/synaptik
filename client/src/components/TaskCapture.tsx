@@ -16,6 +16,7 @@ import {
   Help as HelpIcon,
   Close as CloseIcon
 } from '@mui/icons-material'
+import { getTimezoneHeaders } from '../utils/dateUtils'
 
 interface TaskCaptureProps {
   onTaskCaptured?: (task: any) => void
@@ -39,7 +40,8 @@ const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
       const response = await fetch('/api/tasks/capture', {
         method: 'POST',
         headers: {
-          'Content-Type': 'text/plain'
+          'Content-Type': 'text/plain',
+          ...getTimezoneHeaders()
         },
         body: input.trim()
       })

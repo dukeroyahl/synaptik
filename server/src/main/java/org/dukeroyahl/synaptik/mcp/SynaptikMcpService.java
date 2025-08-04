@@ -1,6 +1,7 @@
 package org.dukeroyahl.synaptik.mcp;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
@@ -88,10 +89,10 @@ public class SynaptikMcpService {
         request.assignee = assignee;
 
         if (dueDate != null) {
-            request.dueDate = LocalDateTime.parse(dueDate, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            request.dueDate = dueDate;
         }
         if (waitUntil != null) {
-            request.waitUntil = LocalDateTime.parse(waitUntil, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            request.waitUntil = waitUntil;
         }
 
         if (tags != null) {
@@ -139,10 +140,10 @@ public class SynaptikMcpService {
         request.assignee = assignee;
 
         if (dueDate != null) {
-            request.dueDate = LocalDateTime.parse(dueDate, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            request.dueDate = dueDate;
         }
         if (waitUntil != null) {
-            request.waitUntil = LocalDateTime.parse(waitUntil, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            request.waitUntil = waitUntil;
         }
 
         if (tags != null) {
