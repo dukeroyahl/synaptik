@@ -1,6 +1,12 @@
 import { apiClient } from './apiClient'
-import { API_BASE_URL } from '../config'
 import { Task } from '../types'
+import { 
+  API_ENDPOINTS, 
+  getTaskEndpoint, 
+  getTaskActionEndpoint, 
+  getTaskDependenciesEndpoint, 
+  getTaskDependencyEndpoint 
+} from '../constants/api'
 
 export type TaskAction = 'start' | 'stop' | 'done' | 'delete'
 
@@ -35,7 +41,7 @@ export interface TaskQueryParams {
 }
 
 export class TaskService {
-  private basePath = '/api/tasks'
+  private basePath = API_ENDPOINTS.TASKS
 
   async getTasks(filters?: TaskQueryParams): Promise<Task[]> {
     const response = await apiClient.get<Task[]>(this.basePath, filters)
@@ -43,7 +49,7 @@ export class TaskService {
   }
 
   async getTaskById(id: string): Promise<Task> {
-    const response = await apiClient.get<Task>(`${this.basePath}/${id}`)
+    const response = await apiClient.get<Task>(getTaskEndpoint(id))
     return response.data
   }
 
@@ -53,16 +59,16 @@ export class TaskService {
   }
 
   async updateTask(id: string, data: UpdateTaskRequest): Promise<Task> {
-    const response = await apiClient.put<Task>(`${this.basePath}/${id}`, data)
+    const response = await apiClient.put<Task>(getTaskEndpoint(id), data)
     return response.data
   }
 
   async deleteTask(id: string): Promise<void> {
-    await apiClient.delete(`${this.basePath}/${id}`)
+    await apiClient.delete(getTaskEndpoint(id))
   }
 
   async performAction(id: string, action: TaskAction): Promise<Task> {
-    const response = await apiClient.post<Task>(`${this.basePath}/${id}/${action}`)
+    const response = await apiClient.post<Task>(getTaskActionEndpoint(id, action))
     return response.data
   }
 
@@ -83,58 +89,45 @@ export class TaskService {
   }
 
   async captureTask(text: string): Promise<Task> {
-    // Use direct fetch for plain text content-type
-    const response = await fetch(`${API_BASE_URL}${this.basePath}/capture`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain'
-      },
-      body: text
-    })
-    
-    if (!response.ok) {
-      throw new Error(`Failed to capture task: ${response.statusText}`)
-    }
-    
-    const result = await response.json()
-    return result
+    const response = await apiClient.post<Task>(API_ENDPOINTS.TASKS_CAPTURE, text)
+    return response.data
   }
 
   // Filtered queries for common use cases
   async getPendingTasks(): Promise<Task[]> {
-    const response = await apiClient.get<Task[]>(`${this.basePath}/pending`)
+    const response = await apiClient.get<Task[]>(API_ENDPOINTS.TASKS_PENDING)
     return response.data
   }
 
   async getActiveTasks(): Promise<Task[]> {
-    const response = await apiClient.get<Task[]>(`${this.basePath}/active`)
+    const response = await apiClient.get<Task[]>(API_ENDPOINTS.TASKS_ACTIVE)
     return response.data
   }
 
   async getOverdueTasks(): Promise<Task[]> {
-    const response = await apiClient.get<Task[]>(`${this.basePath}/overdue`)
+    const response = await apiClient.get<Task[]>(API_ENDPOINTS.TASKS_OVERDUE)
     return response.data
   }
 
   async getTodayTasks(): Promise<Task[]> {
-    const response = await apiClient.get<Task[]>(`${this.basePath}/today`)
+    const response = await apiClient.get<Task[]>(API_ENDPOINTS.TASKS_TODAY)
     return response.data
   }
 
   async getTaskDependencies(id: string): Promise<Task[]> {
-    const response = await apiClient.get<Task[]>(`${this.basePath}/${id}/dependencies`)
+    const response = await apiClient.get<Task[]>(getTaskDependenciesEndpoint(id))
     return response.data
   }
 
   async addDependency(taskId: string, dependsOnId: string): Promise<Task> {
-    const response = await apiClient.post<Task>(`${this.basePath}/${taskId}/dependencies`, {
+    const response = await apiClient.post<Task>(getTaskDependenciesEndpoint(taskId), {
       dependsOn: dependsOnId
     })
     return response.data
   }
 
   async removeDependency(taskId: string, dependsOnId: string): Promise<Task> {
-    const response = await apiClient.delete<Task>(`${this.basePath}/${taskId}/dependencies/${dependsOnId}`)
+    const response = await apiClient.delete<Task>(getTaskDependencyEndpoint(taskId, dependsOnId))
     return response.data
   }
 }

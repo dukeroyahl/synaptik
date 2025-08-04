@@ -48,7 +48,15 @@ export class ApiClient {
       }
 
       const data = await response.json()
-      return data
+      
+      // Handle both wrapped and direct API responses
+      // If the response is already wrapped in ApiResponse format, return it
+      // Otherwise, wrap the direct data in ApiResponse format
+      if (data && typeof data === 'object' && 'data' in data) {
+        return data
+      } else {
+        return { data }
+      }
     } catch (error) {
       if (error instanceof ApiError) {
         throw error
@@ -81,9 +89,11 @@ export class ApiClient {
   }
 
   async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    const isTextData = typeof data === 'string' && endpoint.includes('/capture')
     return this.request<T>(endpoint, {
       method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
+      headers: isTextData ? { 'Content-Type': 'text/plain' } : undefined,
+      body: isTextData ? data : (data ? JSON.stringify(data) : undefined),
     })
   }
 

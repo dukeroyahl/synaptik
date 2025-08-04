@@ -17,6 +17,7 @@ import {
   Close as CloseIcon
 } from '@mui/icons-material'
 import { getTimezoneHeaders } from '../utils/dateUtils'
+import { taskService } from '../services/taskService'
 
 interface TaskCaptureProps {
   onTaskCaptured?: (task: any) => void
@@ -37,28 +38,15 @@ const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
     setMessage(null)
 
     try {
-      const response = await fetch('/api/tasks/capture', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain',
-          ...getTimezoneHeaders()
-        },
-        body: input.trim()
-      })
-
-      const result = await response.json()
-
-      if (response.ok) {
-        setMessage({ type: 'success', text: 'Task captured successfully!' })
-        setInput('')
-        if (onTaskCaptured) {
-          onTaskCaptured(result)
-        }
-      } else {
-        setMessage({ type: 'error', text: result.error || 'Failed to capture task' })
+      const task = await taskService.captureTask(input.trim())
+      setMessage({ type: 'success', text: 'Task captured successfully!' })
+      setInput('')
+      if (onTaskCaptured) {
+        onTaskCaptured(task)
       }
-    } catch {
-      setMessage({ type: 'error', text: 'Network error occurred' })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to capture task'
+      setMessage({ type: 'error', text: errorMessage })
     } finally {
       setLoading(false)
     }

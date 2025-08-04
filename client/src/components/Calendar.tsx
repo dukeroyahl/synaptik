@@ -5,6 +5,8 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { Task } from '../types';
+import { taskService } from '../services/taskService';
+import { parseBackendDate } from '../utils/dateUtils';
 
 interface CalendarProps {
   onTaskSelect?: (taskId: string) => void;
@@ -25,20 +27,21 @@ const Calendar: React.FC<CalendarProps> = ({ onTaskSelect }) => {
     console.log('fetchTasks called');
     try {
       setLoading(true);
-      const response = await fetch('/api/tasks');
-      console.log('API response status:', response.status);
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Tasks received:', result.data?.length || 0, result.data);
-        setTasks(result.data || []);
-        setError(null);
+      setError(null);
+      const tasks = await taskService.getTasks();
+      console.log('Tasks received:', tasks?.length || 0, tasks);
+      
+      if (!tasks) {
+        console.warn('No tasks returned from service');
+        setTasks([]);
       } else {
-        console.error('API response not ok:', response.status);
-        setError('Failed to fetch tasks');
+        setTasks(tasks);
       }
     } catch (error) {
       console.error('Failed to fetch tasks for calendar:', error);
-      setError('Failed to fetch tasks');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch tasks';
+      setError(errorMessage);
+      setTasks([]); // Clear tasks on error
     } finally {
       setLoading(false);
       console.log('fetchTasks completed, loading set to false');
@@ -46,12 +49,12 @@ const Calendar: React.FC<CalendarProps> = ({ onTaskSelect }) => {
   };
     // Get CSS class based on task priority and status
   const getTaskClass = (task: Task) => {
-    if (task.status === 'completed') return 'task-completed';
+    if (task.status === 'COMPLETED') return 'task-completed';
     
     switch (task.priority) {
-      case 'H': return 'priority-high';
-      case 'M': return 'priority-medium';
-      case 'L': return 'priority-low';
+      case 'HIGH': return 'priority-high';
+      case 'MEDIUM': return 'priority-medium';
+      case 'LOW': return 'priority-low';
       default: return '';
     }
   };
@@ -60,23 +63,42 @@ const Calendar: React.FC<CalendarProps> = ({ onTaskSelect }) => {
   const events = tasks
     .filter(task => task.dueDate) // Only include tasks with due dates
     .map(task => {
-      // Parse the date to ensure it's in the right format
-      const dueDate = new Date(task.dueDate!);
-      return {
-        id: task.id,
-        title: task.title,
-        start: dueDate.toISOString().split('T')[0], // Convert to YYYY-MM-DD format
-        allDay: true,
-        className: getTaskClass(task),
-        extendedProps: { task }
-      };
+      try {
+        // Use the timezone-aware date parser
+        const dueDate = parseBackendDate(task.dueDate!);
+        return {
+          id: task.id,
+          title: task.title,
+          start: dueDate.toISOString().split('T')[0], // Convert to YYYY-MM-DD format
+          allDay: true,
+          className: getTaskClass(task),
+          extendedProps: { task }
+        };
+      } catch (error) {
+        console.error('Error parsing date for task', task.id, task.dueDate, error);
+        // Fallback to original date string if parsing fails
+        const fallbackDate = new Date(task.dueDate!);
+        return {
+          id: task.id,
+          title: task.title,
+          start: fallbackDate.toISOString().split('T')[0],
+          allDay: true,
+          className: getTaskClass(task),
+          extendedProps: { task }
+        };
+      }
     });
 
 
 
   const handleEventClick = (info: any) => {
-    if (onTaskSelect) {
-      onTaskSelect(info.event.id);
+    try {
+      if (onTaskSelect && info.event && info.event.id) {
+        console.log('Calendar event clicked:', info.event.id, info.event.title);
+        onTaskSelect(info.event.id);
+      }
+    } catch (error) {
+      console.error('Error handling event click:', error);
     }
   };
 
@@ -86,7 +108,7 @@ const Calendar: React.FC<CalendarProps> = ({ onTaskSelect }) => {
     <Card elevation={theme.palette.mode === 'dark' ? 2 : 1} className="custom-card">
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          Task Calendar ({tasks.length} tasks, {events.length} events)
+          Task Calendar
         </Typography>
         {loading && (
           <Typography variant="body2" color="text.secondary">
@@ -94,17 +116,62 @@ const Calendar: React.FC<CalendarProps> = ({ onTaskSelect }) => {
           </Typography>
         )}
         {error && (
-          <Typography variant="body2" color="error">
-            Error: {error}
-          </Typography>
+          <Box>
+            <Typography variant="body2" color="error" gutterBottom>
+              Error: {error}
+            </Typography>
+            <Typography 
+              variant="body2" 
+              color="primary" 
+              sx={{ cursor: 'pointer', textDecoration: 'underline' }}
+              onClick={fetchTasks}
+            >
+              Click to retry
+            </Typography>
+          </Box>
         )}
         {!loading && !error && tasks.length === 0 && (
           <Typography variant="body2" color="text.secondary">
             No tasks found.
           </Typography>
         )}
+        {!loading && !error && tasks.length > 0 && (
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Showing {tasks.length} tasks ({events.length} with due dates)
+          </Typography>
+        )}
         {!loading && !error && (
-          <Box sx={{ height: 600, '& .fc': { height: '100%' } }}>
+          <Box 
+            sx={{ 
+              height: 600, 
+              '& .fc': { height: '100%' },
+              '& .fc-event': {
+                borderRadius: '4px',
+                border: 'none',
+                padding: '2px 4px',
+                fontSize: '0.85rem',
+                fontWeight: 500,
+              },
+              '& .priority-high': {
+                backgroundColor: theme.palette.mode === 'dark' ? '#d32f2f' : '#ff5722',
+                color: 'white',
+              },
+              '& .priority-medium': {
+                backgroundColor: theme.palette.mode === 'dark' ? '#f57c00' : '#ff9800',
+                color: 'white',
+              },
+              '& .priority-low': {
+                backgroundColor: theme.palette.mode === 'dark' ? '#388e3c' : '#4caf50',
+                color: 'white',
+              },
+              '& .task-completed': {
+                backgroundColor: theme.palette.mode === 'dark' ? '#666' : '#9e9e9e',
+                color: 'white',
+                opacity: 0.7,
+                textDecoration: 'line-through',
+              },
+            }}
+          >
             <FullCalendar
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
               initialView="dayGridMonth"

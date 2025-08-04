@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, CircularProgress, Button } from '@mui/material';
 import { Task } from '../types';
+import { taskService } from '../services/taskService';
 import ProjectView from '../components/ProjectView';
 import TaskEditDialog from '../components/TaskEditDialog';
 import TaskDependencyView from '../components/TaskDependencyView';
@@ -20,13 +21,8 @@ const Projects: React.FC = () => {
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/tasks');
-      if (response.ok) {
-        const result = await response.json();
-        setTasks(result.data || []);
-      } else {
-        console.error('Failed to fetch tasks');
-      }
+      const tasks = await taskService.getTasks();
+      setTasks(tasks || []);
     } catch (error) {
       console.error('Error fetching tasks:', error);
     } finally {
@@ -36,15 +32,8 @@ const Projects: React.FC = () => {
 
   const handleMarkDone = async (task: Task) => {
     try {
-      const response = await fetch(`/api/tasks/${task.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...task, status: 'completed' })
-      });
-      
-      if (response.ok) {
-        await fetchTasks();
-      }
+      await taskService.updateTask(task.id, { ...task, status: 'completed' });
+      await fetchTasks();
     } catch (error) {
       console.error('Error marking task as done:', error);
     }
@@ -52,15 +41,8 @@ const Projects: React.FC = () => {
 
   const handleUnmarkDone = async (task: Task) => {
     try {
-      const response = await fetch(`/api/tasks/${task.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...task, status: 'pending' })
-      });
-      
-      if (response.ok) {
-        await fetchTasks();
-      }
+      await taskService.updateTask(task.id, { ...task, status: 'pending' });
+      await fetchTasks();
     } catch (error) {
       console.error('Error unmarking task as done:', error);
     }
@@ -79,17 +61,10 @@ const Projects: React.FC = () => {
 
   const handleSaveEdit = async (updatedTask: Task) => {
     try {
-      const response = await fetch(`/api/tasks/${updatedTask.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedTask)
-      });
-      
-      if (response.ok) {
-        setEditDialogOpen(false);
-        setEditingTask(null);
-        await fetchTasks();
-      }
+      await taskService.updateTask(updatedTask.id, updatedTask);
+      setEditDialogOpen(false);
+      setEditingTask(null);
+      await fetchTasks();
     } catch (error) {
       console.error('Error updating task:', error);
     }
@@ -101,13 +76,8 @@ const Projects: React.FC = () => {
     }
     
     try {
-      const response = await fetch(`/api/tasks/${task.id}`, {
-        method: 'DELETE'
-      });
-      
-      if (response.ok) {
-        await fetchTasks();
-      }
+      await taskService.deleteTask(task.id);
+      await fetchTasks();
     } catch (error) {
       console.error('Error deleting task:', error);
     }
@@ -120,15 +90,8 @@ const Projects: React.FC = () => {
 
   const handleStop = async (task: Task) => {
     try {
-      const response = await fetch(`/api/tasks/${task.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...task, status: 'pending' })
-      });
-      
-      if (response.ok) {
-        await fetchTasks();
-      }
+      await taskService.updateTask(task.id, { ...task, status: 'pending' });
+      await fetchTasks();
     } catch (error) {
       console.error('Error stopping task:', error);
     }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Typography, Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid } from '@mui/material';
 import Calendar from '../components/Calendar';
 import { Task } from '../types';
+import { taskService } from '../services/taskService';
 
 const CalendarView: React.FC = () => {
   const [taskDetails, setTaskDetails] = useState<Task | null>(null);
@@ -13,12 +14,9 @@ const CalendarView: React.FC = () => {
 
   const handleTaskSelect = async (taskId: string) => {
     try {
-      const response = await fetch(`/api/tasks/${taskId}`);
-      if (response.ok) {
-        const result = await response.json();
-        setTaskDetails(result.data);
-        setDialogOpen(true);
-      }
+      const task = await taskService.getTaskById(taskId);
+      setTaskDetails(task);
+      setDialogOpen(true);
     } catch (error) {
       console.error('Failed to fetch task details:', error);
     }

@@ -50,7 +50,7 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
       if (response.ok) {
         // Filter out the current task and completed tasks
         const filteredTasks = result.data.filter((task: Task) => 
-          task.id !== taskId && task.status !== 'completed'
+          task.id !== taskId && task.status !== 'COMPLETED'
         );
         setAvailableTasks(filteredTasks);
       }

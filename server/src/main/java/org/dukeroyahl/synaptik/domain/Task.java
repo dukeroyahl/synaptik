@@ -41,6 +41,9 @@ public class Task extends BaseEntity {
     public List<TaskAnnotation> annotations = new ArrayList<>();
     public List<ObjectId> depends = new ArrayList<>();
     
+    // Store the original user input for reference
+    public String originalInput;
+    
     public void start() {
         this.status = TaskStatus.ACTIVE;
         addAnnotation("Task started");

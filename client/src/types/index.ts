@@ -15,6 +15,7 @@ export interface Task {
     description: string
   }>
   depends: string[]
+  originalInput?: string
   createdAt: string
   updatedAt: string
 }

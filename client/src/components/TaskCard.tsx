@@ -19,13 +19,13 @@ import { Task } from '../types';
 import { 
   generateTaskId,
   getTaskCardClass,
-  formatTaskDate,
   isTaskOverdue,
   getPriorityColor,
   getStatusColor,
-  getTimeRemaining,
-  formatTag
+  formatTag,
+  toSentenceCase
 } from '../utils/taskUtils';
+import { getTimeRemaining } from '../utils/dateUtils';
 import TaskActions from './TaskActions';
 
 interface TaskCardProps {
@@ -57,7 +57,14 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
   const theme = useTheme();
   
   // Memoize taskId calculation
-  const taskId = useMemo(() => generateTaskId(task), [task.id, task.title]);
+  const taskId = useMemo(() => {
+    try {
+      return generateTaskId(task);
+    } catch (error) {
+      console.error('Error generating task ID for task', task.id, error);
+      return `TASK-${task.id.slice(0, 8)}`;
+    }
+  }, [task.id, task.title]);
   
   // Memoize glass color calculation to prevent recalculating on every render
   const glassColor = useMemo(() => {
@@ -95,22 +102,43 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
   }, [task.priority, task.status]);
 
   // Memoize time remaining calculation
-  const timeRemaining = useMemo(() => 
-    task.dueDate ? getTimeRemaining(task.dueDate) : null, 
-    [task.dueDate]
-  );
+  const timeRemaining = useMemo(() => {
+    try {
+      return task.dueDate ? getTimeRemaining(task.dueDate) : null;
+    } catch (error) {
+      console.error('Error calculating time remaining for task', task.id, error);
+      return null;
+    }
+  }, [task.dueDate, task.id]);
 
   // Memoize overdue status check
-  const isOverdue = useMemo(() => 
-    task.dueDate ? isTaskOverdue(task.dueDate) : false, 
-    [task.dueDate]
-  );
+  const isOverdue = useMemo(() => {
+    try {
+      return task.dueDate ? isTaskOverdue(task.dueDate) : false;
+    } catch (error) {
+      console.error('Error checking overdue status for task', task.id, error);
+      return false;
+    }
+  }, [task.dueDate, task.id]);
 
-  // Memoize formatted date
-  const formattedDate = useMemo(() => 
-    task.dueDate ? formatTaskDate(task.dueDate) : null, 
-    [task.dueDate]
-  );
+  // Memoize actual date (always shows the calendar date, not relative time)
+  const actualDate = useMemo(() => {
+    if (!task.dueDate) return null;
+    
+    try {
+      const date = new Date(task.dueDate);
+      // Always format as actual date regardless of how close it is
+      return date.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        weekday: 'short'
+      });
+    } catch (error) {
+      console.error('Error formatting actual date for task', task.id, error);
+      return task.dueDate;
+    }
+  }, [task.dueDate, task.id]);
 
   // Memoize event handlers to prevent child re-renders
   const handleEditDate = useCallback(() => {
@@ -162,7 +190,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
         '&:hover': {
           transform: 'translateY(-2px)',
           boxShadow: '0 12px 48px rgba(0,0,0,0.7), 0 6px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.25)',
-          border: `1px solid ${borderColor.replace(/0\.\d+/, '0.3')}`,
+          border: `1px solid ${borderColor.replace(/0\.\d+/, '0.4')}`,
           backdropFilter: 'blur(24px) saturate(2)',
           WebkitBackdropFilter: 'blur(24px) saturate(2)',
         },
@@ -277,7 +305,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
                     color: 'text.secondary'
                   }}
                 >
-                  {task.assignee}
+                  {toSentenceCase(task.assignee)}
                 </Typography>
               </Box>
             )}
@@ -302,7 +330,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.3 }}>
             {/* Title and Priority Row */}
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-              {task.priority && (
+              {task.priority && task.priority !== 'NONE' && (
                 <Chip
                   label={task.priority}
                   size="small"
@@ -334,6 +362,23 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
               </Typography>
             </Box>
             
+            {/* Original Input - shown if different from title */}
+            {task.originalInput && task.originalInput !== task.title && (
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  fontSize: '0.75rem',
+                  color: 'text.secondary',
+                  opacity: 0.7,
+                  fontStyle: 'italic',
+                  mt: 0.2,
+                  lineHeight: 1.2,
+                }}
+              >
+                "{task.originalInput}"
+              </Typography>
+            )}
+            
             {/* Description */}
             {task.description && (
               <Typography 
@@ -343,7 +388,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
                   fontSize: '0.85rem', 
                   lineHeight: 1.4,
                   fontStyle: 'italic',
-                  ml: task.priority ? 4 : 0
+                  ml: (task.priority && task.priority !== 'NONE') ? 4 : 0
                 }}
               >
                 {task.description}
@@ -351,8 +396,8 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
             )}
 
             {/* Tags - Moved from bottom info row */}
-            {task.tags.length > 0 && (
-              <Box sx={{ display: 'flex', gap: 0.5, ml: task.priority ? 4 : 0, mt: 0.1 }}>
+            {task.tags && task.tags.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 0.5, ml: (task.priority && task.priority !== 'NONE') ? 4 : 0, mt: 0.1 }}>
                 {task.tags.slice(0, 3).map((tag) => (
                   <Chip
                     key={tag}
@@ -376,8 +421,8 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
             )}
           </Box>
 
-          {/* Right Side: Time Remaining and Date - Spanning Vertically (Including Tags) */}
-          {(task.dueDate && timeRemaining) ? (
+          {/* Right Side: Due Date - Spanning Vertically (Including Tags) */}
+          {task.dueDate ? (
             <Box 
               onClick={handleEditDate}
               sx={{ 
@@ -393,7 +438,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
                 padding: '0.25em 0.5em',
                 borderRadius: '0.375em',
                 flexShrink: 0,
-                minHeight: task.description || task.tags.length > 0 ? '5em' : task.description ? '3.75em' : '2.5em', // Relative height
+                minHeight: task.description || (task.tags && task.tags.length > 0) ? '4.5em' : task.description ? '3.5em' : '2.5em', // Reduced height for 2 lines
                 border: `1px solid ${
                   isOverdue ? 'rgba(255,107,107,0.3)' : 
                   timeRemaining?.includes('today') ? 'rgba(249,194,60,0.3)' : 
@@ -418,12 +463,12 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
                 } : {}
               }}
             >
-              {/* Time Remaining */}
+              {/* Time Remaining - Primary Display */}
               <Typography 
                 variant="h6" 
                 sx={{ 
-                  fontSize: '0.95em',
-                  fontWeight: 600,
+                  fontSize: '0.9em',
+                  fontWeight: 700,
                   color: isOverdue ? '#ff6b6b' : 
                          timeRemaining?.includes('today') ? '#f9c23c' : 
                          timeRemaining?.includes('1 day left') ? '#f9c23c' : 
@@ -431,33 +476,27 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
                   textAlign: 'center',
                   lineHeight: 1.1,
                   whiteSpace: 'nowrap',
+                  mb: 0.5,
                 }}
               >
-                {timeRemaining}
+                {timeRemaining || 'Due Soon'}
               </Typography>
               
-              {/* Date with Calendar Icon */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.125em' }}>
-                <DueIcon sx={{ 
-                  fontSize: '0.75em', 
+              {/* Full Date Display - Always Show Actual Date */}
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  fontSize: '0.75em',
+                  fontWeight: 500,
                   color: isOverdue ? '#ff6b6b' : '#e6edf3',
-                  opacity: 0.8
-                }} />
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    fontSize: '0.75em',
-                    fontWeight: 500,
-                    color: isOverdue ? '#ff6b6b' : '#e6edf3',
-                    textAlign: 'center',
-                    lineHeight: 1,
-                    opacity: 0.8,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {formattedDate}
-                </Typography>
-              </Box>
+                  textAlign: 'center',
+                  lineHeight: 1.1,
+                  whiteSpace: 'nowrap',
+                  opacity: 0.9,
+                }}
+              >
+                 {actualDate}
+              </Typography>
             </Box>
           ) : (
             /* Add Due Date Chip - Only show if onEditDate is available */
@@ -474,7 +513,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
                   padding: '0.25em 0.5em',
                   borderRadius: '0.375em',
                   flexShrink: 0,
-                  minHeight: task.description || task.tags.length > 0 ? '5em' : task.description ? '3.75em' : '2.5em',
+                  minHeight: task.description || (task.tags && task.tags.length > 0) ? '4.5em' : task.description ? '3.5em' : '2.5em',
                   border: '1px dashed rgba(88,166,255,0.3)',
                   boxShadow: '0 0.0625em 0.1875em rgba(0,0,0,0.1)',
                   cursor: 'pointer',
@@ -529,35 +568,33 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
         </Box>
 
         {/* Compact Info Row: Dependencies Only - Only show if content exists */}
-        {(task.depends && task.depends.length > 0) && (
+        {(task.depends && Array.isArray(task.depends) && task.depends.length > 0) && (
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.6, alignItems: 'center', mt: 0.3 }}>
             {/* Dependencies */}
-            {task.depends && task.depends.length > 0 && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <DependencyIcon sx={{ fontSize: 14, color: 'warning.main' }} />
-                <Typography 
-                  variant="caption" 
-                  sx={{ fontSize: '0.75rem', color: 'warning.main', fontWeight: 'medium' }}
-                >
-                  {task.depends.length} dep{task.depends.length !== 1 ? 's' : ''}
-                </Typography>
-                {onViewDependencies && (
-                  <Chip
-                    label="View"
-                    size="small"
-                    variant="outlined"
-                    color="warning"
-                    sx={{ 
-                      fontSize: '0.65rem', 
-                      height: 16,
-                      cursor: 'pointer',
-                      ml: 0.5
-                    }}
-                    onClick={handleViewDependencies}
-                  />
-                )}
-              </Box>
-            )}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <DependencyIcon sx={{ fontSize: 14, color: 'warning.main' }} />
+              <Typography 
+                variant="caption" 
+                sx={{ fontSize: '0.75rem', color: 'warning.main', fontWeight: 'medium' }}
+              >
+                {task.depends.length} dep{task.depends.length !== 1 ? 's' : ''}
+              </Typography>
+              {onViewDependencies && (
+                <Chip
+                  label="View"
+                  size="small"
+                  variant="outlined"
+                  color="warning"
+                  sx={{ 
+                    fontSize: '0.65rem', 
+                    height: 16,
+                    cursor: 'pointer',
+                    ml: 0.5
+                  }}
+                  onClick={handleViewDependencies}
+                />
+              )}
+            </Box>
           </Box>
         )}
       </CardContent>

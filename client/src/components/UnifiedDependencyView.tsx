@@ -30,7 +30,7 @@ import {
 import { Task } from '../types';
 import TaskEditDialog from './TaskEditDialog';
 import UnifiedTaskGraph from './UnifiedTaskGraph';
-import { formatTaskDate, getPriorityColor } from '../utils/taskUtils';
+import { formatTaskDate, getPriorityColor, toSentenceCase } from '../utils/taskUtils';
 
 interface UnifiedDependencyViewProps {
   open: boolean;
@@ -149,7 +149,7 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <PersonIcon sx={{ fontSize: '0.8rem', color: 'text.secondary' }} />
                 <Typography variant="caption" color="text.secondary">
-                  {task.assignee}
+                  {toSentenceCase(task.assignee)}
                 </Typography>
               </Box>
             )}

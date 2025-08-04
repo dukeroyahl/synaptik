@@ -14,6 +14,7 @@ import {
   Tabs,
   Tab,
   Grid,
+  Typography,
 } from '@mui/material';
 import { Task } from '../types';
 import { formatTag } from '../utils/taskUtils';
@@ -122,6 +123,26 @@ const TaskEditDialog: React.FC<TaskEditDialogProps> = ({
               fullWidth
               required
             />
+            
+            {/* Show original input if available and different from title */}
+            {task?.originalInput && task.originalInput !== task.title && (
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  fontSize: '0.8rem',
+                  color: 'text.secondary',
+                  opacity: 0.8,
+                  fontStyle: 'italic',
+                  backgroundColor: 'action.hover',
+                  padding: '4px 8px',
+                  borderRadius: 1,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                Original input: "{task.originalInput}"
+              </Typography>
+            )}
             
             <TextField
               label="Description"

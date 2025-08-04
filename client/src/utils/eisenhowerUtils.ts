@@ -1,22 +1,25 @@
 import { Task } from '../types';
 import { darkPalette } from './themeUtils';
+import { parseBackendDate } from './dateUtils';
 
 // Determine if a task is urgent based on due date
 export function isUrgent(task: Task): boolean {
   if (!task.dueDate) return false;
   
-  // Handle both full ISO strings and date-only strings
-  let due: Date;
-  if (task.dueDate.includes('T')) {
-    due = new Date(task.dueDate);
-  } else {
-    // Date-only string like "2024-12-18"
-    due = new Date(task.dueDate + 'T23:59:59'); // End of day
+  try {
+    const due = parseBackendDate(task.dueDate);
+    
+    // Set to end of day for date-only strings
+    if (task.dueDate.length === 10 || !task.dueDate.includes('T')) {
+      due.setHours(23, 59, 59, 999);
+    }
+    
+    const now = new Date();
+    const diff = (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+    return diff <= 30; // due within 30 days (including today) or overdue
+  } catch {
+    return false;
   }
-  
-  const now = new Date();
-  const diff = (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-  return diff <= 30; // due within 30 days (including today) or overdue
 }
 
 // Determine if a task is important based on priority

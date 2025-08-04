@@ -77,6 +77,9 @@ public class NaturalLanguageParser {
     private Task parseWithStanfordNLP(String input, String userTimezone) {
         Task task = new Task();
         
+        // Store the original user input
+        task.originalInput = input;
+        
         // Process with Stanford NLP
         NLPResult nlpResult = nlpService.processText(input);
         
@@ -100,32 +103,47 @@ public class NaturalLanguageParser {
     private String extractTitle(String input, NLPResult nlpResult) {
         String title = input;
         
-        // Remove time expressions and entities for cleaner title
+        // Only remove time expressions that are at the end of the sentence or standalone
+        // This preserves context like "meeting in 2 weeks" while removing "... tomorrow"
         for (TimeInfo timeInfo : nlpResult.timeExpressions) {
-            title = title.replace(timeInfo.value, "").trim();
+            String timeValue = timeInfo.value;
+            
+            // Only remove if the time expression is:
+            // 1. At the end of the input (possibly with trailing spaces/punctuation)
+            // 2. Standalone absolute dates like "2024-08-19" or "tomorrow" 
+            if (title.trim().endsWith(timeValue) || 
+                timeValue.matches("\\d{4}-\\d{2}-\\d{2}|today|tomorrow|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday")) {
+                title = title.replace(timeValue, "").trim();
+            }
         }
         
         // Remove priority words
         Matcher priorityMatcher = PRIORITY_WORDS.matcher(title);
         title = priorityMatcher.replaceAll("").trim();
         
-        // Clean up extra spaces
+        // Clean up extra spaces and trailing prepositions
         title = title.replaceAll("\\s+", " ").trim();
+        title = title.replaceAll("\\s+(in|on|at|by)\\s*$", "").trim();
         
         return title.isEmpty() ? "Untitled Task" : title;
     }
     
     private String extractAssignee(String input, NLPResult nlpResult) {
-        // First try to find PERSON entities from Stanford NLP
+        // First try to find PERSON entities from Stanford NLP, but filter out time words
         for (EntityInfo entity : nlpResult.entities) {
             if ("PERSON".equals(entity.type)) {
-                return entity.value;
+                String personName = entity.value;
+                // Remove common time words from person names
+                personName = personName.replaceAll("\\s+(?:tomorrow|today|yesterday|tonight|morning|afternoon|evening|next|last|week|month|year|\\d+)\\b", "").trim();
+                if (!personName.isEmpty() && personName.length() > 0) {
+                    return personName;
+                }
             }
         }
         
         // Fallback to pattern matching
         Pattern assigneePattern = Pattern.compile(
-            "\\b(?:with|assign(?:ed)?\\s+to|for|call|meet(?:ing)?\\s+with)\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?)(?=\\s+(?:next|tomorrow|today|yesterday|at|on|in|a|the|over|about|for|\\d)|$)", 
+            "\\b(?:with|assign(?:ed)?\\s+to|for|call|meet(?:ing)?\\s+with)\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?)(?=\\s+(?:tomorrow|today|yesterday|next\\s+\\w+|at\\s+|on\\s+|in\\s+|\\d)|\\s*$)", 
             Pattern.CASE_INSENSITIVE
         );
         Matcher matcher = assigneePattern.matcher(input);
