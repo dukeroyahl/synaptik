@@ -164,7 +164,7 @@ public class NaturalLanguageParser {
         
         // Fallback to manual pattern matching
         Pattern datePattern = Pattern.compile(
-            "\\b(today|tomorrow|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next\\s+\\w+|in\\s+a\\s+week|a\\s+week\\s+from\\s+now|next\\s+week|\\d+\\s+weeks?\\s+from\\s+now|in\\s+\\d+\\s+weeks?|\\d+\\s+days?\\s+from\\s+now|in\\s+\\d+\\s+days?|\\d+/\\d+)\\b",
+            "\\b(day\\s+after\\s+tomorrow|today|tomorrow|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next\\s+\\w+|in\\s+a\\s+week|a\\s+week\\s+from\\s+now|next\\s+week|\\d+\\s+weeks?\\s+from\\s+now|in\\s+\\d+\\s+weeks?|\\d+\\s+days?\\s+from\\s+now|in\\s+\\d+\\s+days?|\\d+/\\d+)\\b",
             Pattern.CASE_INSENSITIVE
         );
         Matcher matcher = datePattern.matcher(input);
@@ -251,6 +251,7 @@ public class NaturalLanguageParser {
         return switch (expr) {
             case "today" -> DateTimeUtils.todayEndInUserTimezone(userTimezone);
             case "tomorrow" -> DateTimeUtils.tomorrowInUserTimezone(userTimezone);
+            case "day after tomorrow" -> DateTimeUtils.addDaysInUserTimezone(2, userTimezone);
             case "yesterday" -> DateTimeUtils.yesterdayInUserTimezone(userTimezone);
             case "monday" -> DateTimeUtils.nextWeekdayInUserTimezone(1, userTimezone);
             case "tuesday" -> DateTimeUtils.nextWeekdayInUserTimezone(2, userTimezone);
@@ -297,6 +298,7 @@ public class NaturalLanguageParser {
         return switch (datePart.toLowerCase().trim()) {
             case "today" -> DateTimeUtils.todayEndInUserTimezone(userTimezone);
             case "tomorrow" -> DateTimeUtils.tomorrowInUserTimezone(userTimezone);
+            case "day after tomorrow" -> DateTimeUtils.addDaysInUserTimezone(2, userTimezone);
             case "yesterday" -> DateTimeUtils.yesterdayInUserTimezone(userTimezone);
             case "monday" -> DateTimeUtils.nextWeekdayInUserTimezone(1, userTimezone);
             case "tuesday" -> DateTimeUtils.nextWeekdayInUserTimezone(2, userTimezone);
