@@ -231,8 +231,8 @@ jobs:
           cd server
           
           if [ "${{ matrix.task }}" = "test" ]; then
-            # Single command with Quarkus JaCoCo extension
-            gradle clean test -Dquarkus.jacoco.enabled=true --parallel --build-cache
+            # Single command with Quarkus JaCoCo extension (enabled via application.properties)
+            gradle clean test --parallel --build-cache
           elif [ "${{ matrix.task }}" = "build" ]; then
             gradle build -Dquarkus.package.jar.type=uber-jar --parallel --build-cache
           fi

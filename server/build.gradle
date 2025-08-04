@@ -64,10 +64,7 @@ test {
     systemProperty "java.util.logging.manager", "org.jboss.logmanager.LogManager"
     useJUnitPlatform()
     
-    // Enable JaCoCo via system property - using Quarkus JaCoCo extension
-    systemProperty "quarkus.jacoco.enabled", "true"
-    systemProperty "quarkus.jacoco.output-directory", "${buildDir}/jacoco"
-    systemProperty "quarkus.jacoco.report", "true"
+    // JaCoCo is configured via application.properties using Quarkus extension
 }
 
 compileJava {
