@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'io.quarkus'
+    id 'com.adarshr.test-logger' version '4.0.0'
 }
 
 repositories {
@@ -40,9 +41,6 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
 }
 
-test {
-    systemProperty "java.util.logging.manager", "org.jboss.logmanager.LogManager"
-}
 compileJava {
     options.encoding = 'UTF-8'
     options.compilerArgs << '-parameters'
@@ -56,8 +54,13 @@ test {
     systemProperty "java.util.logging.manager", "org.jboss.logmanager.LogManager"
     useJUnitPlatform()
     
-    // Enable JaCoCo via system property
-    systemProperty "quarkus.jacoco.enabled", "true"
-    systemProperty "quarkus.jacoco.output-directory", "${buildDir}/jacoco"
-    systemProperty "quarkus.jacoco.report", "true"
+    // Test logger configuration
+    testlogger {
+        theme 'mocha'
+        showExceptions true
+        showStackTraces true
+        slowThreshold 2000
+        showSummary true
+        logLevel 'lifecycle'
+    }
 }
