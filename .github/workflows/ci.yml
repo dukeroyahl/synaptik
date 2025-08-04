@@ -119,12 +119,17 @@ jobs:
           npm run lint -- --max-warnings 0
           npm run type-check
 
+      - name: Setup Gradle Wrapper
+        if: env.RUN_CHECK == 'true' && matrix.check == 'backend-compile'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+
       - name: Backend fast compile
         if: env.RUN_CHECK == 'true' && matrix.check == 'backend-compile'
         run: |
           cd server
-          chmod +x gradlew
-          ./gradlew compileJava compileTestJava --no-daemon
+          gradle compileJava compileTestJava --no-daemon
 
       - name: Basic security scan
         if: env.RUN_CHECK == 'true' && matrix.check == 'security-basic'
@@ -212,21 +217,17 @@ jobs:
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           fi
 
+      - name: Setup Gradle Wrapper
+        if: matrix.component == 'backend' && needs.workflow-context.outputs.backend_changed == 'true'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
 
       - name: Backend tasks
         if: matrix.component == 'backend' && needs.workflow-context.outputs.backend_changed == 'true'
         run: |
           cd server
-          chmod +x gradlew
-          
-          if [ "${{ matrix.task }}" = "test" ]; then
-            if ! ./gradlew clean test jacocoTestReport 2>/dev/null; then
-              echo "⚠️ JaCoCo coverage failed, running tests without coverage..."
-              ./gradlew clean test
-            fi
-          elif [ "${{ matrix.task }}" = "build" ]; then
-            ./gradlew build -Dquarkus.package.type=uber-jar
-          fi
+          gradle build test
 
       - name: Upload test artifacts
         if: matrix.task == 'test' && always()
