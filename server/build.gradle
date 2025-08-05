@@ -54,6 +54,9 @@ test {
     systemProperty "java.util.logging.manager", "org.jboss.logmanager.LogManager"
     useJUnitPlatform()
     
+    // Increase heap size for memory-intensive tests
+    jvmArgs '-Xmx1g', '-XX:MaxMetaspaceSize=256m'
+    
     // Test logger configuration
     testlogger {
         theme 'mocha'
