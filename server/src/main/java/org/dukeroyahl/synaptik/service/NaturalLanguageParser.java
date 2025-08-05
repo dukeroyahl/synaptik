@@ -47,11 +47,6 @@ public class NaturalLanguageParser {
         Pattern.CASE_INSENSITIVE
     );
     
-    private static final Pattern LOCATION_PATTERNS = Pattern.compile(
-        "\\b(at|in|near|by)\\s+(?:the\\s+)?(office|home|library|restaurant|cafe|meeting\\s+room|conference\\s+room|[A-Z][a-zA-Z\\s]+(?:Building|Room|Street|Avenue|Drive))\\b",
-        Pattern.CASE_INSENSITIVE
-    );
-    
     public Task parseNaturalLanguage(String input) {
         return parseNaturalLanguage(input, null);
     }
@@ -197,30 +192,62 @@ public class NaturalLanguageParser {
     }
     
     private String extractAssignee(String input, NLPResult nlpResult) {
-        // First try to find PERSON entities from OpenNLP, but filter out time and location words
+        // Trust OpenNLP PERSON entities first - they're usually more accurate than regex
         for (EntityInfo entity : nlpResult.entities) {
             if ("PERSON".equals(entity.type)) {
                 String personName = entity.value;
-                // Remove common time and location words from person names
-                personName = personName.replaceAll("\\s+(?:tomorrow|today|yesterday|tonight|morning|afternoon|evening|next|last|week|month|year|at|in|on|the|office|home|\\d+)\\b", "").trim();
-                // Also remove prepositions that might be attached
-                personName = personName.replaceAll("\\s+(?:at|in|on|by|with|for)$", "").trim();
-                if (!personName.isEmpty() && personName.length() > 1 && !personName.matches("\\d+")) {
+                // Clean up common noise that OpenNLP might include
+                personName = cleanPersonName(personName);
+                if (isValidPersonName(personName)) {
                     return personName;
                 }
             }
         }
         
-        // Enhanced fallback pattern matching - more precise
+        // Only use regex as a last resort for cases where OpenNLP fails completely
+        return extractAssigneeRegexFallback(input);
+    }
+    
+    /**
+     * Clean person names extracted by OpenNLP
+     */
+    private String cleanPersonName(String personName) {
+        if (personName == null) return null;
+        
+        // Remove common time and location words that might get attached
+        personName = personName.replaceAll("\\s+(?:tomorrow|today|yesterday|tonight|morning|afternoon|evening|next|last|week|month|year|at|in|on|the|office|home|\\d+)\\b", "").trim();
+        
+        // Remove prepositions that might be attached (this fixes "with team" -> "team")
+        personName = personName.replaceAll("^(?:with|at|in|on|by|for)\\s+", "").trim();
+        personName = personName.replaceAll("\\s+(?:at|in|on|by|with|for)$", "").trim();
+        
+        return personName;
+    }
+    
+    /**
+     * Validate if a cleaned name looks like a valid person name
+     */
+    private boolean isValidPersonName(String name) {
+        if (name == null || name.isEmpty() || name.length() < 2) return false;
+        if (name.matches("\\d+")) return false; // No pure numbers
+        if (name.toLowerCase().matches(".*(office|home|library|restaurant|cafe|room|building|street|avenue|drive).*")) return false;
+        return true;
+    }
+    
+    /**
+     * Regex fallback for assignee extraction - only when OpenNLP fails
+     */
+    private String extractAssigneeRegexFallback(String input) {
+        // More precise pattern that avoids the "with team" issue
         Pattern assigneePattern = Pattern.compile(
-            "\\b(?:call|meet(?:ing)?(?:\\s+with)?|with|assign(?:ed)?\\s+to|for)\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?)(?=\\s+(?:at\\s+the|at\\s+|in\\s+the|in\\s+|on\\s+|about|regarding|tomorrow|today|yesterday|next\\s+\\w+|\\d)|\\s*$)", 
+            "\\b(?:call|meet(?:ing)?|assigned?\\s+to|for)\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)*)(?=\\s+(?:at\\s+|in\\s+|on\\s+|about|regarding|tomorrow|today|yesterday|next\\s+|\\d)|\\s*$)", 
             Pattern.CASE_INSENSITIVE
         );
+        
         Matcher matcher = assigneePattern.matcher(input);
         if (matcher.find()) {
             String assignee = matcher.group(1);
-            // Additional filtering to avoid location words
-            if (!assignee.toLowerCase().matches(".*(office|home|library|restaurant|cafe|room|building|street|avenue|drive|at|in|on).*")) {
+            if (isValidPersonName(assignee)) {
                 return assignee;
             }
         }
@@ -311,19 +338,15 @@ public class NaturalLanguageParser {
     }
     
     private String extractLocation(String input, NLPResult nlpResult) {
-        // Check OpenNLP location entities first
+        // Trust OpenNLP location entities first - the enhanced detection should find more
         for (EntityInfo entity : nlpResult.entities) {
             if ("LOCATION".equals(entity.type)) {
                 return entity.value;
             }
         }
         
-        // Fallback to regex patterns
-        Matcher locationMatcher = LOCATION_PATTERNS.matcher(input);
-        if (locationMatcher.find()) {
-            return locationMatcher.group(2); // The location part
-        }
-        
+        // The OpenNLP service now handles semantic location detection,
+        // so we don't need extensive regex fallbacks here anymore
         return null;
     }
     
@@ -395,14 +418,6 @@ public class NaturalLanguageParser {
         }
         
         return null;
-    }
-    
-    private TaskPriority extractPriority(String input, NLPResult nlpResult) {
-        // This method is kept for backward compatibility but delegates to the enhanced version
-        CompoundTaskInfo dummyInfo = new CompoundTaskInfo();
-        dummyInfo.originalInput = input;
-        dummyInfo.mainTask = input;
-        return extractPriorityWithContext(input, nlpResult, dummyInfo);
     }
     
     private List<String> extractTags(String input, NLPResult nlpResult) {
