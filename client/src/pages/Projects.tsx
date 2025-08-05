@@ -32,7 +32,7 @@ const Projects: React.FC = () => {
 
   const handleMarkDone = async (task: Task) => {
     try {
-      await taskService.updateTask(task.id, { ...task, status: 'completed' });
+      await taskService.updateTask(task.id, { ...task, status: 'COMPLETED' });
       await fetchTasks();
     } catch (error) {
       console.error('Error marking task as done:', error);
@@ -41,7 +41,7 @@ const Projects: React.FC = () => {
 
   const handleUnmarkDone = async (task: Task) => {
     try {
-      await taskService.updateTask(task.id, { ...task, status: 'pending' });
+      await taskService.updateTask(task.id, { ...task, status: 'PENDING' });
       await fetchTasks();
     } catch (error) {
       console.error('Error unmarking task as done:', error);
@@ -90,7 +90,7 @@ const Projects: React.FC = () => {
 
   const handleStop = async (task: Task) => {
     try {
-      await taskService.updateTask(task.id, { ...task, status: 'pending' });
+      await taskService.updateTask(task.id, { ...task, status: 'PENDING' });
       await fetchTasks();
     } catch (error) {
       console.error('Error stopping task:', error);

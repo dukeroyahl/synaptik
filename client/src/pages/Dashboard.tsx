@@ -39,7 +39,7 @@ const Dashboard = memo(() => {
   const [assigneeFilter, setAssigneeFilter] = useState<string>('')
   const [availableAssignees, setAvailableAssignees] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
-  const [statusFilter, setStatusFilter] = useState<'PENDING' | 'COMPLETED' | 'overdue' | 'today' | 'all'>('PENDING')
+  const [statusFilter, setStatusFilter] = useState<'pending' | 'completed' | 'overdue' | 'today' | 'all'>('pending')
   const [refreshCounter, setRefreshCounter] = useState(0)
   
   // Quick filters state
@@ -99,12 +99,12 @@ const Dashboard = memo(() => {
     setAssigneeFilter('');
   }, []);
 
-  const handleStatusFilterChange = useCallback((filter: 'PENDING' | 'COMPLETED' | 'overdue' | 'today' | 'all') => {
+  const handleStatusFilterChange = useCallback((filter: 'pending' | 'completed' | 'overdue' | 'today' | 'all') => {
     setStatusFilter(filter);
     // Also update the tab if switching between pending/completed
-    if (filter === 'COMPLETED') {
+    if (filter === 'completed') {
       setActiveTab(1);
-    } else if (filter === 'PENDING' || filter === 'overdue' || filter === 'today') {
+    } else if (filter === 'pending' || filter === 'overdue' || filter === 'today') {
       setActiveTab(0);
     }
   }, []);
@@ -113,16 +113,19 @@ const Dashboard = memo(() => {
     setActiveTab(newValue);
     // Update status filter based on tab
     if (newValue === 0) {
-      setStatusFilter('PENDING');
+      setStatusFilter('pending');
     } else if (newValue === 1) {
-      setStatusFilter('COMPLETED');
+      setStatusFilter('completed');
     }
   }, []);
 
   // Memoize active filter calculation
   const activeFilter = useMemo(() => {
     if (activeTab === 1) return 'COMPLETED';
-    return statusFilter === 'all' ? 'PENDING' : statusFilter;
+    if (statusFilter === 'all') return 'PENDING';
+    if (statusFilter === 'pending') return 'PENDING';
+    if (statusFilter === 'completed') return 'COMPLETED';
+    return statusFilter; // overdue, today
   }, [activeTab, statusFilter]);
 
   // Memoize combined assignee filter
@@ -348,7 +351,7 @@ const Dashboard = memo(() => {
                     </Grid>
                   </Grid>
                   
-                  {(assigneeFilter || (statusFilter !== 'PENDING' && statusFilter !== 'COMPLETED')) && (
+                  {(assigneeFilter || (statusFilter !== 'pending' && statusFilter !== 'completed')) && (
                     <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
                       <Typography variant="body2">Active filters:</Typography>
                       {assigneeFilter && (
@@ -359,11 +362,11 @@ const Dashboard = memo(() => {
                           icon={<PersonIcon fontSize="small" />}
                         />
                       )}
-                      {statusFilter !== 'PENDING' && statusFilter !== 'COMPLETED' && (
+                      {statusFilter !== 'pending' && statusFilter !== 'completed' && (
                         <Chip 
                           size="small" 
                           label={statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} 
-                          onDelete={() => setStatusFilter(activeTab === 0 ? 'PENDING' : 'COMPLETED')}
+                          onDelete={() => setStatusFilter(activeTab === 0 ? 'pending' : 'completed')}
                           color="primary"
                           variant="outlined"
                         />
@@ -376,7 +379,7 @@ const Dashboard = memo(() => {
               {activeTab === 0 && (
                 <TaskList 
                   key={`active-${refreshCounter}`}
-                  filter={activeFilter as 'PENDING' | 'active' | 'overdue' | 'today' | 'COMPLETED' | 'all'} 
+                  filter={activeFilter as 'PENDING' | 'ACTIVE' | 'overdue' | 'today' | 'COMPLETED' | 'all'} 
                   onTaskUpdate={handleTaskCaptured}
                   assigneeFilter={combinedAssigneeFilter}
                   projectFilter={projectFilter}

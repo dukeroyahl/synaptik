@@ -55,7 +55,13 @@ test {
     useJUnitPlatform()
     
     // Increase heap size for memory-intensive tests
-    jvmArgs '-Xmx1g', '-XX:MaxMetaspaceSize=256m'
+    jvmArgs '-Xmx2g', '-Xms1g', '-XX:MaxMetaspaceSize=512m', '-XX:+UseG1GC'
+    
+    // Show memory information
+    doFirst {
+        println "Test JVM Args: ${jvmArgs}"
+        println "Max Heap: 2GB, Initial Heap: 1GB, Max Metaspace: 512MB"
+    }
     
     // Test logger configuration
     testlogger {
