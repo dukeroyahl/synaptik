@@ -82,9 +82,9 @@ docker pull roudranil/synaptik/backend:latest
 ```
 
 ### 🔥 Native MCP Binaries (GitHub Releases)
-[![macOS ARM64](https://img.shields.io/badge/macOS%20ARM64-Available-success?logo=apple&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
-[![Linux x86_64](https://img.shields.io/badge/Linux%20x86__64-Available-success?logo=linux&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
-[![Linux ARM64](https://img.shields.io/badge/Linux%20ARM64-Available-success?logo=linux&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
+[![macOS ARM64](https://img.shields.io/badge/macOS%20ARM64-Available-success?logo=apple&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-darwin-arm64)
+[![Linux x86_64](https://img.shields.io/badge/Linux%20x86__64-Available-success?logo=linux&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux-amd64)
+[![Linux ARM64](https://img.shields.io/badge/Linux%20ARM64-Available-success?logo=linux&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux-arm64)
 
 ```bash
 # Native binaries available in v0.0.4+ - or build from source:
