@@ -1,15 +1,16 @@
 package org.dukeroyahl.synaptik.domain;
 
-import java.time.ZonedDateTime;
+import java.time.LocalDateTime;
 
 public class TaskAnnotation {
-    public ZonedDateTime createdAt;
+    // Align with server domain: field name timestamp and LocalDateTime type
+    public LocalDateTime timestamp;
     public String description;
     
     public TaskAnnotation() {}
     
-    public TaskAnnotation(ZonedDateTime createdAt, String description) {
-        this.createdAt = createdAt;
+    public TaskAnnotation(LocalDateTime timestamp, String description) {
+        this.timestamp = timestamp;
         this.description = description;
     }
 }

@@ -6,20 +6,55 @@
     "allDeclaredMethods": true,
     "allPublicMethods": true,
     "allDeclaredFields": true,
-    "allPublicFields": true
+    "allPublicFields": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "queryAllPublicConstructors": true,
+    "methods": [
+      {"name": "getAllTasks", "parameterTypes": []},
+      {"name": "getTask", "parameterTypes": ["java.lang.String"]},
+      {"name": "createTask", "parameterTypes": ["java.lang.String", "java.lang.String", "java.lang.String", "java.lang.String", "java.lang.String", "java.lang.String", "java.lang.String"]},
+      {"name": "updateTask", "parameterTypes": ["java.lang.String", "java.lang.String", "java.lang.String", "java.lang.String", "java.lang.String", "java.lang.String", "java.lang.String"]},
+      {"name": "deleteTask", "parameterTypes": ["java.lang.String"]},
+      {"name": "startTask", "parameterTypes": ["java.lang.String"]},
+      {"name": "stopTask", "parameterTypes": ["java.lang.String"]},
+      {"name": "markTaskDone", "parameterTypes": ["java.lang.String"]},
+      {"name": "getPendingTasks", "parameterTypes": []},
+      {"name": "getActiveTasks", "parameterTypes": []},
+      {"name": "getCompletedTasks", "parameterTypes": []},
+      {"name": "getOverdueTasks", "parameterTypes": []},
+      {"name": "getTodayTasks", "parameterTypes": []},
+      {"name": "getAllProjects", "parameterTypes": []},
+      {"name": "getProject", "parameterTypes": ["java.lang.String"]},
+      {"name": "createProject", "parameterTypes": ["java.lang.String", "java.lang.String", "java.lang.String", "java.lang.String"]},
+      {"name": "getActiveProjects", "parameterTypes": []},
+      {"name": "getOverdueProjects", "parameterTypes": []},
+      {"name": "activateProject", "parameterTypes": ["java.lang.String"]},
+      {"name": "completeProject", "parameterTypes": ["java.lang.String"]},
+      {"name": "getAllMindmaps", "parameterTypes": []},
+      {"name": "getMindmap", "parameterTypes": ["java.lang.String"]},
+      {"name": "createMindmap", "parameterTypes": ["java.lang.String", "java.lang.String", "java.lang.String", "java.lang.Boolean"]},
+      {"name": "getPublicMindmaps", "parameterTypes": []},
+      {"name": "getMindmapTemplates", "parameterTypes": []}
+    ]
   },
   {
     "name": "io.quarkiverse.mcp.server.Tool",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
     "allDeclaredMethods": true,
-    "allPublicMethods": true
+    "allPublicMethods": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true
   },
   {
     "name": "io.quarkiverse.mcp.server.ToolArg",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
     "allDeclaredMethods": true,
-    "allPublicMethods": true
+    "allPublicMethods": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true
   }
 ]

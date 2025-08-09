@@ -296,10 +296,6 @@ jobs:
             runner: macos-14
             use-native: true
             builder-image: ""
-          - platform: linux-arm64
-            runner: ubuntu-24.04-arm64
-            use-native: false
-            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-arm64
     steps:
       - uses: actions/checkout@v4
 

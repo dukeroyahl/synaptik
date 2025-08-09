@@ -17,6 +17,7 @@ dependencies {
     implementation 'io.quarkiverse.mcp:quarkus-mcp-server-stdio:1.4.1'
     testImplementation 'io.quarkus:quarkus-junit5'
     testImplementation 'io.rest-assured:rest-assured'
+    testImplementation 'io.quarkus:quarkus-junit5-mockito'
 }
 
 group 'org.dukeroyahl.synaptik'

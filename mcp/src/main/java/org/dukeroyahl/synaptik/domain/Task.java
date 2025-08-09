@@ -2,17 +2,18 @@ package org.dukeroyahl.synaptik.domain;
 
 import java.time.ZonedDateTime;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Simplified Task domain class for MCP server
+ * Simplified Task domain class for MCP server aligned with backend Task
  */
 public class Task {
     
     public String id;
-    public ZonedDateTime createdAt;
-    public ZonedDateTime updatedAt;
+    public LocalDateTime createdAt;
+    public LocalDateTime updatedAt;
     
     public String title;
     public String description;
@@ -22,15 +23,14 @@ public class Task {
     public String project;
     public String assignee;
     
-    // Store as string to avoid serialization issues
     public String dueDate;
     public String waitUntil;
     
     public List<String> tags = new ArrayList<>();
     public List<TaskAnnotation> annotations = new ArrayList<>();
+    // Server uses List<ObjectId>; we model as List<String> IDs for MCP client compatibility
     public List<String> depends = new ArrayList<>();
     
-    // Store the original user input for reference
     public String originalInput;
     
     public void start() {
@@ -39,8 +39,10 @@ public class Task {
     }
     
     public void stop() {
-        this.status = TaskStatus.PENDING;
-        addAnnotation("Task stopped");
+        if (this.status == TaskStatus.ACTIVE) {
+            this.status = TaskStatus.PENDING;
+            addAnnotation("Task stopped");
+        }
     }
     
     public void done() {
@@ -48,38 +50,41 @@ public class Task {
         addAnnotation("Task completed");
     }
     
+    public void markAsDeleted() {
+        this.status = TaskStatus.DELETED;
+        addAnnotation("Task deleted");
+    }
+    
     public void addAnnotation(String description) {
-        if (annotations == null) {
-            annotations = new ArrayList<>();
-        }
-        TaskAnnotation annotation = new TaskAnnotation();
-        annotation.description = description;
-        annotation.createdAt = ZonedDateTime.now();
-        annotations.add(annotation);
+        annotations.add(new TaskAnnotation(LocalDateTime.now(), description));
     }
     
     public boolean isOverdue() {
-        if (dueDate == null || status == TaskStatus.COMPLETED) {
-            return false;
-        }
-        
+        if (dueDate == null || status == TaskStatus.COMPLETED) return false;
         try {
-            ZonedDateTime due = ZonedDateTime.parse(dueDate);
-            return due.isBefore(ZonedDateTime.now());
+            try {
+                ZonedDateTime dueZ = ZonedDateTime.parse(dueDate);
+                return dueZ.isBefore(ZonedDateTime.now());
+            } catch (DateTimeParseException ex) {
+                LocalDateTime dueL = LocalDateTime.parse(dueDate);
+                return dueL.isBefore(LocalDateTime.now());
+            }
         } catch (Exception e) {
             return false;
         }
     }
     
     public boolean isDueToday() {
-        if (dueDate == null) {
-            return false;
-        }
-        
+        if (dueDate == null) return false;
         try {
-            ZonedDateTime due = ZonedDateTime.parse(dueDate);
-            ZonedDateTime now = ZonedDateTime.now();
-            return due.toLocalDate().equals(now.toLocalDate());
+            try {
+                ZonedDateTime dueZ = ZonedDateTime.parse(dueDate);
+                ZonedDateTime now = ZonedDateTime.now();
+                return dueZ.toLocalDate().equals(now.toLocalDate());
+            } catch (DateTimeParseException ex) {
+                LocalDateTime dueL = LocalDateTime.parse(dueDate);
+                return dueL.toLocalDate().equals(LocalDateTime.now().toLocalDate());
+            }
         } catch (Exception e) {
             return false;
         }

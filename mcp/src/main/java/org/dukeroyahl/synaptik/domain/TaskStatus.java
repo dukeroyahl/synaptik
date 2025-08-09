@@ -5,9 +5,7 @@ public enum TaskStatus {
     WAITING("waiting"),
     ACTIVE("active"),
     COMPLETED("completed"),
-    CANCELLED("cancelled"),
-    ON_HOLD("on_hold"),
-    DELETED("deleted");
+    DELETED("deleted"); // Removed CANCELLED, ON_HOLD to match server domain
     
     private final String value;
     

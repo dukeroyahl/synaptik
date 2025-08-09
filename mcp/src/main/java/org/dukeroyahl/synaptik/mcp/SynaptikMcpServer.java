@@ -1,33 +1,28 @@
 package org.dukeroyahl.synaptik.mcp;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 
+import jakarta.inject.Singleton;
 import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.Project;
 import org.dukeroyahl.synaptik.domain.Mindmap;
-import org.dukeroyahl.synaptik.domain.MindmapNode;
 import org.dukeroyahl.synaptik.domain.TaskPriority;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
-import org.dukeroyahl.synaptik.domain.ProjectStatus;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.smallrye.mutiny.Uni;
-import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.core.Response;
 import jakarta.annotation.PostConstruct;
 
 /**
  * MCP service that calls Synaptik API via HTTP.
  * Comprehensive tool set for task, project, and mindmap management.
  */
-@ApplicationScoped
+@Singleton
 public class SynaptikMcpServer {
 
     private static final Logger LOG = Logger.getLogger(SynaptikMcpServer.class.getName());
@@ -576,8 +571,6 @@ public class SynaptikMcpServer {
             case WAITING -> "⏸️";
             case ACTIVE -> "🔄";
             case COMPLETED -> "✅";
-            case CANCELLED -> "❌";
-            case ON_HOLD -> "⏸️";
             case DELETED -> "🗑️";
         };
     }
