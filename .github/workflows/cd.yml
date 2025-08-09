@@ -109,59 +109,121 @@ jobs:
           
           echo "Generating release notes from $PREVIOUS_TAG to $CURRENT_TAG"
           
-          # Create release notes
-          cat > release_notes.md << 'EOF'
-          ## 🚀 What's New in v$VERSION
+          # Get commit messages and categorize them
+          COMMITS=$(git log --pretty=format:"%s" $PREVIOUS_TAG..$CURRENT_TAG 2>/dev/null || echo "Initial release")
           
-          ### 📋 Changes Since Previous Release
-          EOF
+          # Categorize commits
+          FEATURES=""
+          FIXES=""
+          IMPROVEMENTS=""
+          OTHER=""
           
-          # Get commit messages between releases
-          if [ "$PREVIOUS_TAG" != "$CURRENT_TAG" ]; then
-            git log --pretty=format:"- %s" $PREVIOUS_TAG..$CURRENT_TAG >> release_notes.md
-          else
-            echo "- Initial release" >> release_notes.md
+          if [ "$COMMITS" != "Initial release" ]; then
+            while IFS= read -r commit; do
+              if [[ $commit =~ ^feat.*|^add.*|^implement.* ]]; then
+                FEATURES="$FEATURES- $commit"$'\n'
+              elif [[ $commit =~ ^fix.*|^resolve.*|^correct.* ]]; then
+                FIXES="$FIXES- $commit"$'\n'
+              elif [[ $commit =~ ^improve.*|^enhance.*|^update.*|^refactor.*|^optimize.* ]]; then
+                IMPROVEMENTS="$IMPROVEMENTS- $commit"$'\n'
+              else
+                OTHER="$OTHER- $commit"$'\n'
+              fi
+            done <<< "$COMMITS"
           fi
           
+          # Create release notes with improved structure
+          cat > release_notes.md << EOF
+          ## ✨ What's New
+          
+          EOF
+          
+          # Add categorized changes
+          if [ -n "$FEATURES" ]; then
+            cat >> release_notes.md << EOF
+          ### 🎯 **New Features**
+          $FEATURES
+          EOF
+          fi
+          
+          if [ -n "$FIXES" ]; then
+            cat >> release_notes.md << EOF
+          ### 🐛 **Bug Fixes**
+          $FIXES
+          EOF
+          fi
+          
+          if [ -n "$IMPROVEMENTS" ]; then
+            cat >> release_notes.md << EOF
+          ### 🏗️ **Improvements**
+          $IMPROVEMENTS
+          EOF
+          fi
+          
+          if [ -n "$OTHER" ] && [ "$COMMITS" != "Initial release" ]; then
+            cat >> release_notes.md << EOF
+          ### 📝 **Other Changes**
+          $OTHER
+          EOF
+          fi
+          
+          if [ "$COMMITS" = "Initial release" ]; then
+            cat >> release_notes.md << EOF
+          ### 🎉 **Initial Release**
+          - Welcome to Synaptik - your streamlined task management system!
+          
+          EOF
+          fi
+          
+          # Add installation options with improved formatting
           cat >> release_notes.md << 'EOF'
+          ---
           
-          ### 📦 Installation Options
+          ## 📦 Installation Options
           
-          **Option 1: Quick Install (Recommended)**
+          *Choose the installation method that works best for you:*
+          
+          ### 🚀 **Option 1: Quick Install** *(Recommended for most users)*
+          
+          **Perfect for:** First-time users who want to get started immediately
+          
           ```bash
           curl -sSL https://raw.githubusercontent.com/dukeroyahl/synaptik/main/install.sh | bash
           ```
           
-          **Option 2: Native MCP Binaries**
-          Download the appropriate binary for your platform:
-          - **macOS Apple Silicon**: `synaptik-mcp-darwin-arm64` 🍎 *(Primary Platform)*
-          - **Linux x86_64**: `synaptik-mcp-linux-amd64` 🐧
-          - **Linux ARM64**: `synaptik-mcp-linux-arm64` 🐧
+          **What you get:**
+          - ✅ Full Synaptik application running on `http://localhost:4000`
+          - ✅ REST API available on `http://localhost:9001` 
+          - ✅ Docker containers managed automatically
+          - ✅ Persistent data storage
           
+          **Time to setup:** ~2 minutes
+          
+          ---
+          
+          ### 🤖 **Option 2: Claude Desktop Integration**
+          
+          **Perfect for:** Users who want AI-powered task management
+          
+          **Step 1:** Install Synaptik (use Quick Install above)
+          
+          **Step 2:** Get the MCP server
           ```bash
-          # Download for your platform
+          # Download native binary for this release (v$VERSION)
+          curl -sSL https://github.com/dukeroyahl/synaptik/releases/download/v$VERSION/synaptik-mcp-darwin-arm64 -o synaptik-mcp
+          chmod +x synaptik-mcp
+          
+          # OR download latest stable
           curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-darwin-arm64 -o synaptik-mcp
           chmod +x synaptik-mcp
+          
+          # OR build from source
+          cd mcp && ./gradlew quarkusBuild
           ```
           
-          **Option 3: Docker Images**
-          ```bash
-          # Frontend
-          docker pull ghcr.io/dukeroyahl/synaptik/frontend:v$VERSION
+          **Step 3:** Configure Claude Desktop
+          Add to your Claude config file (`~/Library/Application Support/Claude/claude_desktop_config.json`):
           
-          # Backend  
-          docker pull ghcr.io/dukeroyahl/synaptik/backend:v$VERSION
-          
-          # Or use latest
-          docker pull ghcr.io/dukeroyahl/synaptik/frontend:latest
-          docker pull ghcr.io/dukeroyahl/synaptik/backend:latest
-          ```
-          
-          ### 🤖 Claude Desktop Integration
-          
-          **With Native Binary (Easiest):**
-          1. Download the MCP binary for your platform (above)
-          2. Add to your Claude Desktop config:
           ```json
           {
             "mcpServers": {
@@ -172,34 +234,70 @@ jobs:
           }
           ```
           
-          **With Build from Source:**
-          ```bash
-          # Build MCP server from source
-          cd mcp && ./gradlew quarkusBuild
+          **Step 4:** Restart Claude Desktop
           
-          # Configure Claude Desktop with:
-          {
-            "mcpServers": {
-              "synaptik": {
-                "command": "java",
-                "args": ["-jar", "/path/to/synaptik/mcp/build/quarkus-app/quarkus-run.jar"]
-              }
-            }
-          }
+          **What you can do:**
+          - *"Show me my active tasks"*
+          - *"Create a task to review the quarterly report"*  
+          - *"Mark the database backup task as complete"*
+          
+          ---
+          
+          ### 🐳 **Option 3: Docker Images**
+          
+          **Perfect for:** Developers and advanced users who need customization
+          
+          ```bash
+          # This Release (v$VERSION)
+          docker pull ghcr.io/dukeroyahl/synaptik/frontend:$VERSION
+          docker pull ghcr.io/dukeroyahl/synaptik/backend:$VERSION
+          
+          # Or latest stable
+          docker pull ghcr.io/dukeroyahl/synaptik/frontend:latest
+          docker pull ghcr.io/dukeroyahl/synaptik/backend:latest
           ```
           
-          Restart Claude Desktop and start managing tasks with AI!
+          **Use case:** Custom deployments, development environments, CI/CD pipelines
           
-          ### 🔗 Links
-          - 📚 [Documentation](https://github.com/dukeroyahl/synaptik/wiki)
-          - 🐳 [Docker Images](https://github.com/dukeroyahl/synaptik/pkgs/container/synaptik%2Ffrontend)
-          - 🤝 [Contributing](https://github.com/dukeroyahl/synaptik/blob/main/CONTRIBUTING.md)
+          ---
+          
+          ### ⚡ **Option 4: Native Binaries**
+          
+          **Perfect for:** Performance-focused users and system integrators
+          
+          **Available Platforms:**
+          - 🍎 **macOS Apple Silicon** *(Primary platform - fully tested)*
+          - 🐧 **Linux x86_64** 
+          - 🐧 **Linux ARM64**
+          
+          **Downloads for v$VERSION:**
+          - [synaptik-mcp-darwin-arm64](https://github.com/dukeroyahl/synaptik/releases/download/v$VERSION/synaptik-mcp-darwin-arm64)
+          - [synaptik-mcp-linux-amd64](https://github.com/dukeroyahl/synaptik/releases/download/v$VERSION/synaptik-mcp-linux-amd64)
+          - [synaptik-mcp-linux-arm64](https://github.com/dukeroyahl/synaptik/releases/download/v$VERSION/synaptik-mcp-linux-arm64)
+          
+          **Or get latest stable:**
+          - [synaptik-mcp-darwin-arm64](https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-darwin-arm64)
+          - [synaptik-mcp-linux-amd64](https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux-amd64)
+          - [synaptik-mcp-linux-arm64](https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux-arm64)
+          
+          **Benefits:** Faster startup, lower memory usage, no Java runtime required
+          
+          ---
+          
+          ## 📚 **Resources**
+          
+          - 📖 [Full Documentation](https://github.com/dukeroyahl/synaptik/wiki)
+          - 🤝 [Contributing Guide](https://github.com/dukeroyahl/synaptik/blob/main/CONTRIBUTING.md)
           - 🐛 [Report Issues](https://github.com/dukeroyahl/synaptik/issues)
+          - 📦 [Docker Hub](https://hub.docker.com/r/roudranil/synaptik)
           
           ---
           
           **Full Changelog**: https://github.com/dukeroyahl/synaptik/compare/$PREVIOUS_TAG...$CURRENT_TAG
           EOF
+          
+          # Substitute the version variable
+          sed -i "s/\$VERSION/$VERSION/g" release_notes.md
           
           # Output the release notes (escape for GitHub Actions)
           {
