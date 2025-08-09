@@ -1,12 +1,5 @@
 import React, { memo, useMemo, useCallback } from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Chip,
-  useTheme
-} from '@mui/material';
+import { useTheme, Box, Card, CardContent, Typography, Chip } from '@mui/material';
 import {
   Flag as PriorityIcon,
   Assignment as ProjectIcon,
@@ -18,7 +11,6 @@ import {
 import { Task } from '../types';
 import { 
   generateTaskId,
-  getTaskCardClass,
   isTaskOverdue,
   getPriorityColor,
   getStatusColor,
@@ -175,47 +167,28 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
   }, [onLinkTask, task]);
   
   return (
-    <Card 
-      sx={{ 
+    <Card
+      sx={{
         mb: 0.5,
         position: 'relative',
         opacity: task.status === 'COMPLETED' ? 0.85 : 1,
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         cursor: draggable ? 'grab' : 'default',
         background: glassColor,
         backdropFilter: 'blur(20px) saturate(1.8)',
         WebkitBackdropFilter: 'blur(20px) saturate(1.8)',
         border: `1px solid ${borderColor}`,
-        borderRadius: 2,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
+        borderRadius: theme.ds?.radii.lg,
+        boxShadow: theme.ds?.elevation[1],
+        transition: `box-shadow ${theme.ds?.motion.duration.normal}ms ${theme.ds?.motion.easing.standard}, transform ${theme.ds?.motion.duration.normal}ms ${theme.ds?.motion.easing.standard}`,
         '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: '0 12px 48px rgba(0,0,0,0.7), 0 6px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.25)',
-          border: `1px solid ${borderColor.replace(/0\.\d+/, '0.4')}`,
-          backdropFilter: 'blur(24px) saturate(2)',
-          WebkitBackdropFilter: 'blur(24px) saturate(2)',
+          boxShadow: theme.ds?.elevation[3],
+          transform: 'translateY(-2px)'
         },
-        '&:active': draggable ? {
-          cursor: 'grabbing',
-          transform: 'translateY(0px)',
-        } : {},
-        // Add subtle shimmer effect
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: '-100%',
-          width: '100%',
-          height: '100%',
-          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
-          transition: 'left 0.5s',
-          pointerEvents: 'none',
-        },
-        '&:hover::before': {
-          left: '100%',
+        '&:focus-within': {
+          outline: `2px solid ${theme.ds?.color[theme.palette.mode].focusRing}`,
+          outlineOffset: 2
         }
       }}
-      className={`glass-card task-card-glass ${getTaskCardClass(task)}`}
     >
       <CardContent sx={{ py: 1, px: 2, '&:last-child': { pb: 1 } }}>
         {/* Header Row: Status, Task ID, Urgency, Assignee, Actions */}

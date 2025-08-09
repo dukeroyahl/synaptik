@@ -82,8 +82,11 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
           backgroundColor: alpha(theme.palette.background.paper, 0.95),
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          transition: 'all 0.3s ease',
+          boxShadow: theme.ds?.elevation[1] || '0 1px 2px rgba(0,0,0,0.1)',
+          transition: `box-shadow ${theme.ds?.motion.duration.normal}ms ${theme.ds?.motion.easing.standard}, background-color ${theme.ds?.motion.duration.normal}ms ${theme.ds?.motion.easing.standard}`,
+          '&:hover': {
+            boxShadow: theme.ds?.elevation[2]
+          }
         }}
       >
         <Toolbar>
@@ -161,6 +164,7 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
             <IconButton 
               onClick={handleThemeToggle} 
               color="inherit"
+              aria-label="Toggle dark mode"
               sx={{ 
                 ml: 1,
                 color: darkMode ? theme.palette.primary.main : theme.palette.warning.main
@@ -172,6 +176,7 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
             <IconButton
               onClick={handleMenuOpen}
               color="inherit"
+              aria-label="Open menu"
               sx={{ ml: 1 }}
             >
               <MoreIcon />
@@ -183,6 +188,7 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
             <IconButton
               onClick={handleMenuOpen}
               color="inherit"
+              aria-label="Open menu"
             >
               <MoreIcon />
             </IconButton>
