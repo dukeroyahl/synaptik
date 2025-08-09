@@ -7,34 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.0.2.1] - 2025-08-09
-
-### 🐛 Fixed
-- **Install script errors** - Removed references to non-existent native MCP binaries that were causing CI/CD failures
-- **MCP setup documentation** - Updated with accurate build-from-source instructions
-- **CI/CD pipeline issues** - Install script no longer attempts to download missing binary assets
-
-### 🔧 Changed
-- **Install script MCP section** - Now provides clear instructions for building MCP server from source
-- **README MCP integration** - Updated to reflect current build process instead of non-existent binaries
-- **Documentation accuracy** - All references now match actual available functionality
-
-### 📋 Notes
-- This is a patch release that fixes installation issues without changing core functionality
-- Native MCP binaries will be available in a future release (v0.0.3)
-- The quick install command now works properly without errors
-
 ## [0.0.2] - 2025-08-09
 
 ### 🐛 Fixed
 - **Critical Docker 'Unsupported Media Type' Error** - API client now properly sends `application/json` content-type for all requests
 - **Removed incorrect text/plain logic** - Task capture now uses proper JSON content-type instead of text/plain
 - **Docker environment detection** - Frontend automatically detects Docker vs local development environments
+- **Install script errors** - Removed references to non-existent native MCP binaries that were causing CI/CD failures
+- **MCP setup documentation** - Updated with accurate build-from-source instructions
+- **CI/CD pipeline issues** - Install script no longer attempts to download missing binary assets
 
 ### 🔧 Changed
 - **Nginx proxy configuration** - Improved header forwarding and path handling for better API communication
 - **API client content-type handling** - Simplified and corrected to always use `application/json`
 - **Frontend environment detection** - Smart detection between Docker (nginx proxy) and local development
+- **Install script MCP section** - Now provides clear instructions for building MCP server from source
+- **README MCP integration** - Updated to reflect current build process instead of non-existent binaries
+- **Documentation accuracy** - All references now match actual available functionality
 
 ### ✨ Added
 - **Environment variable support** - `VITE_API_BASE_URL` build argument support in Docker
@@ -45,6 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontend: `0.0.1` → `0.0.2`
 - Backend: `0.0.1` → `0.0.2`
 - Root package: `0.0.1` → `0.0.2`
+
+### 📋 Notes
+- Native MCP binaries will be available in a future release (v0.0.3)
+- The quick install command now works properly without errors
+- All Docker deployment issues have been resolved
 
 ## [0.0.1] - 2025-08-04
 
