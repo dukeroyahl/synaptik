@@ -48,7 +48,7 @@ echo ""
 
 # Test 2: Check API health endpoint
 log_info "Testing API connectivity..."
-API_URL="${SYNAPTIK_API_URL:-${SYNAPTIK_URL:-http://localhost:9001}}"
+API_URL="${SYNAPTIK_API_URL:-${SYNAPTIK_URL:-http://localhost:8060}}"
 log_info "Using API URL: $API_URL"
 
 if curl -f -s "$API_URL/q/health" > /dev/null 2>&1; then
@@ -67,18 +67,18 @@ else
     CONTAINER_IP=$(docker inspect synaptik-api --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null || echo "")
     if [ -n "$CONTAINER_IP" ]; then
         log_info "Container IP: $CONTAINER_IP"
-        if curl -f -s "http://$CONTAINER_IP:9001/q/health" > /dev/null 2>&1; then
-            log_success "API accessible via container IP: http://$CONTAINER_IP:9001"
-            log_warning "Set environment variable: export SYNAPTIK_API_URL=http://$CONTAINER_IP:9001"
+        if curl -f -s "http://$CONTAINER_IP:8060/q/health" > /dev/null 2>&1; then
+            log_success "API accessible via container IP: http://$CONTAINER_IP:8060"
+            log_warning "Set environment variable: export SYNAPTIK_API_URL=http://$CONTAINER_IP:8060"
         else
             log_error "API not accessible via container IP"
         fi
     fi
     
     # Test with host.docker.internal (if available)
-    if curl -f -s "http://host.docker.internal:9001/q/health" > /dev/null 2>&1; then
-        log_success "API accessible via host.docker.internal:9001"
-        log_warning "Set environment variable: export SYNAPTIK_API_URL=http://host.docker.internal:9001"
+    if curl -f -s "http://host.docker.internal:8060/q/health" > /dev/null 2>&1; then
+        log_success "API accessible via host.docker.internal:8060"
+        log_warning "Set environment variable: export SYNAPTIK_API_URL=http://host.docker.internal:8060"
     fi
 fi
 
@@ -86,11 +86,11 @@ echo ""
 
 # Test 3: Check port binding
 log_info "Checking port bindings..."
-PORT_BINDING=$(docker port synaptik-api 9001 2>/dev/null || echo "")
+PORT_BINDING=$(docker port synaptik-api 8060 2>/dev/null || echo "")
 if [ -n "$PORT_BINDING" ]; then
     log_success "API port binding: $PORT_BINDING"
 else
-    log_error "No port binding found for synaptik-api:9001"
+    log_error "No port binding found for synaptik-api:8060"
 fi
 
 echo ""
@@ -162,10 +162,10 @@ else
     echo "   docker compose -f docker/docker-compose.yml restart"
     echo ""
     echo "2. Set API URL environment variable:"
-    echo "   export SYNAPTIK_API_URL=http://localhost:9001"
+    echo "   export SYNAPTIK_API_URL=http://localhost:8060"
     echo ""
     echo "3. Test API manually:"
-    echo "   curl http://localhost:9001/q/health"
+    echo "   curl http://localhost:8060/q/health"
     echo ""
     echo "4. Check Docker logs:"
     echo "   docker logs synaptik-api"

@@ -89,7 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### ✨ Added
 - **Environment variable support** - `VITE_API_BASE_URL` build argument support in Docker
 - **Docker build improvements** - Better environment variable handling in Dockerfile.frontend
-- **Relative URL handling** - Uses `/api/tasks` in Docker, `localhost:9001` in local development
+- **Relative URL handling** - Uses `/api/tasks` in Docker, `localhost:8060` in local development
 
 ### 📦 Version Updates
 - Frontend: `0.0.1` → `0.0.2`

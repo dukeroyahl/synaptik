@@ -32,7 +32,7 @@ services:
     image: ${API_IMAGE:-ghcr.io/dukeroyahl/synaptik/backend:latest}
     container_name: synaptik-api
     ports:
-      - "${API_PORT:-9001}:9001"
+      - "${API_PORT:-8060}:8060"
     environment:
       - QUARKUS_PROFILE=prod
       - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-changeme}@mongodb:27017/synaptik?authSource=admin
@@ -45,7 +45,7 @@ services:
       mongodb:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9001/q/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8060/q/health"]
       interval: 30s
       timeout: 10s
       retries: 3

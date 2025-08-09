@@ -195,7 +195,7 @@ jobs:
           
           **What you get:**
           - ✅ Full Synaptik application running on `http://localhost:4000`
-          - ✅ REST API available on `http://localhost:9001` 
+          - ✅ REST API available on `http://localhost:8060` 
           - ✅ Docker containers managed automatically
           - ✅ Persistent data storage
           

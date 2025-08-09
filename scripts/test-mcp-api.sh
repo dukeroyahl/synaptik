@@ -75,7 +75,7 @@ if [ -s "$OUTPUT_FILE" ]; then
     fi
 else
     echo "❌ No response from MCP server"
-    echo "Check if the API is running: curl http://localhost:9001/q/health"
+    echo "Check if the API is running: curl http://localhost:8060/q/health"
 fi
 
 echo ""

@@ -1,13 +1,13 @@
 // API configuration
 // In Docker, nginx proxies /api requests to the backend
-// In development, connect directly to localhost:9001
+// In development, connect directly to localhost:8060
 const isDockerEnvironment = () => {
   // Check if we're running through nginx proxy (Docker)
   return window.location.port === '4000' || window.location.port === '80' || !window.location.port;
 };
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
-  (isDockerEnvironment() ? '' : 'http://localhost:9001');
+  (isDockerEnvironment() ? '' : 'http://localhost:8060');
 
 // Other configuration settings can be added here
 export const APP_NAME = 'Synaptik';
