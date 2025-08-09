@@ -82,14 +82,14 @@ docker pull roudranil/synaptik/backend:latest
 ```
 
 ### 🔥 Native MCP Binaries (GitHub Releases)
-[![macOS ARM64](https://img.shields.io/badge/macOS%20ARM64-Primary-success?logo=apple&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
-[![Linux x86_64](https://img.shields.io/badge/Linux%20x86__64-Supported-informational?logo=linux&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
-[![Linux ARM64](https://img.shields.io/badge/Linux%20ARM64-Supported-informational?logo=linux&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
+[![macOS ARM64](https://img.shields.io/badge/macOS%20ARM64-Coming%20Soon-orange?logo=apple&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
+[![Linux x86_64](https://img.shields.io/badge/Linux%20x86__64-Coming%20Soon-orange?logo=linux&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
+[![Linux ARM64](https://img.shields.io/badge/Linux%20ARM64-Coming%20Soon-orange?logo=linux&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
 
 ```bash
-# Download for macOS Apple Silicon (Primary Platform)
-curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-darwin-arm64 -o synaptik-mcp
-chmod +x synaptik-mcp
+# Native binaries coming in v0.0.3 - for now, build from source:
+cd mcp && ./gradlew quarkusBuild
+java -jar build/quarkus-app/quarkus-run.jar
 ```
 
 </div>
@@ -114,19 +114,12 @@ This installs the complete Synaptik application with:
 - **API Documentation**: http://localhost:9001/q/swagger-ui
 - **Docker Services**: Complete containerized backend
 
-#### Step 2: Download MCP Connector (Native Binary)
+#### Step 2: Build MCP Server
 ```bash
-# Download the native binary for your platform
-curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-darwin-arm64 -o synaptik-mcp
-chmod +x synaptik-mcp
+# Build the MCP server from source (native binaries coming in v0.0.3)
+cd mcp
+./gradlew quarkusBuild
 ```
-
-**Available Platforms:**
-- **macOS Apple Silicon**: `synaptik-mcp-darwin-arm64` ⭐ **(Primary Platform)**
-- **Linux x86_64**: `synaptik-mcp-linux-amd64`
-- **Linux ARM64**: `synaptik-mcp-linux-arm64`
-
-> **Architecture**: The MCP server is a standalone native executable that connects to your Dockerized Synaptik server on port 9001. No dependencies required!
 
 #### Step 3: Configure Claude Desktop
 Add this to your Claude Desktop configuration:
@@ -140,13 +133,14 @@ Add this to your Claude Desktop configuration:
 {
   "mcpServers": {
     "synaptik": {
-      "command": "/path/to/synaptik-mcp"
+      "command": "java",
+      "args": ["-jar", "/path/to/synaptik/mcp/build/quarkus-app/quarkus-run.jar"]
     }
   }
 }
 ```
 
-> **How it works**: The native MCP binary runs in stdio mode and communicates with Claude Desktop directly, while making HTTP calls to your Dockerized Synaptik server on port 9001.
+> **How it works**: The MCP server runs as a Java application in stdio mode and communicates with Claude Desktop directly, while making HTTP calls to your Dockerized Synaptik server on port 9001.
 
 **Example paths:**
 - **Linux**: `"/home/user/synaptik-mcp"`

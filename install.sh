@@ -238,36 +238,28 @@ echo "🤖 Claude Desktop Integration"
 echo "============================"
 log_info "Want to manage tasks with Claude Desktop? Follow these steps:"
 echo ""
-echo "1. Download the native connector for your platform:"
-case "$(uname -m)" in
-    arm64)
-        case "$(uname)" in
-            Darwin*) 
-                echo "   curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-darwin-arm64 -o synaptik-mcp && chmod +x synaptik-mcp"
-                ;;
-            Linux*)
-                echo "   curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux-arm64 -o synaptik-mcp && chmod +x synaptik-mcp"
-                ;;
-        esac
-        ;;
-    x86_64|amd64)
-        case "$(uname)" in
-            Linux*)
-                echo "   curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux-amd64 -o synaptik-mcp && chmod +x synaptik-mcp"
-                ;;
-        esac
-        ;;
-    *)
-        echo "   Architecture $(uname -m) not yet supported. Available platforms:"
-        echo "   - macOS Apple Silicon: synaptik-mcp-darwin-arm64"
-        echo "   - Linux x86_64: synaptik-mcp-linux-amd64" 
-        echo "   - Linux ARM64: synaptik-mcp-linux-arm64"
-        echo "   Visit: https://github.com/dukeroyahl/synaptik/releases/latest"
-        ;;
-esac
-echo "   chmod +x synaptik-mcp"
+echo "1. Build the MCP server from source (native binaries coming in future release):"
+echo "   cd $(pwd)/mcp"
+echo "   ./gradlew quarkusBuild"
 echo ""
-echo "2. Configure Claude Desktop to use the connector"
+echo "2. Configure Claude Desktop to use the MCP server:"
+echo "   Add this to your Claude Desktop configuration file:"
+echo ""
+echo "   {"
+echo "     \"mcpServers\": {"
+echo "       \"synaptik\": {"
+echo "         \"command\": \"java\","
+echo "         \"args\": [\"-jar\", \"$(pwd)/mcp/build/quarkus-app/quarkus-run.jar\"]"
+echo "       }"
+echo "     }"
+echo "   }"
+echo ""
+echo "   Configuration file locations:"
+echo "   - macOS: ~/Library/Application Support/Claude/claude_desktop_config.json"
+echo "   - Windows: %APPDATA%/Claude/claude_desktop_config.json"  
+echo "   - Linux: ~/.config/Claude/claude_desktop_config.json"
+echo ""
+echo "3. Restart Claude Desktop and start using voice commands!"
 echo "   See: https://github.com/dukeroyahl/synaptik#-claude-desktop-integration"
 echo ""
 log_info "Once configured, ask Claude things like:"
