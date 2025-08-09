@@ -176,7 +176,7 @@ jobs:
           fi
           
           # Add installation options with improved formatting
-          cat >> release_notes.md << 'EOF'
+          cat >> release_notes.md << 'RELEASE_NOTES_END'
           ---
           
           ## 📦 Installation Options
@@ -294,7 +294,7 @@ jobs:
           ---
           
           **Full Changelog**: https://github.com/dukeroyahl/synaptik/compare/$PREVIOUS_TAG...$CURRENT_TAG
-EOF
+          RELEASE_NOTES_END
           
           # Substitute the version variable
           sed -i "s/\$VERSION/$VERSION/g" release_notes.md
