@@ -82,12 +82,12 @@ docker pull roudranil/synaptik/backend:latest
 ```
 
 ### 🔥 Native MCP Binaries (GitHub Releases)
-[![macOS ARM64](https://img.shields.io/badge/macOS%20ARM64-Coming%20Soon-orange?logo=apple&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
-[![Linux x86_64](https://img.shields.io/badge/Linux%20x86__64-Coming%20Soon-orange?logo=linux&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
-[![Linux ARM64](https://img.shields.io/badge/Linux%20ARM64-Coming%20Soon-orange?logo=linux&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
+[![macOS ARM64](https://img.shields.io/badge/macOS%20ARM64-Available-success?logo=apple&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
+[![Linux x86_64](https://img.shields.io/badge/Linux%20x86__64-Available-success?logo=linux&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
+[![Linux ARM64](https://img.shields.io/badge/Linux%20ARM64-Available-success?logo=linux&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest)
 
 ```bash
-# Native binaries coming in v0.0.4 - for now, build from source:
+# Native binaries available in v0.0.4+ - or build from source:
 cd mcp && ./gradlew quarkusBuild
 java -jar build/quarkus-app/quarkus-run.jar
 ```
@@ -110,13 +110,13 @@ curl -sSL https://raw.githubusercontent.com/dukeroyahl/synaptik/main/install.sh 
 
 This installs the complete Synaptik application with:
 - **Web Interface**: http://localhost:4000
-- **REST API**: http://localhost:9001  
-- **API Documentation**: http://localhost:9001/q/swagger-ui
+- **REST API**: http://localhost:8060  
+- **API Documentation**: http://localhost:8060/q/swagger-ui
 - **Docker Services**: Complete containerized backend
 
 #### Step 2: Build MCP Server
 ```bash
-# Build the MCP server from source (native binaries coming in v0.0.4)
+# Build the MCP server from source (native binaries available in v0.0.4+)
 cd mcp
 ./gradlew quarkusBuild
 ```
@@ -140,7 +140,7 @@ Add this to your Claude Desktop configuration:
 }
 ```
 
-> **How it works**: The MCP server runs as a Java application in stdio mode and communicates with Claude Desktop directly, while making HTTP calls to your Dockerized Synaptik server on port 9001.
+> **How it works**: The MCP server runs as a Java application in stdio mode and communicates with Claude Desktop directly, while making HTTP calls to your Dockerized Synaptik server on port 8060.
 
 **Example paths:**
 - **Linux**: `"/home/user/synaptik-mcp"`
@@ -150,7 +150,7 @@ Add this to your Claude Desktop configuration:
 Make sure your Synaptik Docker services are running:
 ```bash
 # Check if Synaptik is running
-curl http://localhost:9001/health || echo "Start Synaptik first!"
+curl http://localhost:8060/health || echo "Start Synaptik first!"
 ```
 
 #### Step 5: Restart Claude Desktop
