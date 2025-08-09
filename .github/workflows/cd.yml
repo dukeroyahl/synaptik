@@ -294,7 +294,7 @@ jobs:
           ---
           
           **Full Changelog**: https://github.com/dukeroyahl/synaptik/compare/$PREVIOUS_TAG...$CURRENT_TAG
-          EOF
+EOF
           
           # Substitute the version variable
           sed -i "s/\$VERSION/$VERSION/g" release_notes.md
