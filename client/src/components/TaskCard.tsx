@@ -25,7 +25,7 @@ import {
   formatTag,
   toSentenceCase
 } from '../utils/taskUtils';
-import { getTimeRemaining } from '../utils/dateUtils';
+import { getTimeRemaining, parseBackendDate } from '../utils/dateUtils';
 import TaskActions from './TaskActions';
 
 interface TaskCardProps {
@@ -126,7 +126,8 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
     if (!task.dueDate) return null;
     
     try {
-      const date = new Date(task.dueDate);
+      // Use the proper date parsing function to handle timezone issues
+      const date = parseBackendDate(task.dueDate);
       // Always format as actual date regardless of how close it is
       return date.toLocaleDateString(undefined, {
         year: 'numeric',

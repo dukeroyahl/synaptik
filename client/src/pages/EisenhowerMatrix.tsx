@@ -17,6 +17,7 @@ import {
   Inbox as InboxIcon,
 } from '@mui/icons-material';
 import { Task } from '../types';
+import { parseBackendDate } from '../utils/dateUtils';
 import TaskEditDialog from '../components/TaskEditDialog';
 import TaskCard from '../components/TaskCard';
 import {
@@ -44,7 +45,7 @@ function isUrgent(task: Task): boolean {
   }
   
   const now = new Date();
-  const due = new Date(task.dueDate);
+  const due = parseBackendDate(task.dueDate);
   const diff = (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
   const urgent = diff <= 30; // due within 30 days (including today) or overdue
   console.log(`isUrgent: Task "${task.title}" - due: ${task.dueDate}, diff: ${diff.toFixed(1)} days, urgent: ${urgent}`);

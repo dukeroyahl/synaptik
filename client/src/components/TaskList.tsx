@@ -13,6 +13,7 @@ import TaskEditDialog from './TaskEditDialog'
 import TaskDependencyView from './TaskDependencyView'
 import TaskCard from './TaskCard'
 import LinkTaskDialog from './LinkTaskDialog'
+import { parseBackendDate } from '../utils/dateUtils'
 import { API_BASE_URL } from '../config'
 
 interface TaskListProps {
@@ -270,7 +271,7 @@ const TaskList: React.FC<TaskListProps> = memo(({
         thisMonth.setMonth(thisMonth.getMonth() + 1);
 
         if (task.dueDate) {
-          const dueDate = new Date(task.dueDate);
+          const dueDate = parseBackendDate(task.dueDate);
           dueDate.setHours(0, 0, 0, 0);
 
           switch (dueDateFilter) {

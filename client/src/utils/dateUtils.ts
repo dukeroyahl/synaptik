@@ -13,11 +13,19 @@ export function getUserTimezone(): string {
 /**
  * Parse a date string from the backend
  * Backend format: "2025-08-10T23:59:22.443-05:00" (ISO string with timezone)
+ * OR: "2025-08-08" (date-only string)
  */
 export function parseBackendDate(dateStr: string): Date {
   if (!dateStr) throw new Error('Date string is required');
   
-  // Backend now sends ISO string with timezone info
+  // Handle date-only strings (YYYY-MM-DD) to avoid timezone issues
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    // Parse as local date to avoid UTC conversion
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day); // month is 0-indexed
+  }
+  
+  // Backend sends ISO string with timezone info
   // Browser's Date constructor handles timezone conversion automatically
   return new Date(dateStr);
 }
