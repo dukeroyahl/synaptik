@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Logger;
 
 import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.Project;
@@ -20,6 +21,7 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response;
+import jakarta.annotation.PostConstruct;
 
 /**
  * MCP service that calls Synaptik API via HTTP.
@@ -28,9 +30,29 @@ import jakarta.ws.rs.core.Response;
 @ApplicationScoped
 public class SynaptikMcpServer {
 
+    private static final Logger LOG = Logger.getLogger(SynaptikMcpServer.class.getName());
+
     @Inject
     @RestClient
     SynaptikApiClient apiClient;
+
+    @PostConstruct
+    void init() {
+        LOG.info("SynaptikMcpServer initialized - checking tool registration");
+        LOG.info("API Client injected: " + (apiClient != null ? "SUCCESS" : "FAILED"));
+        
+        // Log all methods with @Tool annotation
+        java.lang.reflect.Method[] methods = this.getClass().getDeclaredMethods();
+        int toolCount = 0;
+        for (java.lang.reflect.Method method : methods) {
+            if (method.isAnnotationPresent(Tool.class)) {
+                toolCount++;
+                Tool toolAnnotation = method.getAnnotation(Tool.class);
+                LOG.info("Found @Tool method: " + method.getName() + " - " + toolAnnotation.description());
+            }
+        }
+        LOG.info("Total @Tool methods found: " + toolCount);
+    }
 
     // ===== TASK MANAGEMENT TOOLS =====
 
