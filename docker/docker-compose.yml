@@ -57,6 +57,8 @@ services:
     container_name: synaptik-ui
     ports:
       - "${HTTP_PORT:-4000}:80"
+    environment:
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-}
     depends_on:
       api:
         condition: service_healthy

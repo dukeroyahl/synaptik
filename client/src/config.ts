@@ -1,9 +1,17 @@
 // API configuration
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9001';
+// In Docker, nginx proxies /api requests to the backend
+// In development, connect directly to localhost:9001
+const isDockerEnvironment = () => {
+  // Check if we're running through nginx proxy (Docker)
+  return window.location.port === '4000' || window.location.port === '80' || !window.location.port;
+};
+
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+  (isDockerEnvironment() ? '' : 'http://localhost:9001');
 
 // Other configuration settings can be added here
 export const APP_NAME = 'Synaptik';
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '0.0.2';
 
 // Development/production environment check
 export const isDevelopment = import.meta.env.DEV;
