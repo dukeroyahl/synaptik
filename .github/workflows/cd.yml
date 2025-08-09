@@ -270,17 +270,14 @@ jobs:
           **Available Platforms:**
           - 🍎 **macOS Apple Silicon** *(Primary platform - fully tested)*
           - 🐧 **Linux x86_64** 
-          - 🐧 **Linux ARM64**
           
           **Downloads for v$VERSION:**
           - [synaptik-mcp-darwin-arm64](https://github.com/dukeroyahl/synaptik/releases/download/v$VERSION/synaptik-mcp-darwin-arm64)
           - [synaptik-mcp-linux-amd64](https://github.com/dukeroyahl/synaptik/releases/download/v$VERSION/synaptik-mcp-linux-amd64)
-          - [synaptik-mcp-linux-arm64](https://github.com/dukeroyahl/synaptik/releases/download/v$VERSION/synaptik-mcp-linux-arm64)
           
           **Or get latest stable:**
           - [synaptik-mcp-darwin-arm64](https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-darwin-arm64)
           - [synaptik-mcp-linux-amd64](https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux-amd64)
-          - [synaptik-mcp-linux-arm64](https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux-arm64)
           
           **Benefits:** Faster startup, lower memory usage, no Java runtime required
           
