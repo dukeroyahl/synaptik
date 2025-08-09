@@ -89,7 +89,15 @@ export class TaskService {
   }
 
   async captureTask(text: string): Promise<Task> {
-    const response = await apiClient.post<Task>(API_ENDPOINTS.TASKS_CAPTURE, text)
+    // Create a task from the user-entered string with MEDIUM priority and no due date
+    const taskData: CreateTaskRequest = {
+      title: text.trim(),
+      priority: 'MEDIUM',
+      // dueDate is undefined (null) by default
+      // description is undefined by default
+    }
+    
+    const response = await apiClient.post<Task>(this.basePath, taskData)
     return response.data
   }
 

@@ -52,16 +52,16 @@ const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
   }
 
   const examples = [
-    'Buy groceries due:tomorrow +shopping',
-    'Fix login bug priority:H project:webapp assignee:John',
-    'Meet with Sarah tomorrow at 3pm about the project',
-    'Call mom scheduled:friday +family',
-    'Review code priority:M +review project:synaptik assignee:Sarah',
-    'Write documentation due:3d +docs',
-    'Send urgent email to client about the proposal',
-    'Schedule team meeting for next Monday at 2pm',
-    'Meet Roy a week from now to discuss about project',
-    'Catch up with Tom next week over dinner'
+    'Buy groceries for weekend',
+    'Fix the login bug in webapp',
+    'Meet with Sarah about the project',
+    'Call mom this week',
+    'Review code changes',
+    'Write user documentation',
+    'Send follow-up email to client',
+    'Schedule team meeting',
+    'Discuss project timeline',
+    'Plan next sprint tasks'
   ]
 
   return (
@@ -94,23 +94,16 @@ const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
           }
         >
           <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.875rem' }}>
-            Natural Language or TaskWarrior-style syntax:
+            Simple task creation:
           </Typography>
           <Typography variant="body2" component="div" sx={{ fontSize: '0.8rem' }}>
-            <strong>Natural Language:</strong><br/>
-            • "Meet with Sarah tomorrow at 3pm about the project"<br/>
-            • "Call client urgent regarding proposal"<br/>
-            • "Review code next Friday for the webapp"<br/>
-            • "Meet Roy a week from now to discuss project"<br/>
-            • "Schedule meeting next week"<br/>
+            Just describe your task in plain text. Each task will be created with:
             <br/>
-            <strong>TaskWarrior Syntax:</strong><br/>
-            • <strong>priority:</strong> H (High), M (Medium), L (Low)<br/>
-            • <strong>project:</strong> Project name<br/>
-            • <strong>assignee:</strong> Person name<br/>
-            • <strong>due:</strong> today, tomorrow, friday, next week, a week from now, 3d, 2w, 2024-12-25<br/>
-            • <strong>scheduled:</strong> Same as due<br/>
-            • <strong>+tag:</strong> Add tags with + prefix<br/>
+            • <strong>Priority:</strong> Medium (default)<br/>
+            • <strong>Status:</strong> Pending (ready to work on)<br/>
+            • <strong>Due date:</strong> None (you can set this later)<br/>
+            <br/>
+            You can always edit the task details after creation to add more information, change priority, set due dates, or assign to specific people.
           </Typography>
           <Box sx={{ mt: 1 }}>
             <Typography variant="caption" color="text.secondary">
@@ -150,13 +143,13 @@ const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
           <Grid item xs>
             <TextField
               fullWidth
-              placeholder="Meet Tom tomorrow at 3pm about the project"
+              placeholder="Enter your task description..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={loading}
               variant="outlined"
               size="small"
-              helperText="Type naturally or use TaskWarrior syntax"
+              helperText="Tasks created with Medium priority and no due date"
               sx={{
                 '& .MuiFormHelperText-root': {
                   fontSize: '0.75rem',

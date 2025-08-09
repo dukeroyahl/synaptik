@@ -6,7 +6,6 @@ export const API_ENDPOINTS = {
   TASKS_OVERDUE: '/api/tasks/overdue',
   TASKS_TODAY: '/api/tasks/today',
   TASKS_COMPLETED: '/api/tasks/completed',
-  TASKS_CAPTURE: '/api/tasks/capture',
 } as const
 
 // Helper functions for dynamic endpoints
