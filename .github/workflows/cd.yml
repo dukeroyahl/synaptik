@@ -132,13 +132,7 @@ jobs:
           curl -sSL https://raw.githubusercontent.com/dukeroyahl/synaptik/main/install.sh | bash
           ```
           
-          **Option 2: Native MCP Binaries**
-          Download the appropriate binary for your platform:
-          - **macOS Apple Silicon**: `synaptik-mcp-darwin-arm64` 🍎 *(Primary Platform)*
-          - **Linux x86_64**: `synaptik-mcp-linux-amd64` 🐧
-          - **Linux ARM64**: `synaptik-mcp-linux-arm64` 🐧
-          
-          **Option 3: Docker Images**
+          **Option 2: Docker Images**
           ```bash
           # Frontend
           docker pull ghcr.io/dukeroyahl/synaptik/frontend:v$VERSION
@@ -152,18 +146,26 @@ jobs:
           ```
           
           ### 🤖 Claude Desktop Integration
-          1. Download the MCP binary for your platform (above)
-          2. Add to your Claude Desktop config:
+          For Claude Desktop integration, build the MCP server from source:
+          
+          ```bash
+          # Build MCP server from source (native binaries coming in v0.0.3)
+          cd mcp && ./gradlew quarkusBuild
+          ```
+          
+          Then add to your Claude Desktop config:
           ```json
           {
             "mcpServers": {
               "synaptik": {
-                "command": "/path/to/synaptik-mcp-your-platform"
+                "command": "java",
+                "args": ["-jar", "/path/to/synaptik/mcp/build/quarkus-app/quarkus-run.jar"]
               }
             }
           }
           ```
-          3. Restart Claude Desktop and start managing tasks with AI!
+          
+          Restart Claude Desktop and start managing tasks with AI!
           
           ### 🔗 Links
           - 📚 [Documentation](https://github.com/dukeroyahl/synaptik/wiki)
@@ -256,97 +258,102 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
 
-  build-native-binaries:
-    needs: [validate-tag, create-release]
-    runs-on: ${{ matrix.runner }}
-    if: needs.validate-tag.outputs.should_create_release == 'true'
-    strategy:
-      matrix:
-        include:
-          - platform: linux-amd64
-            runner: ubuntu-latest
-            use-native: false
-            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-amd64
-          - platform: darwin-arm64
-            runner: macos-14
-            use-native: true
-            builder-image: ""
-          - platform: linux-arm64
-            runner: ubuntu-24.04-arm64
-            use-native: false
-            builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-arm64
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker (Linux only)
-        if: matrix.use-native == false
-        uses: docker/setup-buildx-action@v3
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-read-only: false
-          gradle-home-cache-cleanup: true
-
-      - name: Install GraalVM (macOS only)
-        if: matrix.use-native == true
-        uses: graalvm/setup-graalvm@v1
-        with:
-          java-version: '21'
-          distribution: 'graalvm'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build MCP native binary
-        run: |
-          cd mcp
-          
-          if [ "${{ matrix.use-native }}" = "true" ]; then
-            # macOS: Use native GraalVM installation
-            ./gradlew build -Dquarkus.native.container-build=false
-          else
-            # Linux: Use containerized Mandrel builder
-            ./gradlew build -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=${{ matrix.builder-image }}
-          fi
-
-      - name: Prepare binary for release
-        run: |
-          cd mcp/build
-          
-          # Find the generated native binary
-          BINARY_NAME=$(find . -name "*-runner" -type f | head -n 1)
-          if [ -z "$BINARY_NAME" ]; then
-            echo "❌ No native binary found!"
-            find . -type f -name "*" | head -20
-            exit 1
-          fi
-          
-          # Rename to standard format
-          mv "$BINARY_NAME" "synaptik-mcp-${{ matrix.platform }}"
-          chmod +x "synaptik-mcp-${{ matrix.platform }}"
-          
-          # Verify binary
-          file "synaptik-mcp-${{ matrix.platform }}"
-          ls -la "synaptik-mcp-${{ matrix.platform }}"
-
-      - name: Upload binary to release
-        run: |
-          TAG_NAME="${{ needs.validate-tag.outputs.tag_name }}"
-          BINARY_PATH="mcp/build/synaptik-mcp-${{ matrix.platform }}"
-          
-          echo "📦 Uploading ${{ matrix.platform }} binary to release $TAG_NAME"
-          
-          # Upload to release (with --clobber to replace if exists)
-          gh release upload "$TAG_NAME" "$BINARY_PATH" --clobber --repo dukeroyahl/synaptik
-          
-          echo "✅ Successfully uploaded synaptik-mcp-${{ matrix.platform }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # build-native-binaries:
+  #   needs: [validate-tag, create-release]
+  #   runs-on: ${{ matrix.runner }}
+  # build-native-binaries:
+  #   needs: [validate-tag, create-release]
+  #   runs-on: ${{ matrix.runner }}
+  #   if: needs.validate-tag.outputs.should_create_release == 'true'
+  #   # Native binaries will be available in v0.0.3
+  #   # Disabled for now as MCP server doesn't have native compilation configured
+  #   strategy:
+  #     matrix:
+  #       include:
+  #         - platform: linux-amd64
+  #           runner: ubuntu-latest
+  #           use-native: false
+  #           builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-amd64
+  #         - platform: darwin-arm64
+  #           runner: macos-14
+  #           use-native: true
+  #           builder-image: ""
+  #         - platform: linux-arm64
+  #           runner: ubuntu-24.04-arm64
+  #           use-native: false
+  #           builder-image: quay.io/quarkus/ubi-quarkus-mandrel-builder-image:23.1.8.0-Final-java21-arm64
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Set up Docker (Linux only)
+  #       if: matrix.use-native == false
+  #       uses: docker/setup-buildx-action@v3
+  #
+  #     - name: Set up Java
+  #       uses: actions/setup-java@v4
+  #       with:
+  #         java-version: '21'
+  #         distribution: 'temurin'
+  #
+  #     - name: Setup Gradle
+  #       uses: gradle/actions/setup-gradle@v4
+  #       with:
+  #         cache-read-only: false
+  #         gradle-home-cache-cleanup: true
+  #
+  #     - name: Install GraalVM (macOS only)
+  #       if: matrix.use-native == true
+  #       uses: graalvm/setup-graalvm@v1
+  #       with:
+  #         java-version: '21'
+  #         distribution: 'graalvm'
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+  #
+  #     - name: Build MCP native binary
+  #       run: |
+  #         cd mcp
+  #         
+  #         if [ "${{ matrix.use-native }}" = "true" ]; then
+  #           # macOS: Use native GraalVM installation
+  #           ./gradlew build -Dquarkus.native.container-build=false
+  #         else
+  #           # Linux: Use containerized Mandrel builder
+  #           ./gradlew build -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=${{ matrix.builder-image }}
+  #         fi
+  #
+  #     - name: Prepare binary for release
+  #       run: |
+  #         cd mcp/build
+  #         
+  #         # Find the generated native binary
+  #         BINARY_NAME=$(find . -name "*-runner" -type f | head -n 1)
+  #         if [ -z "$BINARY_NAME" ]; then
+  #           echo "❌ No native binary found!"
+  #           find . -type f -name "*" | head -20
+  #           exit 1
+  #         fi
+  #         
+  #         # Rename to standard format
+  #         mv "$BINARY_NAME" "synaptik-mcp-${{ matrix.platform }}"
+  #         chmod +x "synaptik-mcp-${{ matrix.platform }}"
+  #         
+  #         # Verify binary
+  #         file "synaptik-mcp-${{ matrix.platform }}"
+  #         ls -la "synaptik-mcp-${{ matrix.platform }}"
+  #
+  #     - name: Upload binary to release
+  #       run: |
+  #         TAG_NAME="${{ needs.validate-tag.outputs.tag_name }}"
+  #         BINARY_PATH="mcp/build/synaptik-mcp-${{ matrix.platform }}"
+  #         
+  #         echo "📦 Uploading ${{ matrix.platform }} binary to release $TAG_NAME"
+  #         
+  #         # Upload to release (with --clobber to replace if exists)
+  #         gh release upload "$TAG_NAME" "$BINARY_PATH" --clobber --repo dukeroyahl/synaptik
+  #         
+  #         echo "✅ Successfully uploaded synaptik-mcp-${{ matrix.platform }}"
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   update-package-metadata:
     needs: [build-docker-images]
