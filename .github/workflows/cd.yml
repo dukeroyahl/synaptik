@@ -313,6 +313,8 @@ jobs:
     outputs:
       release_id: ${{ steps.create.outputs.release_id }}
     steps:
+      - uses: actions/checkout@v4
+      
       - name: Create GitHub Release
         id: create
         run: |
