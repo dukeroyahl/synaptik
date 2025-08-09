@@ -1,6 +1,6 @@
 {
   "name": "synaptik",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "🧠 Where Ideas Connect - A project management and mindmapping application",
   "main": "index.js",
   "scripts": {

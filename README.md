@@ -87,7 +87,7 @@ docker pull roudranil/synaptik/backend:latest
 [![Linux ARM64](https://img.shields.io/badge/Linux%20ARM64-Available-success?logo=linux&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux-arm64)
 
 ```bash
-# Native binaries available in v0.0.4+ - or build from source:
+# Native binaries available in v0.0.5+ - or build from source:
 cd mcp && ./gradlew quarkusBuild
 java -jar build/quarkus-app/quarkus-run.jar
 ```
@@ -116,7 +116,7 @@ This installs the complete Synaptik application with:
 
 #### Step 2: Build MCP Server
 ```bash
-# Build the MCP server from source (native binaries available in v0.0.4+)
+# Build the MCP server from source (native binaries available in v0.0.5+)
 cd mcp
 ./gradlew quarkusBuild
 ```
