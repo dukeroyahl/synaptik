@@ -23,7 +23,7 @@ dependencies {
     
     
     // Quarkus JaCoCo extension for code coverage
-    testImplementation 'io.quarkus:quarkus-jacoco'
+    implementation 'io.quarkus:quarkus-jacoco'
 
     //Lombok
     compileOnly 'org.projectlombok:lombok:1.18.30'
