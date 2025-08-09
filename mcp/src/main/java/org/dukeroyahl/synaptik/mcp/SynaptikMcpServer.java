@@ -6,11 +6,12 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.dukeroyahl.synaptik.domain.Task;
+import org.dukeroyahl.synaptik.domain.Project;
+import org.dukeroyahl.synaptik.domain.Mindmap;
+import org.dukeroyahl.synaptik.domain.MindmapNode;
 import org.dukeroyahl.synaptik.domain.TaskPriority;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
-import org.dukeroyahl.synaptik.dto.TaskCreateRequest;
-import org.dukeroyahl.synaptik.util.TaskWarriorParser;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.dukeroyahl.synaptik.domain.ProjectStatus;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 import io.quarkiverse.mcp.server.Tool;
@@ -18,10 +19,11 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.core.Response;
 
 /**
  * MCP service that calls Synaptik API via HTTP.
- * Standalone Quarkus application for stdio MCP server.
+ * Comprehensive tool set for task, project, and mindmap management.
  */
 @ApplicationScoped
 public class SynaptikMcpServer {
@@ -30,159 +32,541 @@ public class SynaptikMcpServer {
     @RestClient
     SynaptikApiClient apiClient;
 
-    @Tool(description = "Get all tasks with optional filtering")
-    public Uni<String> getTasks(
-            @ToolArg(description = "Filter by task status (PENDING, ACTIVE, COMPLETED, etc.)") String status,
-            @ToolArg(description = "Filter by priority (HIGH, MEDIUM, LOW)") String priority,
-            @ToolArg(description = "Filter by project name") String project,
-            @ToolArg(description = "Filter by assignee name") String assignee,
-            @ToolArg(description = "Filter by tags (comma-separated)") String tags,
-            @ToolArg(description = "Filter tasks due before this date (ISO format)") String dueBefore,
-            @ToolArg(description = "Filter tasks due after this date (ISO format)") String dueAfter,
-            @ToolArg(description = "Limit number of results") Integer limit,
-            @ToolArg(description = "Sort by field (title, due, priority, etc.)") String sortBy,
-            @ToolArg(description = "Sort order (asc, desc)") String sortOrder) {
-        
-        return apiClient.getTasks(status, priority, project, assignee, tags, dueBefore, dueAfter, limit, sortBy, sortOrder)
-                .map(tasks -> formatTasksResponse(tasks, "All tasks retrieved successfully"));
+    // ===== TASK MANAGEMENT TOOLS =====
+
+    @Tool(description = "Get all tasks from Synaptik")
+    public Uni<String> getAllTasks() {
+        return apiClient.getAllTasks()
+                .map(tasks -> formatTasksResponse(tasks, "Retrieved all tasks"));
     }
 
     @Tool(description = "Get a specific task by ID")
-    public Uni<String> getTask(@ToolArg(description = "Task ID") String id) {
-        return apiClient.getTask(id)
-                .map(task -> formatTaskResponse(task, "Task retrieved successfully"));
+    public Uni<String> getTask(@ToolArg(description = "Task ID") String taskId) {
+        return apiClient.getTask(taskId)
+                .map(response -> {
+                    if (response.getStatus() == 200) {
+                        Task task = response.readEntity(Task.class);
+                        return formatSingleTaskResponse(task, "Task retrieved successfully");
+                    } else {
+                        return "❌ Task not found with ID: " + taskId;
+                    }
+                });
     }
 
     @Tool(description = "Create a new task")
     public Uni<String> createTask(
-            @ToolArg(description = "Task title (required)") String title,
-            @ToolArg(description = "Task description (optional)", required = false) String description,
-            @ToolArg(description = "Task status (optional): PENDING, WAITING, ACTIVE, COMPLETED", required = false) String status,
-            @ToolArg(description = "Task priority (optional): HIGH, MEDIUM, LOW", required = false) String priority,
-            @ToolArg(description = "Project name (optional)", required = false) String project,
-            @ToolArg(description = "Assignee name (optional)", required = false) String assignee,
-            @ToolArg(description = "Due date in ISO format (optional)", required = false) String dueDate,
-            @ToolArg(description = "Wait until date in ISO format (optional)", required = false) String waitUntil,
-            @ToolArg(description = "Task tags comma-separated (optional)", required = false) String tags,
-            @ToolArg(description = "Task dependencies comma-separated task IDs (optional)", required = false) String depends) {
+            @ToolArg(description = "Task title") String title,
+            @ToolArg(description = "Task description (optional)") String description,
+            @ToolArg(description = "Task priority: HIGH, MEDIUM, LOW, NONE") String priority,
+            @ToolArg(description = "Project name (optional)") String project,
+            @ToolArg(description = "Assignee name (optional)") String assignee,
+            @ToolArg(description = "Due date in ISO format (optional)") String dueDate,
+            @ToolArg(description = "Tags comma-separated (optional)") String tags) {
         
-        TaskCreateRequest request = new TaskCreateRequest();
-        request.title = title;
-        request.description = description;
-
-        if (status != null) {
-            request.status = TaskStatus.valueOf(status.toUpperCase());
-        }
+        Task task = new Task();
+        task.title = title;
+        task.description = description;
+        task.project = project;
+        task.assignee = assignee;
+        task.dueDate = dueDate;
+        
         if (priority != null) {
-            request.priority = TaskPriority.valueOf(priority.toUpperCase());
+            try {
+                task.priority = TaskPriority.valueOf(priority.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                task.priority = TaskPriority.MEDIUM;
+            }
         }
-
-        request.project = project;
-        request.assignee = assignee;
-
-        if (dueDate != null) {
-            request.dueDate = LocalDateTime.parse(dueDate, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        
+        if (tags != null && !tags.trim().isEmpty()) {
+            task.tags = Arrays.asList(tags.split(","));
         }
-        if (waitUntil != null) {
-            request.waitUntil = LocalDateTime.parse(waitUntil, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-        }
-
-        if (tags != null) {
-            request.tags = Arrays.asList(tags.split(","));
-        }
-
-        return apiClient.createTask(request)
-                .map(task -> formatTaskResponse(task, "Task created successfully"));
+        
+        return apiClient.createTask(task)
+                .map(response -> {
+                    if (response.getStatus() == 201) {
+                        Task createdTask = response.readEntity(Task.class);
+                        return formatSingleTaskResponse(createdTask, "✅ Task created successfully");
+                    } else {
+                        return "❌ Failed to create task: " + response.getStatusInfo().getReasonPhrase();
+                    }
+                });
     }
 
-    @Tool(description = "Mark a task as completed")
-    public Uni<String> markTaskDone(@ToolArg(description = "Task ID") String id) {
-        return apiClient.markTaskDone(id)
-                .map(task -> formatTaskResponse(task, "Task marked as completed"));
+    @Tool(description = "Update an existing task")
+    public Uni<String> updateTask(
+            @ToolArg(description = "Task ID") String taskId,
+            @ToolArg(description = "New title (optional)") String title,
+            @ToolArg(description = "New description (optional)") String description,
+            @ToolArg(description = "New priority: HIGH, MEDIUM, LOW, NONE (optional)") String priority,
+            @ToolArg(description = "New project name (optional)") String project,
+            @ToolArg(description = "New assignee (optional)") String assignee,
+            @ToolArg(description = "New due date in ISO format (optional)") String dueDate) {
+        
+        Task updates = new Task();
+        if (title != null) updates.title = title;
+        if (description != null) updates.description = description;
+        if (project != null) updates.project = project;
+        if (assignee != null) updates.assignee = assignee;
+        if (dueDate != null) updates.dueDate = dueDate;
+        
+        if (priority != null) {
+            try {
+                updates.priority = TaskPriority.valueOf(priority.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return Uni.createFrom().item("❌ Invalid priority. Use: HIGH, MEDIUM, LOW, NONE");
+            }
+        }
+        
+        return apiClient.updateTask(taskId, updates)
+                .map(response -> {
+                    if (response.getStatus() == 200) {
+                        Task updatedTask = response.readEntity(Task.class);
+                        return formatSingleTaskResponse(updatedTask, "✅ Task updated successfully");
+                    } else {
+                        return "❌ Failed to update task: " + response.getStatusInfo().getReasonPhrase();
+                    }
+                });
     }
 
-    @Tool(description = "Start a task (set status to active)")
-    public Uni<String> startTask(@ToolArg(description = "Task ID") String id) {
-        return apiClient.startTask(id)
-                .map(task -> formatTaskResponse(task, "Task started"));
+    @Tool(description = "Delete a task")
+    public Uni<String> deleteTask(@ToolArg(description = "Task ID") String taskId) {
+        return apiClient.deleteTask(taskId)
+                .map(response -> {
+                    if (response.getStatus() == 204) {
+                        return "✅ Task deleted successfully";
+                    } else {
+                        return "❌ Failed to delete task: " + response.getStatusInfo().getReasonPhrase();
+                    }
+                });
+    }
+
+    @Tool(description = "Start working on a task")
+    public Uni<String> startTask(@ToolArg(description = "Task ID") String taskId) {
+        return apiClient.startTask(taskId)
+                .map(response -> {
+                    if (response.getStatus() == 200) {
+                        Task task = response.readEntity(Task.class);
+                        return formatSingleTaskResponse(task, "✅ Task started");
+                    } else {
+                        return "❌ Failed to start task: " + response.getStatusInfo().getReasonPhrase();
+                    }
+                });
+    }
+
+    @Tool(description = "Stop working on a task")
+    public Uni<String> stopTask(@ToolArg(description = "Task ID") String taskId) {
+        return apiClient.stopTask(taskId)
+                .map(response -> {
+                    if (response.getStatus() == 200) {
+                        Task task = response.readEntity(Task.class);
+                        return formatSingleTaskResponse(task, "✅ Task stopped");
+                    } else {
+                        return "❌ Failed to stop task: " + response.getStatusInfo().getReasonPhrase();
+                    }
+                });
+    }
+
+    @Tool(description = "Mark a task as done/completed")
+    public Uni<String> markTaskDone(@ToolArg(description = "Task ID") String taskId) {
+        return apiClient.markTaskDone(taskId)
+                .map(response -> {
+                    if (response.getStatus() == 200) {
+                        Task task = response.readEntity(Task.class);
+                        return formatSingleTaskResponse(task, "✅ Task marked as done");
+                    } else {
+                        return "❌ Failed to mark task as done: " + response.getStatusInfo().getReasonPhrase();
+                    }
+                });
     }
 
     @Tool(description = "Get all pending tasks")
     public Uni<String> getPendingTasks() {
-        return apiClient.getTasksByStatus("PENDING")
-                .map(tasks -> formatTasksResponse(tasks, "Pending tasks retrieved successfully"));
+        return apiClient.getPendingTasks()
+                .map(tasks -> formatTasksResponse(tasks, "Pending tasks"));
     }
 
     @Tool(description = "Get all active tasks")
     public Uni<String> getActiveTasks() {
-        return apiClient.getTasksByStatus("ACTIVE")
-                .map(tasks -> formatTasksResponse(tasks, "Active tasks retrieved successfully"));
+        return apiClient.getActiveTasks()
+                .map(tasks -> formatTasksResponse(tasks, "Active tasks"));
     }
 
-    @Tool(description = "Get dashboard overview with task statistics")
-    public Uni<String> getDashboard() {
-        return apiClient.getDashboard()
-                .map(dashboard -> dashboard.toString());
+    @Tool(description = "Get all completed tasks")
+    public Uni<String> getCompletedTasks() {
+        return apiClient.getCompletedTasks()
+                .map(tasks -> formatTasksResponse(tasks, "Completed tasks"));
     }
 
-    @Tool(description = "Create a task using TaskWarrior-style quick capture syntax")
-    public Uni<String> quickCapture(
-            @ToolArg(description = "TaskWarrior-style task input (e.g., 'Buy groceries due:tomorrow +shopping priority:H')") String input) {
-        Task task = TaskWarriorParser.parseTaskWarriorInput(input);
-        TaskCreateRequest request = new TaskCreateRequest();
-        request.title = task.title;
-        request.description = task.description;
-        request.status = task.status;
-        request.priority = task.priority;
-        request.project = task.project;
-        request.assignee = task.assignee;
-        request.dueDate = task.dueDate;
-        request.waitUntil = task.waitUntil;
-        request.tags = task.tags;
-
-        return apiClient.createTask(request)
-                .map(createdTask -> formatTaskResponse(createdTask, "Task captured successfully"));
+    @Tool(description = "Get all overdue tasks")
+    public Uni<String> getOverdueTasks() {
+        return apiClient.getOverdueTasks()
+                .map(tasks -> formatTasksResponse(tasks, "Overdue tasks"));
     }
 
-    // Formatting methods
-    private String formatTaskResponse(Task task, String message) {
-        return String.format(
-                "%s:\n\nID: %s\nTitle: %s\nDescription: %s\nStatus: %s\nPriority: %s\nUrgency: %.1f\nDue: %s\nProject: %s\nAssignee: %s\nTags: %s\nCreated: %s\nModified: %s",
-                message,
-                task.id != null ? task.id.toString() : "N/A",
-                task.title,
-                task.description != null ? task.description : "N/A",
-                task.status,
-                task.priority,
-                task.urgency != null ? task.urgency : 0.0,
-                task.dueDate != null ? task.dueDate.toString() : "N/A",
-                task.project != null ? task.project : "N/A",
-                task.assignee != null ? task.assignee : "N/A",
-                task.tags != null ? String.join(", ", task.tags) : "None",
-                task.createdAt != null ? task.createdAt.toString() : "N/A",
-                task.updatedAt != null ? task.updatedAt.toString() : "N/A");
+    @Tool(description = "Get today's tasks")
+    public Uni<String> getTodayTasks() {
+        return apiClient.getTodayTasks()
+                .map(tasks -> formatTasksResponse(tasks, "Today's tasks"));
     }
 
-    private String formatTasksResponse(List<Task> tasks, String message) {
-        if (tasks.isEmpty()) {
-            return message + ": No tasks found.";
+    // ===== PROJECT MANAGEMENT TOOLS =====
+
+    @Tool(description = "Get all projects")
+    public Uni<String> getAllProjects() {
+        return apiClient.getAllProjects()
+                .map(projects -> formatProjectsResponse(projects, "All projects"));
+    }
+
+    @Tool(description = "Get a specific project by ID")
+    public Uni<String> getProject(@ToolArg(description = "Project ID") String projectId) {
+        return apiClient.getProject(projectId)
+                .map(response -> {
+                    if (response.getStatus() == 200) {
+                        Project project = response.readEntity(Project.class);
+                        return formatSingleProjectResponse(project, "Project retrieved successfully");
+                    } else {
+                        return "❌ Project not found with ID: " + projectId;
+                    }
+                });
+    }
+
+    @Tool(description = "Create a new project")
+    public Uni<String> createProject(
+            @ToolArg(description = "Project name") String name,
+            @ToolArg(description = "Project description (optional)") String description,
+            @ToolArg(description = "Project owner (optional)") String owner,
+            @ToolArg(description = "Due date in ISO format (optional)") String dueDate) {
+        
+        Project project = new Project();
+        project.name = name;
+        project.description = description;
+        project.owner = owner;
+        project.dueDate = dueDate;
+        
+        return apiClient.createProject(project)
+                .map(response -> {
+                    if (response.getStatus() == 201) {
+                        Project createdProject = response.readEntity(Project.class);
+                        return formatSingleProjectResponse(createdProject, "✅ Project created successfully");
+                    } else {
+                        return "❌ Failed to create project: " + response.getStatusInfo().getReasonPhrase();
+                    }
+                });
+    }
+
+    @Tool(description = "Get active projects")
+    public Uni<String> getActiveProjects() {
+        return apiClient.getActiveProjects()
+                .map(projects -> formatProjectsResponse(projects, "Active projects"));
+    }
+
+    @Tool(description = "Get overdue projects")
+    public Uni<String> getOverdueProjects() {
+        return apiClient.getOverdueProjects()
+                .map(projects -> formatProjectsResponse(projects, "Overdue projects"));
+    }
+
+    @Tool(description = "Activate a project")
+    public Uni<String> activateProject(@ToolArg(description = "Project ID") String projectId) {
+        return apiClient.activateProject(projectId)
+                .map(response -> {
+                    if (response.getStatus() == 200) {
+                        Project project = response.readEntity(Project.class);
+                        return formatSingleProjectResponse(project, "✅ Project activated");
+                    } else {
+                        return "❌ Failed to activate project: " + response.getStatusInfo().getReasonPhrase();
+                    }
+                });
+    }
+
+    @Tool(description = "Complete a project")
+    public Uni<String> completeProject(@ToolArg(description = "Project ID") String projectId) {
+        return apiClient.completeProject(projectId)
+                .map(response -> {
+                    if (response.getStatus() == 200) {
+                        Project project = response.readEntity(Project.class);
+                        return formatSingleProjectResponse(project, "✅ Project completed");
+                    } else {
+                        return "❌ Failed to complete project: " + response.getStatusInfo().getReasonPhrase();
+                    }
+                });
+    }
+
+    // ===== MINDMAP MANAGEMENT TOOLS =====
+
+    @Tool(description = "Get all mindmaps")
+    public Uni<String> getAllMindmaps() {
+        return apiClient.getAllMindmaps()
+                .map(mindmaps -> formatMindmapsResponse(mindmaps, "All mindmaps"));
+    }
+
+    @Tool(description = "Get a specific mindmap by ID")
+    public Uni<String> getMindmap(@ToolArg(description = "Mindmap ID") String mindmapId) {
+        return apiClient.getMindmap(mindmapId)
+                .map(response -> {
+                    if (response.getStatus() == 200) {
+                        Mindmap mindmap = response.readEntity(Mindmap.class);
+                        return formatSingleMindmapResponse(mindmap, "Mindmap retrieved successfully");
+                    } else {
+                        return "❌ Mindmap not found with ID: " + mindmapId;
+                    }
+                });
+    }
+
+    @Tool(description = "Create a new mindmap")
+    public Uni<String> createMindmap(
+            @ToolArg(description = "Mindmap title") String title,
+            @ToolArg(description = "Mindmap description (optional)") String description,
+            @ToolArg(description = "Owner name (optional)") String owner,
+            @ToolArg(description = "Is public (true/false, optional)") Boolean isPublic) {
+        
+        Mindmap mindmap = new Mindmap();
+        mindmap.title = title;
+        mindmap.description = description;
+        mindmap.owner = owner;
+        if (isPublic != null) {
+            mindmap.isPublic = isPublic;
+        }
+        
+        return apiClient.createMindmap(mindmap)
+                .map(response -> {
+                    if (response.getStatus() == 201) {
+                        Mindmap createdMindmap = response.readEntity(Mindmap.class);
+                        return formatSingleMindmapResponse(createdMindmap, "✅ Mindmap created successfully");
+                    } else {
+                        return "❌ Failed to create mindmap: " + response.getStatusInfo().getReasonPhrase();
+                    }
+                });
+    }
+
+    @Tool(description = "Get public mindmaps")
+    public Uni<String> getPublicMindmaps() {
+        return apiClient.getPublicMindmaps()
+                .map(mindmaps -> formatMindmapsResponse(mindmaps, "Public mindmaps"));
+    }
+
+    @Tool(description = "Get mindmap templates")
+    public Uni<String> getMindmapTemplates() {
+        return apiClient.getTemplates()
+                .map(mindmaps -> formatMindmapsResponse(mindmaps, "Mindmap templates"));
+    }
+
+    // ===== HELPER METHODS =====
+
+    private String formatTasksResponse(List<Task> tasks, String title) {
+        if (tasks == null || tasks.isEmpty()) {
+            return "📋 " + title + ": No tasks found";
         }
 
-        StringBuilder response = new StringBuilder();
-        response.append(message).append(" (").append(tasks.size()).append(" tasks):\n\n");
+        StringBuilder sb = new StringBuilder();
+        sb.append("📋 ").append(title).append(" (").append(tasks.size()).append(" tasks):\n\n");
 
         for (Task task : tasks) {
-            response.append("• ").append(task.title);
-            response.append(" [").append(task.status).append("]");
-            if (task.priority != null && task.priority != TaskPriority.NONE) {
-                response.append(" (Priority: ").append(task.priority).append(")");
-            }
-            if (task.dueDate != null) {
-                response.append(" (Due: ").append(task.dueDate).append(")");
-            }
-            response.append("\n");
+            sb.append(formatTaskSummary(task)).append("\n");
         }
 
-        return response.toString();
+        return sb.toString();
+    }
+
+    private String formatSingleTaskResponse(Task task, String message) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(message).append("\n\n");
+        sb.append(formatTaskDetails(task));
+        return sb.toString();
+    }
+
+    private String formatTaskSummary(Task task) {
+        String statusIcon = getStatusIcon(task.status);
+        String priorityIcon = getPriorityIcon(task.priority);
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append(statusIcon).append(" ").append(priorityIcon).append(" ");
+        sb.append(task.title);
+        
+        if (task.project != null) {
+            sb.append(" [").append(task.project).append("]");
+        }
+        
+        if (task.dueDate != null) {
+            sb.append(" 📅 ").append(task.dueDate);
+        }
+        
+        sb.append(" (ID: ").append(task.id).append(")");
+        
+        return sb.toString();
+    }
+
+    private String formatTaskDetails(Task task) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("📋 Task Details:\n");
+        sb.append("  ID: ").append(task.id).append("\n");
+        sb.append("  Title: ").append(task.title).append("\n");
+        sb.append("  Status: ").append(getStatusIcon(task.status)).append(" ").append(task.status).append("\n");
+        sb.append("  Priority: ").append(getPriorityIcon(task.priority)).append(" ").append(task.priority).append("\n");
+        
+        if (task.description != null) {
+            sb.append("  Description: ").append(task.description).append("\n");
+        }
+        if (task.project != null) {
+            sb.append("  Project: ").append(task.project).append("\n");
+        }
+        if (task.assignee != null) {
+            sb.append("  Assignee: ").append(task.assignee).append("\n");
+        }
+        if (task.dueDate != null) {
+            sb.append("  Due Date: ").append(task.dueDate).append("\n");
+        }
+        if (task.tags != null && !task.tags.isEmpty()) {
+            sb.append("  Tags: ").append(String.join(", ", task.tags)).append("\n");
+        }
+        
+        return sb.toString();
+    }
+
+    private String formatProjectsResponse(List<Project> projects, String title) {
+        if (projects == null || projects.isEmpty()) {
+            return "📁 " + title + ": No projects found";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("📁 ").append(title).append(" (").append(projects.size()).append(" projects):\n\n");
+
+        for (Project project : projects) {
+            sb.append(formatProjectSummary(project)).append("\n");
+        }
+
+        return sb.toString();
+    }
+
+    private String formatSingleProjectResponse(Project project, String message) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(message).append("\n\n");
+        sb.append(formatProjectDetails(project));
+        return sb.toString();
+    }
+
+    private String formatProjectSummary(Project project) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("📁 ").append(project.name);
+        
+        if (project.status != null) {
+            sb.append(" [").append(project.status).append("]");
+        }
+        
+        if (project.owner != null) {
+            sb.append(" 👤 ").append(project.owner);
+        }
+        
+        if (project.dueDate != null) {
+            sb.append(" 📅 ").append(project.dueDate);
+        }
+        
+        sb.append(" (ID: ").append(project.id).append(")");
+        
+        return sb.toString();
+    }
+
+    private String formatProjectDetails(Project project) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("📁 Project Details:\n");
+        sb.append("  ID: ").append(project.id).append("\n");
+        sb.append("  Name: ").append(project.name).append("\n");
+        
+        if (project.status != null) {
+            sb.append("  Status: ").append(project.status).append("\n");
+        }
+        if (project.description != null) {
+            sb.append("  Description: ").append(project.description).append("\n");
+        }
+        if (project.owner != null) {
+            sb.append("  Owner: ").append(project.owner).append("\n");
+        }
+        if (project.dueDate != null) {
+            sb.append("  Due Date: ").append(project.dueDate).append("\n");
+        }
+        
+        return sb.toString();
+    }
+
+    private String formatMindmapsResponse(List<Mindmap> mindmaps, String title) {
+        if (mindmaps == null || mindmaps.isEmpty()) {
+            return "🧠 " + title + ": No mindmaps found";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("🧠 ").append(title).append(" (").append(mindmaps.size()).append(" mindmaps):\n\n");
+
+        for (Mindmap mindmap : mindmaps) {
+            sb.append(formatMindmapSummary(mindmap)).append("\n");
+        }
+
+        return sb.toString();
+    }
+
+    private String formatSingleMindmapResponse(Mindmap mindmap, String message) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(message).append("\n\n");
+        sb.append(formatMindmapDetails(mindmap));
+        return sb.toString();
+    }
+
+    private String formatMindmapSummary(Mindmap mindmap) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("🧠 ").append(mindmap.title);
+        
+        if (mindmap.owner != null) {
+            sb.append(" 👤 ").append(mindmap.owner);
+        }
+        
+        if (mindmap.isPublic != null && mindmap.isPublic) {
+            sb.append(" 🌐 Public");
+        }
+        
+        sb.append(" (ID: ").append(mindmap.id).append(")");
+        
+        return sb.toString();
+    }
+
+    private String formatMindmapDetails(Mindmap mindmap) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("🧠 Mindmap Details:\n");
+        sb.append("  ID: ").append(mindmap.id).append("\n");
+        sb.append("  Title: ").append(mindmap.title).append("\n");
+        
+        if (mindmap.description != null) {
+            sb.append("  Description: ").append(mindmap.description).append("\n");
+        }
+        if (mindmap.owner != null) {
+            sb.append("  Owner: ").append(mindmap.owner).append("\n");
+        }
+        if (mindmap.isPublic != null) {
+            sb.append("  Public: ").append(mindmap.isPublic ? "Yes" : "No").append("\n");
+        }
+        
+        return sb.toString();
+    }
+
+    private String getStatusIcon(TaskStatus status) {
+        if (status == null) return "❓";
+        return switch (status) {
+            case PENDING -> "⏳";
+            case WAITING -> "⏸️";
+            case ACTIVE -> "🔄";
+            case COMPLETED -> "✅";
+            case CANCELLED -> "❌";
+            case ON_HOLD -> "⏸️";
+            case DELETED -> "🗑️";
+        };
+    }
+
+    private String getPriorityIcon(TaskPriority priority) {
+        if (priority == null) return "⚪";
+        return switch (priority) {
+            case HIGH -> "🔴";
+            case MEDIUM -> "🟡";
+            case LOW -> "🟢";
+            case NONE -> "⚪";
+        };
     }
 }
