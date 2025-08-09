@@ -434,7 +434,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: false
-          cache-cleanup: true
+          cache-cleanup: on-success
 
       - name: Install GraalVM (macOS only)
         if: matrix.use-native == true
