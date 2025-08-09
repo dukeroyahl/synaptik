@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.5] - 2025-08-09
+
+### 🐛 Bug Fixes
+- **Workflow reliability improvements** - Fixed Gradle cache-cleanup parameter validation errors
+- **Job dependency chain issues** - Resolved undefined output references causing workflow failures
+- **Release automation robustness** - Enhanced error handling and job coordination
+
+### 🏗️ Improvements
+- **Workflow job outputs** - Ensured all outputs are properly set regardless of conditions
+- **Release process stability** - Improved tag recreation and workflow restart procedures
+- **Error recovery mechanisms** - Better handling of failed releases and workflow restarts
+
+### 🔧 Technical Changes
+- **Gradle setup configuration** - Changed `cache-cleanup: true` to `cache-cleanup: on-success`
+- **Job dependency fixes** - Added proper dependency chains for all workflow jobs
+- **Output validation** - Always set tag_name and version outputs in validate-tag job
+
+### 📦 Version Updates
+- All components: `0.0.4` → `0.0.5`
+
+### 📋 Notes
+- Workflow reliability significantly improved with proper error handling
+- Release automation now more robust against transient failures
+- All previous v0.0.4 features and capabilities maintained
+
 ## [0.0.4] - 2025-08-09
 
 ### 🎯 New Features
@@ -97,7 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Root package: `0.0.1` → `0.0.2`
 
 ### 📋 Notes
-- Native MCP binaries are now available starting with v0.0.4
+- Native MCP binaries are now available starting with v0.0.5
 - The quick install command now works properly without errors
 - All Docker deployment issues have been resolved
 
