@@ -89,11 +89,9 @@ export class ApiClient {
   }
 
   async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
-    const isTextData = typeof data === 'string' && endpoint.includes('/capture')
     return this.request<T>(endpoint, {
       method: 'POST',
-      headers: isTextData ? { 'Content-Type': 'text/plain' } : undefined,
-      body: isTextData ? data : (data ? JSON.stringify(data) : undefined),
+      body: data ? JSON.stringify(data) : undefined,
     })
   }
 
