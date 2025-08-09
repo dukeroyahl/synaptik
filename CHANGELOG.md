@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.2] - 2025-08-09
+
+### 🐛 Fixed
+- **Critical Docker 'Unsupported Media Type' Error** - API client now properly sends `application/json` content-type for all requests
+- **Removed incorrect text/plain logic** - Task capture now uses proper JSON content-type instead of text/plain
+- **Docker environment detection** - Frontend automatically detects Docker vs local development environments
+
+### 🔧 Changed
+- **Nginx proxy configuration** - Improved header forwarding and path handling for better API communication
+- **API client content-type handling** - Simplified and corrected to always use `application/json`
+- **Frontend environment detection** - Smart detection between Docker (nginx proxy) and local development
+
+### ✨ Added
+- **Environment variable support** - `VITE_API_BASE_URL` build argument support in Docker
+- **Docker build improvements** - Better environment variable handling in Dockerfile.frontend
+- **Relative URL handling** - Uses `/api/tasks` in Docker, `localhost:9001` in local development
+
+### 📦 Version Updates
+- Frontend: `0.0.1` → `0.0.2`
+- Backend: `0.0.1` → `0.0.2`
+- Root package: `0.0.1` → `0.0.2`
+
+## [0.0.1] - 2025-08-04
+
 ### Added
 - 🏗️ **Complete project restructure for open source collaboration**
 - 📁 Organized directory structure with clear separation of concerns
