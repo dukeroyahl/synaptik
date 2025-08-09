@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.4] - 2025-08-09
+
+### 🎯 New Features
+- **Native MCP binary compilation support** - Added GraalVM native compilation for MCP server
+- **Comprehensive MCP API tools** - Enhanced MCP server with full task management capabilities
+- **MCP connectivity testing** - Added test script for API connectivity validation
+- **Release branch workflow** - Implemented structured release preparation process
+
+### 🐛 Bug Fixes
+- **Workflow syntax errors** - Resolved cleanup-deleted-tag job syntax issues causing race conditions
+- **Tag recreation reliability** - Improved workflow stability with sequential delete-wait-push approach
+- **MCP server Docker connectivity** - Fixed connectivity issues between MCP server and Dockerized backend
+- **Gradle setup deprecation** - Replaced `gradle-home-cache-cleanup` with `cache-cleanup` parameter
+- **Release creation failures** - Added robust error handling and file-based input for large release notes
+- **Heredoc terminator conflicts** - Used unique terminators to prevent YAML syntax errors
+
+### 🏗️ Improvements
+- **Release notes enhancement** - Show specific version tags (e.g., :0.0.4) prominently before :latest
+- **Workflow error handling** - Added comprehensive debugging and error recovery mechanisms
+- **Release title simplification** - Changed from "🚀 Synaptik v{VERSION}" to clean "v{VERSION}" format
+- **File-based logging system** - Implemented comprehensive logging for MCP server to avoid stdio interference
+- **Native binary optimization** - 59MB ARM64 binary with 41ms startup time achieved
+
+### 🔧 Technical Changes
+- **MCP server logging** - Console disabled, file logging to `~/.synaptik/logs/mcp-server.log`
+- **Workflow concurrency control** - Updated to use `github.event.ref` for better delete/push event handling
+- **Cleanup job improvements** - Added retry logic (3 attempts), delays, and graceful error handling
+- **Version synchronization** - All components updated to v0.0.4 across build files and documentation
+
+### 📦 Version Updates
+- Server: `0.0.3` → `0.0.4`
+- MCP: `0.0.3` → `0.0.4`
+- Frontend: `0.0.3` → `0.0.4`
+- Root package: `0.0.3` → `0.0.4`
+
+### 📋 Notes
+- Native MCP binaries now available for macOS ARM64 and Linux ARM64 (Linux x86_64 coming soon)
+- MCP @Tool annotation discovery issue remains a known framework limitation
+- Safe tag recreation process established to prevent workflow conflicts
+- Release automation significantly improved with better error handling
+
+## [0.0.3] - 2025-08-09
+
+### 🎯 New Features
+- **Native compilation support** - Added GraalVM native compilation for MCP tools
+- **Comprehensive MCP API tools** - Updated MCP server with full task management capabilities
+- **MCP API connectivity testing** - Added test script for validating MCP-to-backend connectivity
+
+### 🐛 Bug Fixes
+- **Workflow syntax error** - Resolved cleanup-deleted-tag job syntax issues
+- **Tag recreation workflow reliability** - Improved stability and race condition handling
+- **MCP server Docker connectivity** - Fixed connectivity issues between MCP server and backend
+
+### 🏗️ Improvements
+- **Release notes format** - Enhanced to show specific version tags prominently
+- **Workflow error handling** - Added better debugging and error recovery
+- **MCP server logging** - Implemented file-based logging system
+
+### 📦 Version Updates
+- All components: `0.0.2` → `0.0.3`
+
 ## [0.0.2] - 2025-08-09
 
 ### 🐛 Fixed
@@ -36,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Root package: `0.0.1` → `0.0.2`
 
 ### 📋 Notes
-- Native MCP binaries will be available in a future release (v0.0.3)
+- Native MCP binaries are now available starting with v0.0.4
 - The quick install command now works properly without errors
 - All Docker deployment issues have been resolved
 

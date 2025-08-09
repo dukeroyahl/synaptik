@@ -197,7 +197,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-          gradle-home-cache-cleanup: true
+          cache-cleanup: true
 
       - name: Frontend build and test
         if: matrix.component == 'frontend' && needs.workflow-context.outputs.frontend_changed == 'true'
