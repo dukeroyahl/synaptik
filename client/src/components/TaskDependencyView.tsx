@@ -124,15 +124,15 @@ const TaskDependencyView: React.FC<TaskDependencyViewProps> = ({ taskId }) => {
                             <Chip 
                               label={depTask.status} 
                               size="small" 
-                              color={depTask.status === 'completed' ? 'success' : 'default'}
+                              color={depTask.status === 'COMPLETED' ? 'success' : 'default'}
                             />
                             {depTask.priority && (
                               <Chip 
                                 label={`Priority: ${depTask.priority}`} 
                                 size="small" 
                                 color={
-                                  depTask.priority === 'H' ? 'error' : 
-                                  depTask.priority === 'M' ? 'warning' : 'info'
+                                  depTask.priority === 'HIGH' ? 'error' : 
+                                  depTask.priority === 'MEDIUM' ? 'warning' : 'info'
                                 }
                               />
                             )}
@@ -163,15 +163,15 @@ const TaskDependencyView: React.FC<TaskDependencyViewProps> = ({ taskId }) => {
                             <Chip 
                               label={depTask.status} 
                               size="small" 
-                              color={depTask.status === 'completed' ? 'success' : 'default'}
+                              color={depTask.status === 'COMPLETED' ? 'success' : 'default'}
                             />
                             {depTask.priority && (
                               <Chip 
                                 label={`Priority: ${depTask.priority}`} 
                                 size="small" 
                                 color={
-                                  depTask.priority === 'H' ? 'error' : 
-                                  depTask.priority === 'M' ? 'warning' : 'info'
+                                  depTask.priority === 'HIGH' ? 'error' : 
+                                  depTask.priority === 'MEDIUM' ? 'warning' : 'info'
                                 }
                               />
                             )}

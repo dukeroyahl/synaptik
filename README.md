@@ -25,12 +25,12 @@
 
 ## 🎯 What is Synaptik?
 
-**Synaptik is your smart task management companion.** Think of it as a super-powered to-do app that actually understands what you're trying to accomplish.
+**Synaptik is your streamlined task management system.** Think of it as a clean, fast to-do app that focuses on getting things done without unnecessary complexity.
 
 **Why Synaptik is Different:**
-- 🧠 **Smart parsing**: Type naturally like "Meet with Sarah tomorrow at 3pm about the project" OR use TaskWarrior syntax
+- 📝 **Simple task creation**: Type your task description - it becomes a task with medium priority, ready to work on
 - 🤖 **Works with Claude**: Ask Claude to manage your tasks - it connects directly to Synaptik
-- 📊 **Shows insights**: See patterns in your productivity and get suggestions
+- 📊 **Shows insights**: See patterns in your productivity and track progress
 - ⚡ **Blazing fast**: Modern technology that won't slow you down
 - 🌐 **Works anywhere**: Access from any device with a web browser
 

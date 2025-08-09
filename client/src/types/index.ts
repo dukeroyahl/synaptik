@@ -2,8 +2,8 @@ export interface Task {
   id: string
   title: string
   description?: string
-  status: 'pending' | 'waiting' | 'active' | 'completed' | 'deleted'
-  priority: 'H' | 'M' | 'L' | ''
+  status: 'PENDING' | 'WAITING' | 'ACTIVE' | 'COMPLETED' | 'DELETED'
+  priority: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE'
   urgency?: number
   project?: string
   assignee?: string
@@ -15,6 +15,7 @@ export interface Task {
     description: string
   }>
   depends: string[]
+  originalInput?: string
   createdAt: string
   updatedAt: string
 }

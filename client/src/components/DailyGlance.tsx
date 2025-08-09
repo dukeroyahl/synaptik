@@ -54,22 +54,22 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
       // Fetch pending tasks count
       const pendingResponse = await fetch('/api/tasks/pending');
       const pendingResult = await pendingResponse.json();
-      const pendingCount = pendingResult.data?.length || 0;
+      const pendingCount = Array.isArray(pendingResult) ? pendingResult.length : 0;
       
       // Fetch completed tasks count
-      const completedResponse = await fetch('/api/tasks?status=completed');
+      const completedResponse = await fetch('/api/tasks/completed');
       const completedResult = await completedResponse.json();
-      const completedCount = completedResult.data?.length || 0;
+      const completedCount = Array.isArray(completedResult) ? completedResult.length : 0;
       
       // Fetch overdue tasks count
       const overdueResponse = await fetch('/api/tasks/overdue');
       const overdueResult = await overdueResponse.json();
-      const overdueCount = overdueResult.data?.length || 0;
+      const overdueCount = Array.isArray(overdueResult) ? overdueResult.length : 0;
       
       // Fetch today's tasks count
       const todayResponse = await fetch('/api/tasks/today');
       const todayResult = await todayResponse.json();
-      const todayCount = todayResult.data?.length || 0;
+      const todayCount = Array.isArray(todayResult) ? todayResult.length : 0;
       
       setStats({
         pending: pendingCount,

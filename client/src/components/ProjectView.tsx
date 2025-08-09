@@ -75,9 +75,9 @@ const ProjectView: React.FC<ProjectViewProps> = ({
     return Array.from(groups.entries()).map(([name, projectTasks]) => {
       const stats = {
         total: projectTasks.length,
-        completed: projectTasks.filter(t => t.status === 'completed').length,
-        pending: projectTasks.filter(t => t.status === 'pending').length,
-        active: projectTasks.filter(t => t.status === 'active').length,
+        completed: projectTasks.filter(t => t.status === 'COMPLETED').length,
+        pending: projectTasks.filter(t => t.status === 'PENDING').length,
+        active: projectTasks.filter(t => t.status === 'ACTIVE').length,
         overdue: projectTasks.filter(t => {
           if (!t.dueDate) return false;
           return new Date(t.dueDate) < new Date();

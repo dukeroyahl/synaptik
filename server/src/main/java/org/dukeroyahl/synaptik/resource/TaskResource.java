@@ -3,12 +3,13 @@ package org.dukeroyahl.synaptik.resource;
 import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
 import org.dukeroyahl.synaptik.service.TaskService;
-import org.dukeroyahl.synaptik.service.NaturalLanguageParser;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.common.annotation.Blocking;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.bson.types.ObjectId;
@@ -26,8 +27,6 @@ public class TaskResource {
     @Inject
     TaskService taskService;
     
-    @Inject
-    NaturalLanguageParser nlpParser;
     
     @GET
     @Operation(summary = "Get all tasks")
@@ -135,30 +134,4 @@ public class TaskResource {
         return taskService.getTodayTasks();
     }
     
-    @POST
-    @Path("/capture")
-    @Consumes(MediaType.TEXT_PLAIN)
-    @Operation(summary = "Create task from natural language or TaskWarrior syntax")
-    @Blocking
-    public Uni<Response> captureTask(String input) {
-        try {
-            Task parsedTask = nlpParser.parseNaturalLanguage(input);
-            return taskService.createTask(parsedTask)
-                .onItem().transform(createdTask -> Response.status(Response.Status.CREATED).entity(createdTask).build());
-        } catch (IllegalArgumentException e) {
-            return Uni.createFrom().item(
-                Response.status(Response.Status.BAD_REQUEST)
-                    .entity("{\"error\": \"" + e.getMessage() + "\"}")
-                    .type(MediaType.APPLICATION_JSON)
-                    .build()
-            );
-        } catch (Exception e) {
-            return Uni.createFrom().item(
-                Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("{\"error\": \"Failed to process task: " + e.getMessage() + "\"}")
-                    .type(MediaType.APPLICATION_JSON)
-                    .build()
-            );
-        }
-    }
 }

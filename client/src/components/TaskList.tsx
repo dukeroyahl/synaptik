@@ -16,7 +16,7 @@ import LinkTaskDialog from './LinkTaskDialog'
 import { API_BASE_URL } from '../config'
 
 interface TaskListProps {
-  filter?: 'pending' | 'active' | 'overdue' | 'today' | 'completed' | 'all'
+  filter?: 'PENDING' | 'ACTIVE' | 'overdue' | 'today' | 'COMPLETED' | 'all'
   onTaskUpdate?: (task: Task) => void
   assigneeFilter?: string
   projectFilter?: string
@@ -24,7 +24,7 @@ interface TaskListProps {
 }
 
 const TaskList: React.FC<TaskListProps> = memo(({ 
-  filter = 'pending', 
+  filter = 'PENDING', 
   onTaskUpdate, 
   assigneeFilter = '',
   projectFilter = '',
@@ -46,10 +46,10 @@ const TaskList: React.FC<TaskListProps> = memo(({
       let endpoint = '/api/tasks'
       
       switch (filter) {
-        case 'pending':
+        case 'PENDING':
           endpoint = '/api/tasks/pending'
           break
-        case 'active':
+        case 'ACTIVE':
           endpoint = '/api/tasks/active'
           break
         case 'overdue':
@@ -58,8 +58,8 @@ const TaskList: React.FC<TaskListProps> = memo(({
         case 'today':
           endpoint = '/api/tasks/today'
           break
-        case 'completed':
-          endpoint = '/api/tasks?status=completed'
+        case 'COMPLETED':
+          endpoint = '/api/tasks/completed'
           break
         default:
           endpoint = '/api/tasks'

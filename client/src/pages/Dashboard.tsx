@@ -28,6 +28,7 @@ import {
   AccountTree as DependencyIcon
 } from '@mui/icons-material'
 import TaskList from '../components/TaskList'
+import { taskService } from '../services/taskService'
 import DailyGlance from '../components/DailyGlance'
 import TaskCapture from '../components/TaskCapture'
 import UnifiedDependencyView from '../components/UnifiedDependencyView'
@@ -52,30 +53,24 @@ const Dashboard = memo(() => {
 
   const fetchAssignees = useCallback(async () => {
     try {
-      const response = await fetch('/api/tasks');
-      const result = await response.json();
+      const tasks = await taskService.getTasks();
       
-      if (response.ok) {
-        // Backend returns array directly, not wrapped
-        const tasks = Array.isArray(result) ? result : [];
-        
-        // Extract unique assignees from tasks
-        const assignees = tasks
-          .filter((task: any) => task.assignee)
-          .map((task: any) => task.assignee as string);
-        
-        // Extract unique projects from tasks
-        const projects = tasks
-          .filter((task: any) => task.project)
-          .map((task: any) => task.project as string);
-        
-        // Remove duplicates
-        const uniqueAssignees = [...new Set(assignees)] as string[];
-        const uniqueProjects = [...new Set(projects)] as string[];
-        
-        setAvailableAssignees(uniqueAssignees);
-        setAvailableProjects(uniqueProjects);
-      }
+      // Extract unique assignees from tasks
+      const assignees = tasks
+        .filter((task: any) => task.assignee)
+        .map((task: any) => task.assignee as string);
+      
+      // Extract unique projects from tasks
+      const projects = tasks
+        .filter((task: any) => task.project)
+        .map((task: any) => task.project as string);
+      
+      // Remove duplicates
+      const uniqueAssignees = [...new Set(assignees)] as string[];
+      const uniqueProjects = [...new Set(projects)] as string[];
+      
+      setAvailableAssignees(uniqueAssignees);
+      setAvailableProjects(uniqueProjects);
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Failed to fetch assignees and projects:', error);
@@ -98,7 +93,7 @@ const Dashboard = memo(() => {
   // Fetch assignees when component mounts
   useEffect(() => {
     fetchAssignees();
-  }, [fetchAssignees]);
+  }, []); // Remove fetchAssignees dependency to prevent re-renders
 
   const handleClearFilter = useCallback(() => {
     setAssigneeFilter('');
@@ -126,8 +121,11 @@ const Dashboard = memo(() => {
 
   // Memoize active filter calculation
   const activeFilter = useMemo(() => {
-    if (activeTab === 1) return 'completed';
-    return statusFilter === 'all' ? 'pending' : statusFilter;
+    if (activeTab === 1) return 'COMPLETED';
+    if (statusFilter === 'all') return 'PENDING';
+    if (statusFilter === 'pending') return 'PENDING';
+    if (statusFilter === 'completed') return 'COMPLETED';
+    return statusFilter; // overdue, today
   }, [activeTab, statusFilter]);
 
   // Memoize combined assignee filter
@@ -381,7 +379,7 @@ const Dashboard = memo(() => {
               {activeTab === 0 && (
                 <TaskList 
                   key={`active-${refreshCounter}`}
-                  filter={activeFilter as 'pending' | 'active' | 'overdue' | 'today' | 'completed' | 'all'} 
+                  filter={activeFilter as 'PENDING' | 'ACTIVE' | 'overdue' | 'today' | 'COMPLETED' | 'all'} 
                   onTaskUpdate={handleTaskCaptured}
                   assigneeFilter={combinedAssigneeFilter}
                   projectFilter={projectFilter}
@@ -391,7 +389,7 @@ const Dashboard = memo(() => {
               {activeTab === 1 && (
                 <TaskList 
                   key={`completed-${refreshCounter}`}
-                  filter="completed" 
+                  filter="COMPLETED" 
                   onTaskUpdate={handleTaskCaptured}
                   assigneeFilter={combinedAssigneeFilter}
                   projectFilter={projectFilter}

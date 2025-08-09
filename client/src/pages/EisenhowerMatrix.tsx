@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { 
   Box, 
   Card, 
@@ -35,19 +35,26 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { generateTaskId } from '../utils/taskUtils';
+import { taskService } from '../services/taskService';
 
 function isUrgent(task: Task): boolean {
-  if (!task.dueDate) return false;
+  if (!task.dueDate) {
+    console.log(`isUrgent: Task "${task.title}" has no due date, returning false`);
+    return false;
+  }
   
   const now = new Date();
   const due = new Date(task.dueDate);
   const diff = (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
   const urgent = diff <= 30; // due within 30 days (including today) or overdue
+  console.log(`isUrgent: Task "${task.title}" - due: ${task.dueDate}, diff: ${diff.toFixed(1)} days, urgent: ${urgent}`);
   return urgent;
 }
 
 function isImportant(task: Task): boolean {
-  return task.priority === 'H' || task.priority === 'M';
+  const important = task.priority === 'HIGH' || task.priority === 'MEDIUM';
+  console.log(`isImportant: Task "${task.title}" - priority: ${task.priority}, important: ${important}`);
+  return important;
 }
 
 const quadrantLabels = [
@@ -61,30 +68,30 @@ const quadrantLabels = [
 function getTaskFieldsForQuadrant(idx: number, task: Task): Partial<Task> {
   const now = new Date();
   let dueDate: string | undefined = task.dueDate;
-  let priority: 'H' | 'M' | 'L' | '' = task.priority;
+  let priority: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE' = task.priority;
   
   if (idx === 0) { // Urgent & Important
     // Always set to 30 days from current date when moving TO this quadrant
     const thirtyDaysFromNow = new Date(now);
     thirtyDaysFromNow.setDate(now.getDate() + 30);
     dueDate = thirtyDaysFromNow.toISOString().split('T')[0];
-    priority = 'H';
+    priority = 'HIGH';
   } else if (idx === 1) { // Not Urgent & Important
     // Always set to 90 days from current date when moving TO this quadrant
     const ninetyDaysFromNow = new Date(now);
     ninetyDaysFromNow.setDate(now.getDate() + 90);
     dueDate = ninetyDaysFromNow.toISOString().split('T')[0];
-    priority = 'H';
+    priority = 'HIGH';
   } else if (idx === 2) { // Urgent & Not Important  
     // Always set to 30 days from current date when moving TO this quadrant
     const thirtyDaysFromNow = new Date(now);
     thirtyDaysFromNow.setDate(now.getDate() + 30);
     dueDate = thirtyDaysFromNow.toISOString().split('T')[0];
-    priority = 'L';
+    priority = 'LOW';
   } else { // Not Urgent & Not Important
     // Remove due date completely
     dueDate = undefined;
-    priority = 'L';
+    priority = 'LOW';
   }
   
   return { dueDate, priority };
@@ -245,6 +252,9 @@ const EisenhowerMatrix: React.FC = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  
+  // Debug state changes
+  console.log('EisenhowerMatrix: Component render - tasks.length:', tasks.length, 'loading:', loading);
   const theme = useTheme();
 
   const sensors = useSensors(
@@ -262,11 +272,15 @@ const EisenhowerMatrix: React.FC = () => {
   const fetchTasks = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/tasks');
-      const result = await response.json();
-      if (response.ok) {
-        setTasks(result.data || []);
+      console.log('EisenhowerMatrix: Fetching tasks...');
+      const tasks = await taskService.getTasks();
+      console.log('EisenhowerMatrix: Received tasks:', tasks);
+      console.log('EisenhowerMatrix: Task count:', tasks?.length || 0);
+      if (tasks && tasks.length > 0) {
+        console.log('EisenhowerMatrix: First task:', tasks[0]);
       }
+      setTasks(tasks || []);
+      console.log('EisenhowerMatrix: setTasks called with:', tasks?.length || 0, 'tasks');
     } catch (e) {
       console.error('Failed to fetch tasks:', e);
     } finally {
@@ -275,25 +289,53 @@ const EisenhowerMatrix: React.FC = () => {
   };
 
   // Quadrants: 0 = urgent+important, 1 = not urgent+important, 2 = urgent+not important, 3 = not urgent+not important
-  const quadrants: Task[][] = [[], [], [], []];
-  tasks.forEach((task) => {
-    // Skip completed tasks if showCompleted is false
-    if (!showCompleted && task.status === 'completed') {
-      return;
+  const quadrants = useMemo(() => {
+    const result: Task[][] = [[], [], [], []];
+    console.log('EisenhowerMatrix: Processing tasks for quadrants, total tasks:', tasks.length);
+    console.log('EisenhowerMatrix: showCompleted:', showCompleted);
+    console.log('EisenhowerMatrix: tasks array:', tasks);
+    
+    if (tasks.length === 0) {
+      console.log('EisenhowerMatrix: No tasks to process');
+      return result;
     }
     
-    const urgent = isUrgent(task);
-    const important = isImportant(task);
-    if (urgent && important) {
-      quadrants[0].push(task);
-    } else if (!urgent && important) {
-      quadrants[1].push(task);
-    } else if (urgent && !important) {
-      quadrants[2].push(task);
-    } else {
-      quadrants[3].push(task);
-    }
-  });
+    tasks.forEach((task, index) => {
+      console.log(`EisenhowerMatrix: Processing task ${index}:`, {
+        title: task.title,
+        status: task.status,
+        priority: task.priority,
+        dueDate: task.dueDate
+      });
+      
+      // Skip completed tasks if showCompleted is false
+      if (!showCompleted && task.status === 'COMPLETED') {
+        console.log(`EisenhowerMatrix: Skipping completed task: ${task.title}`);
+        return;
+      }
+      
+      const urgent = isUrgent(task);
+      const important = isImportant(task);
+      console.log(`EisenhowerMatrix: Task "${task.title}" - urgent: ${urgent}, important: ${important}`);
+      
+      if (urgent && important) {
+        console.log(`EisenhowerMatrix: Adding "${task.title}" to quadrant 0 (urgent & important)`);
+        result[0].push(task);
+      } else if (!urgent && important) {
+        console.log(`EisenhowerMatrix: Adding "${task.title}" to quadrant 1 (not urgent & important)`);
+        result[1].push(task);
+      } else if (urgent && !important) {
+        console.log(`EisenhowerMatrix: Adding "${task.title}" to quadrant 2 (urgent & not important)`);
+        result[2].push(task);
+      } else {
+        console.log(`EisenhowerMatrix: Adding "${task.title}" to quadrant 3 (not urgent & not important)`);
+        result[3].push(task);
+      }
+    });
+    
+    console.log('EisenhowerMatrix: Final quadrant counts:', result.map((q, i) => ({ quadrant: i, count: q.length })));
+    return result;
+  }, [tasks, showCompleted]);
 
   const getTaskById = (id: string) => tasks.find((t) => t.id === id);
 
@@ -343,15 +385,12 @@ const EisenhowerMatrix: React.FC = () => {
     // Update task fields for new quadrant
     const updatedFields = getTaskFieldsForQuadrant(targetQuadrant, activeTask);
     try {
-      const response = await fetch(`/api/tasks/${activeTask.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...activeTask, ...updatedFields, status: activeTask.status })
+      await taskService.updateTask(activeTask.id, {
+        ...activeTask,
+        ...updatedFields,
+        status: activeTask.status
       });
-
-      if (response.ok) {
-        fetchTasks();
-      }
+      fetchTasks();
     } catch (e) {
       console.error('Error updating task:', e);
     }
@@ -364,13 +403,8 @@ const EisenhowerMatrix: React.FC = () => {
 
   const handleMarkDone = async (task: Task) => {
     try {
-      const response = await fetch(`/api/tasks/${task.id}/done`, {
-        method: 'POST'
-      });
-
-      if (response.ok) {
-        fetchTasks();
-      }
+      await taskService.completeTask(task.id);
+      fetchTasks();
     } catch (e) {
       console.error('Error marking task as done:', e);
     }
@@ -378,13 +412,8 @@ const EisenhowerMatrix: React.FC = () => {
 
   const handleUnmarkDone = async (task: Task) => {
     try {
-      const response = await fetch(`/api/tasks/${task.id}/undone`, {
-        method: 'POST'
-      });
-
-      if (response.ok) {
-        fetchTasks();
-      }
+      await taskService.performAction(task.id, 'undone' as any);
+      fetchTasks();
     } catch (e) {
       console.error('Error unmarking task as done:', e);
     }
@@ -398,13 +427,8 @@ const EisenhowerMatrix: React.FC = () => {
   
   const handleDeleteTask = async (task: Task) => {
     try {
-      const response = await fetch(`/api/tasks/${task.id}/delete`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
-        fetchTasks();
-      }
+      await taskService.deleteTask(task.id);
+      fetchTasks();
     } catch (e) {
       console.error('Error deleting task:', e);
     }
@@ -412,15 +436,8 @@ const EisenhowerMatrix: React.FC = () => {
 
   const handleSaveTask = async (updatedTask: Task) => {
     try {
-      const response = await fetch(`/api/tasks/${updatedTask.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedTask)
-      });
-
-      if (response.ok) {
-        fetchTasks(); // Refresh the tasks
-      }
+      await taskService.updateTask(updatedTask.id, updatedTask);
+      fetchTasks(); // Refresh the tasks
     } catch (e) {
       console.error('Error updating task:', e);
     }

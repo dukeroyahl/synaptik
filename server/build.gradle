@@ -16,17 +16,18 @@ dependencies {
     implementation 'io.quarkus:quarkus-mongodb-panache'
     implementation 'io.quarkus:quarkus-hibernate-validator'
     implementation 'io.quarkus:quarkus-smallrye-openapi'
-    implementation 'io.quarkiverse.mcp:quarkus-mcp-server-stdio:1.4.1'
-    implementation 'io.quarkiverse.mcp:quarkus-mcp-server-sse:1.4.1'
+//    implementation 'io.quarkiverse.mcp:quarkus-mcp-server-stdio:1.4.1'
+//    implementation 'io.quarkiverse.mcp:quarkus-mcp-server-sse:1.4.1'
     implementation 'io.quarkus:quarkus-smallrye-health'
     implementation 'io.quarkus:quarkus-arc'
     
-    // Stanford NLP dependencies
-    implementation 'edu.stanford.nlp:stanford-corenlp:4.5.4'
-    implementation 'edu.stanford.nlp:stanford-corenlp:4.5.4:models'
     
     // Quarkus JaCoCo extension for code coverage
     testImplementation 'io.quarkus:quarkus-jacoco'
+
+    //Lombok
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30'
     
     testImplementation 'io.quarkus:quarkus-junit5'
     testImplementation 'io.rest-assured:rest-assured'
@@ -53,6 +54,15 @@ compileTestJava {
 test {
     systemProperty "java.util.logging.manager", "org.jboss.logmanager.LogManager"
     useJUnitPlatform()
+    
+    // Increase heap size for memory-intensive tests
+    jvmArgs '-Xmx2g', '-Xms1g', '-XX:MaxMetaspaceSize=512m', '-XX:+UseG1GC'
+    
+    // Show memory information
+    doFirst {
+        println "Test JVM Args: ${jvmArgs}"
+        println "Max Heap: 2GB, Initial Heap: 1GB, Max Metaspace: 512MB"
+    }
     
     // Test logger configuration
     testlogger {

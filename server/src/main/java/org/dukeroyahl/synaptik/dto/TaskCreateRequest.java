@@ -5,10 +5,13 @@ import org.dukeroyahl.synaptik.domain.TaskPriority;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.Data;
+import lombok.experimental.Accessors;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
+@Data
+@Accessors(chain = true)
 public class TaskCreateRequest {
     
     @NotBlank
@@ -22,8 +25,8 @@ public class TaskCreateRequest {
     public TaskPriority priority = TaskPriority.NONE;
     public String project;
     public String assignee;
-    public LocalDateTime dueDate;
-    public LocalDateTime waitUntil;
+    public String dueDate;
+    public String waitUntil;
     public List<String> tags;
     
     public Task toTask() {
