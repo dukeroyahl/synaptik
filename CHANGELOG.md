@@ -43,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Root package: `0.0.3` → `0.0.4`
 
 ### 📋 Notes
-- Native MCP binaries now available for macOS ARM64, Linux AMD64, and Linux ARM64
+- Native MCP binaries now available for macOS ARM64 and Linux ARM64 (Linux x86_64 coming soon)
 - MCP @Tool annotation discovery issue remains a known framework limitation
 - Safe tag recreation process established to prevent workflow conflicts
 - Release automation significantly improved with better error handling
