@@ -19,7 +19,7 @@ on:
         type: boolean
 
 concurrency:
-  group: release-${{ github.ref || github.event.inputs.version }}
+  group: release-${{ github.event.ref || github.ref || github.event.inputs.version }}
   cancel-in-progress: false
 
 permissions:
@@ -416,18 +416,50 @@ jobs:
             echo "should_cleanup=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Delete corresponding release
+      - name: Delete corresponding release (with retry logic)
         if: steps.check.outputs.should_cleanup == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           DELETED_TAG="${{ steps.check.outputs.tag_name }}"
           
           echo "🔍 Looking for release with tag: $DELETED_TAG"
+          echo "Event: ${{ github.event_name }}, Ref: ${{ github.event.ref }}, Ref Type: ${{ github.event.ref_type }}"
           
-          # Check if release exists
-          RELEASE_INFO=$(gh api repos/dukeroyahl/synaptik/releases/tags/$DELETED_TAG 2>/dev/null || echo "null")
+          # Wait a moment to avoid race conditions with concurrent workflows
+          sleep 5
           
-          if [ "$RELEASE_INFO" = "null" ]; then
-            echo "ℹ️ No release found for tag $DELETED_TAG"
+          # Check if release exists with retry logic
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt: Checking for release..."
+            
+            RELEASE_INFO=$(gh api repos/dukeroyahl/synaptik/releases/tags/$DELETED_TAG 2>/dev/null || echo "null")
+            
+            if [ "$RELEASE_INFO" = "null" ]; then
+              echo "ℹ️ No release found for tag $DELETED_TAG (attempt $attempt)"
+              if [ $attempt -eq 3 ]; then
+                echo "✅ No release to clean up - this is normal for tag recreation"
+                exit 0
+              fi
+              sleep 3
+              continue
+            fi
+            
+            # Release exists, try to delete it
+            echo "🗑️ Found release for $DELETED_TAG, attempting to delete..."
+            
+            if gh api -X DELETE repos/dukeroyahl/synaptik/releases/$(echo "$RELEASE_INFO" | jq -r '.id') 2>/dev/null; then
+              echo "✅ Successfully deleted release for tag $DELETED_TAG"
+              exit 0
+            else
+              echo "⚠️ Failed to delete release (attempt $attempt) - might be in use by concurrent workflow"
+              if [ $attempt -eq 3 ]; then
+                echo "ℹ️ Could not delete release after 3 attempts - this is acceptable for tag recreation scenarios"
+                exit 0
+              fi
+              sleep 5
+            fi
+          done
             exit 0
           fi
           
