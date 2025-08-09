@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.2.1] - 2025-08-09
+
+### 🐛 Fixed
+- **Install script errors** - Removed references to non-existent native MCP binaries that were causing CI/CD failures
+- **MCP setup documentation** - Updated with accurate build-from-source instructions
+- **CI/CD pipeline issues** - Install script no longer attempts to download missing binary assets
+
+### 🔧 Changed
+- **Install script MCP section** - Now provides clear instructions for building MCP server from source
+- **README MCP integration** - Updated to reflect current build process instead of non-existent binaries
+- **Documentation accuracy** - All references now match actual available functionality
+
+### 📋 Notes
+- This is a patch release that fixes installation issues without changing core functionality
+- Native MCP binaries will be available in a future release (v0.0.3)
+- The quick install command now works properly without errors
+
 ## [0.0.2] - 2025-08-09
 
 ### 🐛 Fixed
