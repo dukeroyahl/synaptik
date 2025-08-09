@@ -346,7 +346,7 @@ jobs:
             --method POST \
             --field tag_name="$TAG_NAME" \
             --field target_commitish="main" \
-            --field name="🚀 Synaptik v$VERSION" \
+            --field name="v$VERSION" \
             --field body=@/tmp/release_notes.md \
             --field draft=false \
             --field prerelease=false)
@@ -434,7 +434,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: false
-          gradle-home-cache-cleanup: true
+          cache-cleanup: true
 
       - name: Install GraalVM (macOS only)
         if: matrix.use-native == true

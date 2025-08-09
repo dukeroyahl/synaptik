@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Root package: `0.0.1` → `0.0.2`
 
 ### 📋 Notes
-- Native MCP binaries will be available in a future release (v0.0.3)
+- Native MCP binaries will be available in a future release (v0.0.4)
 - The quick install command now works properly without errors
 - All Docker deployment issues have been resolved
 
