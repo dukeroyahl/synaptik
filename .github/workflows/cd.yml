@@ -132,7 +132,19 @@ jobs:
           curl -sSL https://raw.githubusercontent.com/dukeroyahl/synaptik/main/install.sh | bash
           ```
           
-          **Option 2: Docker Images**
+          **Option 2: Native MCP Binaries**
+          Download the appropriate binary for your platform:
+          - **macOS Apple Silicon**: `synaptik-mcp-darwin-arm64` 🍎 *(Primary Platform)*
+          - **Linux x86_64**: `synaptik-mcp-linux-amd64` 🐧
+          - **Linux ARM64**: `synaptik-mcp-linux-arm64` 🐧
+          
+          ```bash
+          # Download for your platform
+          curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-darwin-arm64 -o synaptik-mcp
+          chmod +x synaptik-mcp
+          ```
+          
+          **Option 3: Docker Images**
           ```bash
           # Frontend
           docker pull ghcr.io/dukeroyahl/synaptik/frontend:v$VERSION
@@ -146,15 +158,26 @@ jobs:
           ```
           
           ### 🤖 Claude Desktop Integration
-          For Claude Desktop integration, build the MCP server from source:
           
-          ```bash
-          # Build MCP server from source (native binaries coming in v0.0.3)
-          cd mcp && ./gradlew quarkusBuild
+          **With Native Binary (Easiest):**
+          1. Download the MCP binary for your platform (above)
+          2. Add to your Claude Desktop config:
+          ```json
+          {
+            "mcpServers": {
+              "synaptik": {
+                "command": "/path/to/synaptik-mcp"
+              }
+            }
+          }
           ```
           
-          Then add to your Claude Desktop config:
-          ```json
+          **With Build from Source:**
+          ```bash
+          # Build MCP server from source
+          cd mcp && ./gradlew quarkusBuild
+          
+          # Configure Claude Desktop with:
           {
             "mcpServers": {
               "synaptik": {

@@ -238,13 +238,49 @@ echo "🤖 Claude Desktop Integration"
 echo "============================"
 log_info "Want to manage tasks with Claude Desktop? Follow these steps:"
 echo ""
-echo "1. Build the MCP server from source (native binaries coming in future release):"
-echo "   cd $(pwd)/mcp"
-echo "   ./gradlew quarkusBuild"
+echo "1. Download native MCP binary (recommended) or build from source:"
+echo ""
+echo "   Option A: Download native binary"
+case "$(uname -m)" in
+    arm64|aarch64)
+        case "$(uname)" in
+            Darwin*) 
+                echo "   curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-darwin-arm64 -o synaptik-mcp && chmod +x synaptik-mcp"
+                ;;
+            Linux*)
+                echo "   curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux-arm64 -o synaptik-mcp && chmod +x synaptik-mcp"
+                ;;
+        esac
+        ;;
+    x86_64|amd64)
+        case "$(uname)" in
+            Linux*)
+                echo "   curl -sSL https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux-amd64 -o synaptik-mcp && chmod +x synaptik-mcp"
+                ;;
+        esac
+        ;;
+    *)
+        echo "   Architecture $(uname -m) not yet supported for native binaries."
+        echo "   Available platforms: macOS ARM64, Linux x86_64, Linux ARM64"
+        ;;
+esac
+echo ""
+echo "   Option B: Build from source"
+echo "   cd $(pwd)/mcp && ./gradlew quarkusBuild"
 echo ""
 echo "2. Configure Claude Desktop to use the MCP server:"
 echo "   Add this to your Claude Desktop configuration file:"
 echo ""
+echo "   With native binary:"
+echo "   {"
+echo "     \"mcpServers\": {"
+echo "       \"synaptik\": {"
+echo "         \"command\": \"/path/to/synaptik-mcp\""
+echo "       }"
+echo "     }"
+echo "   }"
+echo ""
+echo "   With Java build:"
 echo "   {"
 echo "     \"mcpServers\": {"
 echo "       \"synaptik\": {"
