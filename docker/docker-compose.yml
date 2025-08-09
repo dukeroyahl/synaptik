@@ -36,6 +36,8 @@ services:
     environment:
       - QUARKUS_PROFILE=prod
       - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-changeme}@mongodb:27017/synaptik?authSource=admin
+      # Allow external connections for MCP server
+      - QUARKUS_HTTP_HOST=0.0.0.0
     volumes:
       - ${SYNAPTIK_LOGS_DIR:-${HOME}/.synaptik/logs}/backend:/opt/synaptik/logs
     restart: unless-stopped
