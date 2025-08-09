@@ -321,12 +321,33 @@ jobs:
           TAG_NAME="${{ needs.validate-tag.outputs.tag_name }}"
           VERSION="${{ needs.validate-tag.outputs.version }}"
           
+          echo "🔍 Creating release for tag: $TAG_NAME (version: $VERSION)"
+          
+          # Check if release already exists and delete it
+          if gh api repos/dukeroyahl/synaptik/releases/tags/$TAG_NAME 2>/dev/null; then
+            echo "⚠️ Release for $TAG_NAME already exists, deleting it first..."
+            EXISTING_RELEASE_ID=$(gh api repos/dukeroyahl/synaptik/releases/tags/$TAG_NAME --jq '.id')
+            gh api repos/dukeroyahl/synaptik/releases/$EXISTING_RELEASE_ID --method DELETE
+            echo "✅ Deleted existing release"
+          fi
+          
+          # Create the release notes in a temporary file to avoid command line length issues
+          cat > /tmp/release_notes.md << 'TEMP_EOF'
+          ${{ needs.generate-release-notes.outputs.release_notes }}
+          TEMP_EOF
+          
+          echo "📝 Release notes preview (first 500 chars):"
+          head -c 500 /tmp/release_notes.md
+          echo ""
+          echo "..."
+          
+          # Create the release using file input for body
           RELEASE_RESPONSE=$(gh api repos/dukeroyahl/synaptik/releases \
             --method POST \
             --field tag_name="$TAG_NAME" \
             --field target_commitish="main" \
             --field name="🚀 Synaptik v$VERSION" \
-            --field body="${{ needs.generate-release-notes.outputs.release_notes }}" \
+            --field body=@/tmp/release_notes.md \
             --field draft=false \
             --field prerelease=false)
           
