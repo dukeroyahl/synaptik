@@ -450,6 +450,7 @@ jobs:
             
             if gh api -X DELETE repos/dukeroyahl/synaptik/releases/$(echo "$RELEASE_INFO" | jq -r '.id') 2>/dev/null; then
               echo "✅ Successfully deleted release for tag $DELETED_TAG"
+              echo "⚠️ Docker images may still exist - consider manual cleanup if needed"
               exit 0
             else
               echo "⚠️ Failed to delete release (attempt $attempt) - might be in use by concurrent workflow"
@@ -460,19 +461,3 @@ jobs:
               sleep 5
             fi
           done
-            exit 0
-          fi
-          
-          RELEASE_ID=$(echo "$RELEASE_INFO" | jq -r '.id')
-          RELEASE_NAME=$(echo "$RELEASE_INFO" | jq -r '.name')
-          
-          echo "🗑️ Deleting release: $RELEASE_NAME (ID: $RELEASE_ID)"
-          
-          # Delete the release
-          gh api repos/dukeroyahl/synaptik/releases/$RELEASE_ID --method DELETE
-          
-          echo "✅ Successfully deleted release for tag $DELETED_TAG"
-          echo "⚠️ Docker images ghcr.io/dukeroyahl/synaptik/frontend:v${DELETED_TAG#v} and backend:v${DELETED_TAG#v} may still exist"
-          echo "   Consider manual cleanup if needed: https://github.com/orgs/dukeroyahl/packages"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
