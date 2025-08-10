@@ -3,6 +3,7 @@ package org.dukeroyahl.synaptik.domain;
 import io.quarkus.mongodb.panache.reactive.ReactivePanacheMongoEntityBase;
 import org.bson.codecs.pojo.annotations.BsonId;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -13,7 +14,10 @@ public abstract class BaseEntity extends ReactivePanacheMongoEntityBase {
     @JsonProperty("id")
     public UUID id;
     
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     public LocalDateTime createdAt;
+    
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     public LocalDateTime updatedAt;
     
     public BaseEntity() {
