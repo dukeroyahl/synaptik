@@ -2,6 +2,7 @@ package org.dukeroyahl.synaptik.resource;
 
 import org.dukeroyahl.synaptik.domain.Project;
 import org.dukeroyahl.synaptik.domain.ProjectStatus;
+import org.dukeroyahl.synaptik.dto.UpdateProject;
 import org.dukeroyahl.synaptik.service.ProjectService;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
@@ -9,11 +10,11 @@ import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.bson.types.ObjectId;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
+import java.util.UUID;
 
 @Path("/api/projects")
 @Tag(name = "Projects", description = "Project management operations")
@@ -34,9 +35,16 @@ public class ProjectResource {
     @Path("/{id}")
     @Operation(summary = "Get project by ID")
     public Uni<Response> getProject(@PathParam("id") String id) {
-        return projectService.getProjectById(new ObjectId(id))
-            .onItem().ifNotNull().transform(project -> Response.ok(project).build())
-            .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        try {
+            UUID uuid = UUID.fromString(id);
+            return projectService.getProjectById(uuid)
+                .onItem().ifNotNull().transform(project -> Response.ok(project).build())
+                .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        } catch (IllegalArgumentException e) {
+            return Uni.createFrom().item(Response.status(Response.Status.BAD_REQUEST)
+                .entity("{\"error\": \"Invalid UUID format\"}")
+                .build());
+        }
     }
     
     @POST
@@ -49,59 +57,90 @@ public class ProjectResource {
     @PUT
     @Path("/{id}")
     @Operation(summary = "Update a project")
-    public Uni<Response> updateProject(@PathParam("id") String id, @Valid Project updates) {
-        return projectService.updateProject(new ObjectId(id), updates)
-            .onItem().ifNotNull().transform(project -> Response.ok(project).build())
-            .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+    public Uni<Response> updateProject(@PathParam("id") String id, @Valid UpdateProject updates) {
+        try {
+            UUID uuid = UUID.fromString(id);
+            return projectService.updateProject(uuid, updates)
+                .onItem().ifNotNull().transform(project -> Response.ok(project).build())
+                .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        } catch (IllegalArgumentException e) {
+            return Uni.createFrom().item(Response.status(Response.Status.BAD_REQUEST)
+                .entity("{\"error\": \"Invalid UUID format\"}")
+                .build());
+        }
     }
     
     @DELETE
     @Path("/{id}")
-    @Operation(summary = "Delete a project")
+    @Operation(summary = "Delete a project (soft delete)")
     public Uni<Response> deleteProject(@PathParam("id") String id) {
-        return projectService.deleteProject(new ObjectId(id))
-            .onItem().transform(deleted -> deleted ? 
-                Response.noContent().build() : 
-                Response.status(Response.Status.NOT_FOUND).build());
+        try {
+            UUID uuid = UUID.fromString(id);
+            return projectService.deleteProject(uuid)
+                .onItem().ifNotNull().transform(project -> Response.ok(project).build())
+                .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        } catch (IllegalArgumentException e) {
+            return Uni.createFrom().item(Response.status(Response.Status.BAD_REQUEST)
+                .entity("{\"error\": \"Invalid UUID format\"}")
+                .build());
+        }
     }
     
-    @POST
-    @Path("/{id}/activate")
+    @DELETE
+    @Operation(summary = "Delete all projects")
+    public Uni<Response> deleteAllProjects() {
+        return projectService.deleteAllProjects()
+            .onItem().transform(v -> Response.noContent().build());
+    }
+    
+    @PUT
+    @Path("/{id}/start")
     @Consumes({})
-    @Operation(summary = "Activate a project")
-    public Uni<Response> activateProject(@PathParam("id") String id) {
-        return projectService.activateProject(new ObjectId(id))
-            .onItem().ifNotNull().transform(project -> Response.ok(project).build())
-            .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+    @Operation(summary = "Start a project")
+    public Uni<Response> startProject(@PathParam("id") String id) {
+        try {
+            UUID uuid = UUID.fromString(id);
+            return projectService.startProject(uuid)
+                .onItem().ifNotNull().transform(project -> Response.ok(project).build())
+                .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        } catch (IllegalArgumentException e) {
+            return Uni.createFrom().item(Response.status(Response.Status.BAD_REQUEST)
+                .entity("{\"error\": \"Invalid UUID format\"}")
+                .build());
+        }
     }
     
-    @POST
+    @PUT
     @Path("/{id}/complete")
     @Consumes({})
     @Operation(summary = "Complete a project")
     public Uni<Response> completeProject(@PathParam("id") String id) {
-        return projectService.completeProject(new ObjectId(id))
-            .onItem().ifNotNull().transform(project -> Response.ok(project).build())
-            .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
-    }
-    
-    @POST
-    @Path("/{id}/hold")
-    @Consumes({})
-    @Operation(summary = "Put project on hold")
-    public Uni<Response> putProjectOnHold(@PathParam("id") String id) {
-        return projectService.putProjectOnHold(new ObjectId(id))
-            .onItem().ifNotNull().transform(project -> Response.ok(project).build())
-            .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        try {
+            UUID uuid = UUID.fromString(id);
+            return projectService.completeProject(uuid)
+                .onItem().ifNotNull().transform(project -> Response.ok(project).build())
+                .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        } catch (IllegalArgumentException e) {
+            return Uni.createFrom().item(Response.status(Response.Status.BAD_REQUEST)
+                .entity("{\"error\": \"Invalid UUID format\"}")
+                .build());
+        }
     }
     
     @PUT
     @Path("/{id}/progress")
     @Operation(summary = "Update project progress")
     public Uni<Response> updateProjectProgress(@PathParam("id") String id, @QueryParam("progress") double progress) {
-        return projectService.updateProjectProgress(new ObjectId(id), progress)
-            .onItem().ifNotNull().transform(project -> Response.ok(project).build())
-            .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        try {
+            UUID uuid = UUID.fromString(id);
+            return projectService.updateProjectProgress(uuid, progress)
+                .onItem().ifNotNull().transform(project -> Response.ok(project).build())
+                .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        } catch (IllegalArgumentException e) {
+            return Uni.createFrom().item(Response.status(Response.Status.BAD_REQUEST)
+                .entity("{\"error\": \"Invalid UUID format\"}")
+                .build());
+        }
     }
     
     @GET

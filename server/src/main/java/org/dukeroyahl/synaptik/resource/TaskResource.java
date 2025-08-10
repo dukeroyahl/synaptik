@@ -10,11 +10,11 @@ import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.bson.types.ObjectId;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
+import java.util.UUID;
 
 @Path("/api/tasks")
 @Tag(name = "Tasks", description = "Task management operations")
@@ -24,7 +24,6 @@ public class TaskResource {
     
     @Inject
     TaskService taskService;
-    
     
     @GET
     @Operation(summary = "Get all tasks")
@@ -54,19 +53,32 @@ public class TaskResource {
     @GET
     @Path("/{id}/neighbors")
     @Operation(summary = "Get subgraph consisting of task, its dependencies, and its dependents")
-    public Uni<TaskGraphResponse> getTaskNeighbors(@PathParam("id") String id,
-                                                   @QueryParam("depth") @DefaultValue("1") int depth,
-                                                   @QueryParam("includePlaceholders") @DefaultValue("true") boolean includePlaceholders) {
-        return taskService.buildNeighborsGraph(new ObjectId(id), depth, includePlaceholders);
+    public Uni<Response> getTaskNeighbors(@PathParam("id") String id,
+                                         @QueryParam("depth") @DefaultValue("1") int depth,
+                                         @QueryParam("includePlaceholders") @DefaultValue("true") boolean includePlaceholders) {
+        try {
+            UUID taskId = UUID.fromString(id);
+            return taskService.buildNeighborsGraph(taskId, depth, includePlaceholders)
+                .onItem().transform(graph -> Response.ok(graph).build());
+        } catch (IllegalArgumentException e) {
+            return Uni.createFrom().item(Response.status(Response.Status.BAD_REQUEST)
+                .entity("Invalid UUID format: " + id).build());
+        }
     }
     
     @GET
     @Path("/{id}")
     @Operation(summary = "Get task by ID")
     public Uni<Response> getTask(@PathParam("id") String id) {
-        return taskService.getTaskById(new ObjectId(id))
-            .onItem().ifNotNull().transform(task -> Response.ok(task).build())
-            .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        try {
+            UUID taskId = UUID.fromString(id);
+            return taskService.getTaskById(taskId)
+                .onItem().ifNotNull().transform(task -> Response.ok(task).build())
+                .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        } catch (IllegalArgumentException e) {
+            return Uni.createFrom().item(Response.status(Response.Status.BAD_REQUEST)
+                .entity("Invalid UUID format: " + id).build());
+        }
     }
     
     @POST
@@ -80,49 +92,86 @@ public class TaskResource {
     @Path("/{id}")
     @Operation(summary = "Update a task")
     public Uni<Response> updateTask(@PathParam("id") String id, @Valid Task updates) {
-        return taskService.updateTask(new ObjectId(id), updates)
-            .onItem().ifNotNull().transform(task -> Response.ok(task).build())
-            .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        try {
+            UUID taskId = UUID.fromString(id);
+            return taskService.updateTask(taskId, updates)
+                .onItem().ifNotNull().transform(task -> Response.ok(task).build())
+                .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        } catch (IllegalArgumentException e) {
+            return Uni.createFrom().item(Response.status(Response.Status.BAD_REQUEST)
+                .entity("Invalid UUID format: " + id).build());
+        }
     }
     
     @DELETE
     @Path("/{id}")
     @Operation(summary = "Delete a task")
     public Uni<Response> deleteTask(@PathParam("id") String id) {
-        return taskService.deleteTask(new ObjectId(id))
-            .onItem().transform(deleted -> deleted ? 
-                Response.noContent().build() : 
-                Response.status(Response.Status.NOT_FOUND).build());
+        try {
+            UUID taskId = UUID.fromString(id);
+            return taskService.deleteTask(taskId)
+                .onItem().transform(deleted -> deleted ? 
+                    Response.noContent().build() : 
+                    Response.status(Response.Status.NOT_FOUND).build());
+        } catch (IllegalArgumentException e) {
+            return Uni.createFrom().item(Response.status(Response.Status.BAD_REQUEST)
+                .entity("Invalid UUID format: " + id).build());
+        }
     }
     
-    @POST
+    @DELETE
+    @Operation(summary = "Delete all tasks")
+    public Uni<Response> deleteAllTasks() {
+        return taskService.deleteAllTasks()
+            .onItem().transform(v -> Response.noContent().build());
+    }
+    
+    @PUT
     @Path("/{id}/start")
     @Consumes({})
     @Operation(summary = "Start a task")
     public Uni<Response> startTask(@PathParam("id") String id) {
-        return taskService.startTask(new ObjectId(id))
-            .onItem().ifNotNull().transform(task -> Response.ok(task).build())
-            .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        try {
+            UUID taskId = UUID.fromString(id);
+            return taskService.startTask(taskId)
+                .onItem().ifNotNull().transform(task -> Response.ok(task).build())
+                .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        } catch (IllegalArgumentException e) {
+            return Uni.createFrom().item(Response.status(Response.Status.BAD_REQUEST)
+                .entity("Invalid UUID format: " + id).build());
+        }
     }
     
-    @POST
+    @PUT
     @Path("/{id}/stop")
     @Consumes({})
     @Operation(summary = "Stop a task")
     public Uni<Response> stopTask(@PathParam("id") String id) {
-        return taskService.stopTask(new ObjectId(id))
-            .onItem().ifNotNull().transform(task -> Response.ok(task).build())
-            .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        try {
+            UUID taskId = UUID.fromString(id);
+            return taskService.stopTask(taskId)
+                .onItem().ifNotNull().transform(task -> Response.ok(task).build())
+                .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        } catch (IllegalArgumentException e) {
+            return Uni.createFrom().item(Response.status(Response.Status.BAD_REQUEST)
+                .entity("Invalid UUID format: " + id).build());
+        }
     }
     
-    @POST
+    @PUT
     @Path("/{id}/done")
     @Consumes({})
     @Operation(summary = "Mark task as done")
     public Uni<Response> markTaskDone(@PathParam("id") String id) {
-        return taskService.markTaskDone(new ObjectId(id))
-            .onItem().ifNotNull().transform(task -> Response.ok(task).build())
-            .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        try {
+            UUID taskId = UUID.fromString(id);
+            return taskService.markTaskDone(taskId)
+                .onItem().ifNotNull().transform(task -> Response.ok(task).build())
+                .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
+        } catch (IllegalArgumentException e) {
+            return Uni.createFrom().item(Response.status(Response.Status.BAD_REQUEST)
+                .entity("Invalid UUID format: " + id).build());
+        }
     }
     
     @GET
@@ -139,7 +188,7 @@ public class TaskResource {
         return taskService.getTasksByStatus(TaskStatus.STARTED);
     }
     
-    
+
     @GET
     @Path("/completed")
     @Operation(summary = "Get completed tasks")
@@ -160,5 +209,4 @@ public class TaskResource {
     public Uni<List<Task>> getTodayTasks(@QueryParam("tz") String tz) {
         return taskService.getTodayTasks(tz);
     }
-    
 }

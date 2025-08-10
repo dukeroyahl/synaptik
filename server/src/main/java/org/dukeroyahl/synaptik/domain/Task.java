@@ -3,11 +3,13 @@ package org.dukeroyahl.synaptik.domain;
 import io.quarkus.mongodb.panache.common.MongoEntity;
 import jakarta.validation.constraints.*;
 import org.bson.types.ObjectId;
+import org.bson.codecs.pojo.annotations.BsonIgnore;
 
 import java.time.ZonedDateTime;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @MongoEntity(collection = "tasks")
 public class Task extends BaseEntity {
@@ -29,7 +31,13 @@ public class Task extends BaseEntity {
     @DecimalMax("100.0")
     public Double urgency;
     
+    // Store project ID as UUID instead of project name
+    public UUID projectId;
+    
+    // Keep the original project field for backward compatibility but don't use it for storage
+    @Deprecated
     public String project;
+    
     public String assignee;
     
     // Store as string to avoid MongoDB serialization issues
@@ -42,6 +50,10 @@ public class Task extends BaseEntity {
     
     // Store the original user input for reference
     public String originalInput;
+    
+    // This field is populated during retrieval and not stored in DB
+    @BsonIgnore
+    public Project projectDetails;
     
     public void start() {
         this.status = TaskStatus.STARTED;
@@ -67,6 +79,12 @@ public class Task extends BaseEntity {
     
     public void addAnnotation(String description) {
         annotations.add(new TaskAnnotation(LocalDateTime.now(), description));
+    }
+    
+    public void setProjectId(UUID projectId) {
+        this.projectId = projectId;
+        // Clear the deprecated project field when setting projectId
+        this.project = null;
     }
     
     public double calculateUrgency() {

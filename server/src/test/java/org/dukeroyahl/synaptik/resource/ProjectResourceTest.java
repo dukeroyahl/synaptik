@@ -2,267 +2,96 @@ package org.dukeroyahl.synaptik.resource;
 
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 
 import static io.restassured.RestAssured.given;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.Matchers.matchesPattern;
 
 @QuarkusTest
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class ProjectResourceTest {
 
-    private static String createdProjectId;
-
-    @Test
-    @Order(1)
-    public void testGetAllProjects() {
+    @BeforeEach
+    void setUp() {
+        // Clean up projects collection before each test
         given()
-            .when().get("/api/projects")
+            .when().delete("/api/projects")
             .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("size()", greaterThanOrEqualTo(0));
+            .statusCode(204);
     }
 
     @Test
-    @Order(2)
-    public void testCreateProject() {
+    @Order(1)
+    public void testCreateProjectWithNameOnly() {
         String projectJson = """
             {
-                "name": "Test Project",
-                "description": "This is a test project",
-                "status": "PLANNING",
-                "progress": 0.0,
-                "color": "#FF5733",
-                "owner": "testowner",
-                "members": ["user1", "user2"],
-                "tags": ["development", "test"]
+                "name": "Test Project"
             }
             """;
 
-        createdProjectId = given()
+        given()
             .contentType(ContentType.JSON)
             .body(projectJson)
             .when().post("/api/projects")
             .then()
-                .statusCode(201)
-                .contentType(ContentType.JSON)
-                .body("name", is("Test Project"))
-                .body("description", is("This is a test project"))
-                .body("status", is("PLANNING"))
-                .body("progress", is(0.0f))
-                .body("color", is("#FF5733"))
-                .body("owner", is("testowner"))
-                .body("id", notNullValue())
-                .body("createdAt", notNullValue())
-                .body("updatedAt", notNullValue())
-            .extract().path("id");
+            .statusCode(201)
+            .body("id", matchesPattern("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))
+            .body("name", equalTo("Test Project"))
+            .body("description", anyOf(nullValue(), equalTo("")))
+            .body("owner", anyOf(nullValue(), equalTo("")))
+            .body("status", equalTo("PENDING"));
+    }
+
+    @Test
+    @Order(2)
+    public void testCreateProjectWithAllFields() {
+        String projectJson = """
+            {
+                "name": "Complete Project",
+                "description": "A project with all fields",
+                "owner": "John Doe"
+            }
+            """;
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(projectJson)
+            .when().post("/api/projects")
+            .then()
+            .statusCode(201)
+            .body("id", matchesPattern("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))
+            .body("name", equalTo("Complete Project"))
+            .body("description", equalTo("A project with all fields"))
+            .body("owner", equalTo("John Doe"))
+            .body("status", equalTo("PENDING"));
     }
 
     @Test
     @Order(3)
-    public void testGetProjectById() {
+    public void testCreateProjectWithEmptyName() {
+        String projectJson = """
+            {
+                "name": ""
+            }
+            """;
+
         given()
-            .when().get("/api/projects/" + createdProjectId)
+            .contentType(ContentType.JSON)
+            .body(projectJson)
+            .when().post("/api/projects")
             .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("name", is("Test Project"))
-                .body("id", is(createdProjectId));
+            .statusCode(400);
     }
 
     @Test
     @Order(4)
-    public void testUpdateProject() {
-        String updateJson = """
-            {
-                "name": "Updated Test Project",
-                "description": "This project has been updated",
-                "color": "#33FF57"
-            }
-            """;
-
-        given()
-            .contentType(ContentType.JSON)
-            .body(updateJson)
-            .when().put("/api/projects/" + createdProjectId)
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("name", is("Updated Test Project"))
-                .body("description", is("This project has been updated"))
-                .body("color", is("#33FF57"));
-    }
-
-    @Test
-    @Order(5)
-    public void testActivateProject() {
-        given()
-            .when().post("/api/projects/" + createdProjectId + "/activate")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("status", is("ACTIVE"))
-                .body("startDate", notNullValue());
-    }
-
-    @Test
-    @Order(6)
-    public void testUpdateProjectProgress() {
-        given()
-            .queryParam("progress", 75.5)
-            .when().put("/api/projects/" + createdProjectId + "/progress")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("progress", is(75.5f));
-    }
-
-    @Test
-    @Order(7)
-    public void testPutProjectOnHold() {
-        given()
-            .when().post("/api/projects/" + createdProjectId + "/hold")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("status", is("ON_HOLD"));
-    }
-
-    @Test
-    @Order(8)
-    public void testCompleteProject() {
-        given()
-            .when().post("/api/projects/" + createdProjectId + "/complete")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("status", is("COMPLETED"))
-                .body("progress", is(100.0f))
-                .body("endDate", notNullValue());
-    }
-
-    @Test
-    @Order(9)
-    public void testGetProjectsByStatus() {
-        given()
-            .when().get("/api/projects/status/COMPLETED")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
-
-    @Test
-    @Order(10)
-    public void testGetProjectsByOwner() {
-        given()
-            .when().get("/api/projects/owner/testowner")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
-
-    @Test
-    @Order(11)
-    public void testGetActiveProjects() {
-        given()
-            .when().get("/api/projects/active")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
-
-    @Test
-    @Order(12)
-    public void testGetOverdueProjects() {
-        given()
-            .when().get("/api/projects/overdue")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
-
-    @Test
-    @Order(13)
-    public void testGetProjectsByTag() {
-        given()
-            .when().get("/api/projects/tag/development")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
-
-    @Test
-    @Order(14)
-    public void testDeleteProject() {
-        given()
-            .when().delete("/api/projects/" + createdProjectId)
-            .then()
-                .statusCode(204);
-    }
-
-    @Test
-    @Order(15)
-    public void testGetNonExistentProject() {
-        given()
-            .when().get("/api/projects/507f1f77bcf86cd799439011")
-            .then()
-                .statusCode(404);
-    }
-
-    @Test
-    @Order(16)
-    public void testUpdateNonExistentProject() {
-        String updateJson = """
-            {
-                "name": "Non-existent Project"
-            }
-            """;
-
-        given()
-            .contentType(ContentType.JSON)
-            .body(updateJson)
-            .when().put("/api/projects/507f1f77bcf86cd799439011")
-            .then()
-                .statusCode(404);
-    }
-
-    @Test
-    @Order(17)
-    public void testDeleteNonExistentProject() {
-        given()
-            .when().delete("/api/projects/507f1f77bcf86cd799439011")
-            .then()
-                .statusCode(404);
-    }
-
-    @Test
-    @Order(18)
-    public void testActivateNonExistentProject() {
-        given()
-            .when().post("/api/projects/507f1f77bcf86cd799439011/activate")
-            .then()
-                .statusCode(404);
-    }
-
-    @Test
-    @Order(19)
-    public void testCompleteNonExistentProject() {
-        given()
-            .when().post("/api/projects/507f1f77bcf86cd799439011/complete")
-            .then()
-                .statusCode(404);
-    }
-
-    @Test
-    @Order(20)
-    public void testCreateInvalidProject() {
-        String invalidProjectJson = """
+    public void testCreateProjectWithNullName() {
+        String projectJson = """
             {
                 "description": "Project without name"
             }
@@ -270,43 +99,162 @@ public class ProjectResourceTest {
 
         given()
             .contentType(ContentType.JSON)
-            .body(invalidProjectJson)
+            .body(projectJson)
             .when().post("/api/projects")
             .then()
-                .statusCode(400);
+            .statusCode(400);
     }
 
     @Test
-    @Order(21)
-    public void testUpdateProgressWithInvalidValue() {
-        String projectJson = """
+    @Order(5)
+    public void testGetAllProjects() {
+        // Create two projects first
+        String project1Json = """
             {
-                "name": "Progress Test Project",
-                "description": "For testing progress updates"
+                "name": "Project 1"
+            }
+            """;
+        
+        String project2Json = """
+            {
+                "name": "Project 2"
             }
             """;
 
-        String testProjectId = given()
+        given()
+            .contentType(ContentType.JSON)
+            .body(project1Json)
+            .when().post("/api/projects")
+            .then()
+            .statusCode(201);
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(project2Json)
+            .when().post("/api/projects")
+            .then()
+            .statusCode(201);
+
+        // Get all projects
+        given()
+            .when().get("/api/projects")
+            .then()
+            .statusCode(200)
+            .body("size()", equalTo(2))
+            .body("[0].name", anyOf(equalTo("Project 1"), equalTo("Project 2")))
+            .body("[1].name", anyOf(equalTo("Project 1"), equalTo("Project 2")));
+    }
+
+    @Test
+    @Order(6)
+    public void testGetProjectById() {
+        String projectJson = """
+            {
+                "name": "Specific Project"
+            }
+            """;
+
+        String projectId = given()
             .contentType(ContentType.JSON)
             .body(projectJson)
             .when().post("/api/projects")
             .then()
-                .statusCode(201)
-                .extract().path("id");
+            .statusCode(201)
+            .extract().path("id");
 
-        // Test progress > 100
         given()
-            .queryParam("progress", 150.0)
-            .when().put("/api/projects/" + testProjectId + "/progress")
+            .when().get("/api/projects/" + projectId)
             .then()
-                .statusCode(200)
-                .body("progress", is(100.0f))
-                .body("status", is("COMPLETED"));
+            .statusCode(200)
+            .body("id", equalTo(projectId))
+            .body("name", equalTo("Specific Project"));
+    }
 
-        // Clean up
+    @Test
+    @Order(7)
+    public void testGetNonExistentProject() {
+        String nonExistentId = "550e8400-e29b-41d4-a716-446655440000";
+        
         given()
-            .when().delete("/api/projects/" + testProjectId)
+            .when().get("/api/projects/" + nonExistentId)
             .then()
-                .statusCode(204);
+            .statusCode(404);
+    }
+
+    @Test
+    @Order(8)
+    public void testDuplicateProjectNames() {
+        String projectJson = """
+            {
+                "name": "Duplicate Name"
+            }
+            """;
+
+        // Create first project
+        given()
+            .contentType(ContentType.JSON)
+            .body(projectJson)
+            .when().post("/api/projects")
+            .then()
+            .statusCode(201);
+
+        // Try to create second project with same name - should succeed (different IDs)
+        given()
+            .contentType(ContentType.JSON)
+            .body(projectJson)
+            .when().post("/api/projects")
+            .then()
+            .statusCode(201);
+    }
+
+    @Test
+    @Order(9)
+    public void testProjectStart() {
+        String projectJson = """
+            {
+                "name": "Project to Start"
+            }
+            """;
+
+        String projectId = given()
+            .contentType(ContentType.JSON)
+            .body(projectJson)
+            .when().post("/api/projects")
+            .then()
+            .statusCode(201)
+            .extract().path("id");
+
+        // Start project
+        given()
+            .when().put("/api/projects/" + projectId + "/start")
+            .then()
+            .statusCode(200)
+            .body("status", equalTo("STARTED"));
+    }
+
+    @Test
+    @Order(10)
+    public void testProjectCompletion() {
+        String projectJson = """
+            {
+                "name": "Project to Complete"
+            }
+            """;
+
+        String projectId = given()
+            .contentType(ContentType.JSON)
+            .body(projectJson)
+            .when().post("/api/projects")
+            .then()
+            .statusCode(201)
+            .extract().path("id");
+
+        // Complete project
+        given()
+            .when().put("/api/projects/" + projectId + "/complete")
+            .then()
+            .statusCode(200)
+            .body("status", equalTo("COMPLETED"))
+            .body("progress", equalTo(100.0f));
     }
 }

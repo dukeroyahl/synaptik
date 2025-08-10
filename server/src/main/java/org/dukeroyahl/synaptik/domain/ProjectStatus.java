@@ -1,10 +1,10 @@
 package org.dukeroyahl.synaptik.domain;
 
 public enum ProjectStatus {
-    PLANNING("planning"),
-    ACTIVE("active"),
+    PENDING("pending"),
+    STARTED("started"),
     COMPLETED("completed"),
-    ON_HOLD("on-hold");
+    DELETED("deleted");
     
     private final String value;
     

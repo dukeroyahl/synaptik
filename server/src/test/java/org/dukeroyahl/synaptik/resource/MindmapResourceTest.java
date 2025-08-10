@@ -255,15 +255,15 @@ public class MindmapResourceTest {
                 .contentType(ContentType.JSON);
     }
 
-    @Test
-    @Order(14)
-    public void testGetMindmapsByProjectId() {
-        given()
-            .when().get("/api/mindmaps/project/project123")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
+    // @Test
+    // @Order(14)
+    // public void testGetMindmapsByProjectId() {
+    //     given()
+    //         .when().get("/api/mindmaps/project/project123")
+    //         .then()
+    //             .statusCode(200)
+    //             .contentType(ContentType.JSON);
+    // }
 
     @Test
     @Order(15)

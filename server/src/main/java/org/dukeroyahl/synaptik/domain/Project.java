@@ -17,7 +17,7 @@ public class Project extends BaseEntity {
     public String description;
     
     @NotNull
-    public ProjectStatus status = ProjectStatus.PLANNING;
+    public ProjectStatus status = ProjectStatus.PENDING;
     
     @DecimalMin("0.0")
     @DecimalMax("100.0")
@@ -38,8 +38,8 @@ public class Project extends BaseEntity {
     public List<String> members = new ArrayList<>();
     
     
-    public void activate() {
-        this.status = ProjectStatus.ACTIVE;
+    public void start() {
+        this.status = ProjectStatus.STARTED;
         if (this.startDate == null) {
             this.startDate = LocalDateTime.now();
         }
@@ -51,8 +51,8 @@ public class Project extends BaseEntity {
         this.endDate = LocalDateTime.now();
     }
     
-    public void putOnHold() {
-        this.status = ProjectStatus.ON_HOLD;
+    public void markAsDeleted() {
+        this.status = ProjectStatus.DELETED;
     }
     
     public void updateProgress(double progress) {

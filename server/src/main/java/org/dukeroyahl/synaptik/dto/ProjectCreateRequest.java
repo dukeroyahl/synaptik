@@ -17,7 +17,7 @@ public class ProjectCreateRequest {
     @Size(max = 500)
     public String description;
     
-    public ProjectStatus status = ProjectStatus.PLANNING;
+    public ProjectStatus status = ProjectStatus.PENDING;
     
     @Size(max = 50)
     public String color;

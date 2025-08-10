@@ -2,18 +2,15 @@ package org.dukeroyahl.synaptik.service;
 
 import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
+import org.dukeroyahl.synaptik.domain.Project;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import io.smallrye.mutiny.Uni;
-import org.bson.types.ObjectId;
 import org.jboss.logging.Logger;
 
 import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
-import org.dukeroyahl.synaptik.dto.TaskGraphResponse;
-import org.dukeroyahl.synaptik.dto.TaskGraphNode;
-import org.dukeroyahl.synaptik.dto.TaskGraphEdge;
 
 @ApplicationScoped
 public class TaskService {
@@ -21,77 +18,208 @@ public class TaskService {
     @Inject
     Logger logger;
     
+    @Inject
+    ProjectService projectService;
+    
     public Uni<List<Task>> getAllTasks() {
-        return Task.listAll();
+        return Task.<Task>listAll()
+            .onItem().transformToUni(this::enrichTasksWithProjects);
     }
 
     public Uni<List<Task>> getTasksByStatuses(List<TaskStatus> statuses) {
         if (statuses == null || statuses.isEmpty()) {
             return getAllTasks();
         }
-        return Task.<Task>find("status in ?1", statuses).list();
+        return Task.<Task>find("status in ?1", statuses).list()
+            .onItem().transformToUni(this::enrichTasksWithProjects);
     }
     
-    public Uni<Task> getTaskById(ObjectId id) {
-        return Task.findById(id);
+    public Uni<Task> getTaskById(UUID id) {
+        return Task.<Task>find("_id", id).firstResult()
+            .onItem().transformToUni(this::enrichTaskWithProject);
     }
     
     public Uni<Task> createTask(Task task) {
-        task.prePersist();
-        task.urgency = task.calculateUrgency();
-        logger.infof("Creating new task: %s", task.title);
-        return task.persist();
+        // Handle project auto-creation if project name is provided
+        if (task.project != null && !task.project.trim().isEmpty()) {
+            return projectService.findOrCreateProject(task.project.trim())
+                .onItem().transformToUni(project -> {
+                    if (project != null) {
+                        task.setProjectId(project.id);
+                    }
+                    task.prePersist();
+                    task.urgency = task.calculateUrgency();
+                    logger.infof("Creating new task: %s", task.title);
+                    return task.persist()
+                        .onItem().transformToUni(persistedEntity -> {
+                            Task createdTask = (Task) persistedEntity;
+                            // Update project status after task creation
+                            if (createdTask.projectId != null) {
+                                return projectService.updateProjectStatusBasedOnTasks(createdTask.projectId)
+                                    .onItem().transformToUni(project2 -> 
+                                        enrichTaskWithProject(createdTask)
+                                    );
+                            } else {
+                                return enrichTaskWithProject(createdTask);
+                            }
+                        });
+                });
+        } else {
+            task.prePersist();
+            task.urgency = task.calculateUrgency();
+            logger.infof("Creating new task: %s", task.title);
+            return task.persist()
+                .onItem().transformToUni(persistedEntity -> enrichTaskWithProject((Task) persistedEntity));
+        }
     }
     
-    public Uni<Task> updateTask(ObjectId id, Task updates) {
-        return Task.<Task>findById(id)
+    public Uni<Task> updateTask(UUID id, Task updates) {
+        return Task.<Task>find("_id", id).firstResult()
             .onItem().ifNotNull().transformToUni(task -> {
-                updateTaskFields(task, updates);
-                task.urgency = task.calculateUrgency();
-                task.prePersist();
-                logger.infof("Updating task: %s", task.title);
-                return task.persistOrUpdate();
+                // Handle project update if project name is provided
+                if (updates.project != null && !updates.project.trim().isEmpty()) {
+                    return projectService.findOrCreateProject(updates.project.trim())
+                        .onItem().transformToUni(project -> {
+                            if (project != null) {
+                                task.setProjectId(project.id); // Set on the actual task, not updates
+                            }
+                            updateTaskFields(task, updates);
+                            task.urgency = task.calculateUrgency();
+                            task.prePersist();
+                            logger.infof("Updating task: %s", task.title);
+                            return task.persistOrUpdate()
+                                .onItem().transformToUni(persistedEntity -> {
+                                    Task updatedTask = (Task) persistedEntity;
+                                    // Update project status after task update
+                                    if (updatedTask.projectId != null) {
+                                        return projectService.updateProjectStatusBasedOnTasks(updatedTask.projectId)
+                                            .onItem().transformToUni(proj -> 
+                                                enrichTaskWithProject(updatedTask)
+                                            );
+                                    } else {
+                                        return enrichTaskWithProject(updatedTask);
+                                    }
+                                });
+                        });
+                } else {
+                    updateTaskFields(task, updates);
+                    task.urgency = task.calculateUrgency();
+                    task.prePersist();
+                    logger.infof("Updating task: %s", task.title);
+                    return task.persistOrUpdate()
+                        .onItem().transformToUni(persistedEntity -> {
+                            Task updatedTask = (Task) persistedEntity;
+                            // Update project status after task update
+                            if (updatedTask.projectId != null) {
+                                return projectService.updateProjectStatusBasedOnTasks(updatedTask.projectId)
+                                    .onItem().transformToUni(proj -> 
+                                        enrichTaskWithProject(updatedTask)
+                                    );
+                            } else {
+                                return enrichTaskWithProject(updatedTask);
+                            }
+                        });
+                }
             });
     }
     
-    public Uni<Boolean> deleteTask(ObjectId id) {
-        return Task.deleteById(id);
+    public Uni<Boolean> deleteTask(UUID id) {
+        return Task.<Task>find("_id", id).firstResult()
+            .onItem().ifNotNull().transformToUni(task -> {
+                UUID projectId = task.projectId; // Store project ID before deletion
+                logger.infof("Deleting task: %s", task.title);
+                return task.delete()
+                    .onItem().transformToUni(v -> {
+                        // Update project status after task deletion
+                        if (projectId != null) {
+                            return projectService.updateProjectStatusBasedOnTasks(projectId)
+                                .onItem().transform(project -> true);
+                        } else {
+                            return Uni.createFrom().item(true);
+                        }
+                    });
+            })
+            .onItem().ifNull().continueWith(false);
     }
     
-    public Uni<Task> startTask(ObjectId id) {
-        return Task.<Task>findById(id)
+    public Uni<Void> deleteAllTasks() {
+        logger.info("Deleting all tasks");
+        return Task.deleteAll().replaceWithVoid();
+    }
+    
+    public Uni<Task> startTask(UUID id) {
+        return Task.<Task>find("_id", id).firstResult()
             .onItem().ifNotNull().transformToUni(task -> {
                 task.start();
                 task.urgency = task.calculateUrgency();
                 task.prePersist();
-                return task.persistOrUpdate();
+                
+                return task.persistOrUpdate()
+                    .onItem().transformToUni(persistedEntity -> {
+                        Task updatedTask = (Task) persistedEntity;
+                        // Auto-update project status if task belongs to a project
+                        if (updatedTask.projectId != null) {
+                            return projectService.updateProjectStatusBasedOnTasks(updatedTask.projectId)
+                                .onItem().transformToUni(project -> 
+                                    enrichTaskWithProject(updatedTask)
+                                );
+                        } else {
+                            return enrichTaskWithProject(updatedTask);
+                        }
+                    });
             });
     }
     
-    public Uni<Task> stopTask(ObjectId id) {
-        return Task.<Task>findById(id)
+    public Uni<Task> stopTask(UUID id) {
+        return Task.<Task>find("_id", id).firstResult()
             .onItem().ifNotNull().transformToUni(task -> {
                 task.stop();
                 task.urgency = task.calculateUrgency();
                 task.prePersist();
-                return task.persistOrUpdate();
+                
+                return task.persistOrUpdate()
+                    .onItem().transformToUni(persistedEntity -> {
+                        Task updatedTask = (Task) persistedEntity;
+                        // Auto-update project status if task belongs to a project
+                        if (updatedTask.projectId != null) {
+                            return projectService.updateProjectStatusBasedOnTasks(updatedTask.projectId)
+                                .onItem().transformToUni(project -> 
+                                    enrichTaskWithProject(updatedTask)
+                                );
+                        } else {
+                            return enrichTaskWithProject(updatedTask);
+                        }
+                    });
             });
     }
     
-    public Uni<Task> markTaskDone(ObjectId id) {
-        return Task.<Task>findById(id)
+    public Uni<Task> markTaskDone(UUID id) {
+        return Task.<Task>find("_id", id).firstResult()
             .onItem().ifNotNull().transformToUni(task -> {
                 task.done();
                 task.urgency = task.calculateUrgency();
                 task.prePersist();
-                return task.persistOrUpdate();
+                
+                return task.persistOrUpdate()
+                    .onItem().transformToUni(persistedEntity -> {
+                        Task updatedTask = (Task) persistedEntity;
+                        // Auto-update project status if task belongs to a project
+                        if (updatedTask.projectId != null) {
+                            return projectService.updateProjectStatusBasedOnTasks(updatedTask.projectId)
+                                .onItem().transformToUni(project -> 
+                                    enrichTaskWithProject(updatedTask)
+                                );
+                        } else {
+                            return enrichTaskWithProject(updatedTask);
+                        }
+                    });
             });
     }
     
     public Uni<List<Task>> getTasksByStatus(TaskStatus status) {
-        return Task.<Task>find("status", status).list();
+        return Task.<Task>find("status", status).list()
+            .onItem().transformToUni(this::enrichTasksWithProjects);
     }
-    
     
     public Uni<List<Task>> getOverdueTasks(String tz) {
         ZoneId zone = resolveZone(tz);
@@ -100,7 +228,8 @@ public class TaskService {
         return Task.<Task>find("status in ?1", statuses).list()
             .onItem().transform(list -> list.stream()
                 .filter(t -> isOverdue(t, now))
-                .collect(Collectors.toList()));
+                .collect(Collectors.toList()))
+            .onItem().transformToUni(this::enrichTasksWithProjects);
     }
 
     public Uni<List<Task>> getTodayTasks(String tz) {
@@ -110,7 +239,54 @@ public class TaskService {
         return Task.<Task>find("status in ?1", statuses).list()
             .onItem().transform(list -> list.stream()
                 .filter(t -> isDueToday(t, today, zone))
-                .collect(Collectors.toList()));
+                .collect(Collectors.toList()))
+            .onItem().transformToUni(this::enrichTasksWithProjects);
+    }
+
+    // Project enrichment methods
+    private Uni<Task> enrichTaskWithProject(Task task) {
+        if (task == null || task.projectId == null) {
+            return Uni.createFrom().item(task);
+        }
+        
+        return projectService.getProjectById(task.projectId)
+            .onItem().transform(project -> {
+                task.projectDetails = project;
+                return task;
+            });
+    }
+    
+    private Uni<List<Task>> enrichTasksWithProjects(List<Task> tasks) {
+        if (tasks == null || tasks.isEmpty()) {
+            return Uni.createFrom().item(tasks);
+        }
+        
+        // Get all unique project IDs
+        Set<UUID> projectIds = tasks.stream()
+            .map(task -> task.projectId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+        
+        if (projectIds.isEmpty()) {
+            return Uni.createFrom().item(tasks);
+        }
+        
+        // Fetch all projects in one query
+        return Project.<Project>find("_id in ?1", projectIds).list()
+            .onItem().transform(projects -> {
+                // Create a map for quick lookup
+                Map<UUID, Project> projectMap = projects.stream()
+                    .collect(Collectors.toMap(p -> p.id, p -> p));
+                
+                // Enrich tasks with project details
+                tasks.forEach(task -> {
+                    if (task.projectId != null) {
+                        task.projectDetails = projectMap.get(task.projectId);
+                    }
+                });
+                
+                return tasks;
+            });
     }
 
     private ZoneId resolveZone(String tz) {
@@ -154,256 +330,25 @@ public class TaskService {
     }
     
     private void updateTaskFields(Task task, Task updates) {
+        // Note: ID is never updated - UUIDs are immutable
         if (updates.title != null) task.title = updates.title;
         
         // For nullable fields, we need to distinguish between "not provided" vs "explicitly set to null"
         // Since we're using JSON serialization, null values are included in the updates object
         // We'll update these fields even when they're null to allow clearing them
         task.description = updates.description;
-        task.project = updates.project;
         task.assignee = updates.assignee;
         task.dueDate = updates.dueDate;
         task.waitUntil = updates.waitUntil;
+        
+        // Note: projectId is NOT updated here - it's handled by the project auto-creation logic
+        // in the updateTask method above when the client provides a project name
+        // Clients should not directly set projectId
         
         // Non-nullable fields should still check for null
         if (updates.status != null) task.status = updates.status;
         if (updates.priority != null) task.priority = updates.priority;
         if (updates.tags != null) task.tags = updates.tags;
         if (updates.depends != null) task.depends = updates.depends;
-    }
-
-    public Uni<TaskGraphResponse> buildTaskGraph(List<TaskStatus> statuses) {
-        return getTasksByStatuses(statuses)
-            .onItem().transform(list -> {
-                Map<String, Task> byId = new HashMap<>();
-                list.forEach(t -> byId.put(t.id.toString(), t));
-
-                List<TaskGraphNode> nodes = list.stream().map(t -> new TaskGraphNode(
-                    t.id.toString(),
-                    t.title,
-                    t.status,
-                    t.project,
-                    t.assignee,
-                    t.priority != null ? t.priority.name() : null,
-                    t.urgency,
-                    false
-                )).toList();
-
-                List<TaskGraphEdge> edges = new ArrayList<>();
-                Map<String, List<String>> adjacency = new HashMap<>();
-                for (Task t : list) {
-                    if (t.depends != null) {
-                        for (ObjectId depId : t.depends) {
-                            String from = depId.toString(); // dependency
-                            String to = t.id.toString();     // dependent
-                            if (byId.containsKey(from)) {
-                                edges.add(new TaskGraphEdge(from, to));
-                                adjacency.computeIfAbsent(from, k -> new ArrayList<>()).add(to);
-                            }
-                        }
-                    }
-                }
-
-                boolean hasCycles = detectCycles(adjacency);
-                return new TaskGraphResponse(null, nodes, edges, hasCycles);
-            });
-    }
-
-    public Uni<TaskGraphResponse> buildNeighborsGraph(ObjectId centerId) {
-        return getTaskById(centerId)
-            .onItem().transformToUni(center -> {
-                if (center == null) {
-                    return Uni.createFrom().item(new TaskGraphResponse(centerId.toString(), List.of(), List.of(), false));
-                }
-
-                Uni<List<Task>> dependencyTasksUni = center.depends == null || center.depends.isEmpty()
-                    ? Uni.createFrom().item(List.<Task>of())
-                    : Task.<Task>find("_id in ?1", center.depends).list();
-
-                Uni<List<Task>> dependentsUni = Task.<Task>find("depends = ?1", centerId).list();
-
-                return Uni.combine().all().unis(dependencyTasksUni, dependentsUni).asTuple().map(tuple -> {
-                    List<Task> deps = tuple.getItem1();
-                    List<Task> dependents = tuple.getItem2();
-                    // Build set of tasks to include
-                    Map<String, Task> byId = new HashMap<>();
-                    byId.put(center.id.toString(), center);
-                    for (Task t : deps) byId.put(t.id.toString(), t);
-                    for (Task t : dependents) byId.put(t.id.toString(), t);
-
-                    List<TaskGraphNode> nodes = byId.values().stream().map(t -> new TaskGraphNode(
-                        t.id.toString(),
-                        t.title,
-                        t.status,
-                        t.project,
-                        t.assignee,
-                        t.priority != null ? t.priority.name() : null,
-                        t.urgency,
-                        false
-                    )).toList();
-
-                    // Edges among included tasks
-                    List<TaskGraphEdge> edges = new ArrayList<>();
-                    Map<String, List<String>> adjacency = new HashMap<>();
-                    for (Task t : byId.values()) {
-                        if (t.depends != null) {
-                            for (ObjectId depId : t.depends) {
-                                String from = depId.toString();
-                                String to = t.id.toString();
-                                if (byId.containsKey(from)) {
-                                    edges.add(new TaskGraphEdge(from, to));
-                                    adjacency.computeIfAbsent(from, k -> new ArrayList<>()).add(to);
-                                }
-                            }
-                        }
-                    }
-                    boolean hasCycles = detectCycles(adjacency);
-                    return new TaskGraphResponse(centerId.toString(), nodes, edges, hasCycles);
-                });
-            });
-    }
-
-    public Uni<TaskGraphResponse> buildNeighborsGraph(ObjectId centerId, int depth, boolean includePlaceholders) {
-        if (depth < 1) depth = 1;
-        final int maxDepth = depth;
-        return getTaskById(centerId)
-            .onItem().transformToUni(center -> {
-                if (center == null) {
-                    return Uni.createFrom().item(new TaskGraphResponse(centerId.toString(), List.of(), List.of(), false));
-                }
-
-                // BFS outward up to depth for both directions (dependencies upstream, dependents downstream)
-                Set<ObjectId> visited = new HashSet<>();
-                Map<ObjectId, Task> taskMap = new HashMap<>();
-                Queue<ObjectId> queue = new ArrayDeque<>();
-                Map<ObjectId, Integer> level = new HashMap<>();
-                queue.add(center.id);
-                level.put(center.id, 0);
-                visited.add(center.id);
-                taskMap.put(center.id, center);
-
-                Uni<List<Task>> allTasksUni = Task.<Task>listAll();
-                return allTasksUni.onItem().transform(all -> {
-                    // Index dependents (reverse edges)
-                    Map<ObjectId, List<Task>> dependentsIndex = new HashMap<>();
-                    for (Task t : all) {
-                        if (t.depends != null) {
-                            for (ObjectId d : t.depends) {
-                                dependentsIndex.computeIfAbsent(d, k -> new ArrayList<>()).add(t);
-                            }
-                        }
-                    }
-
-                    // BFS
-                    while (!queue.isEmpty()) {
-                        ObjectId current = queue.poll();
-                        int lvl = level.getOrDefault(current, 0);
-                        if (lvl >= maxDepth) continue;
-                        Task currentTask = taskMap.get(current);
-                        // Upstream (dependencies)
-                        if (currentTask.depends != null) {
-                            for (ObjectId dep : currentTask.depends) {
-                                if (!visited.contains(dep)) {
-                                    Task depTask = findTask(all, dep);
-                                    if (depTask != null) {
-                                        visited.add(dep);
-                                        taskMap.put(dep, depTask);
-                                        level.put(dep, lvl + 1);
-                                        queue.add(dep);
-                                    } else if (includePlaceholders) {
-                                        // Track placeholder via dummy map entry with minimal info (left as null, will add node later)
-                                        level.put(dep, lvl + 1);
-                                        visited.add(dep);
-                                    }
-                                }
-                            }
-                        }
-                        // Downstream (dependents)
-                        for (Task depd : dependentsIndex.getOrDefault(current, List.of())) {
-                            if (!visited.contains(depd.id)) {
-                                visited.add(depd.id);
-                                taskMap.put(depd.id, depd);
-                                level.put(depd.id, lvl + 1);
-                                queue.add(depd.id);
-                            }
-                        }
-                    }
-
-                    // Build nodes
-                    List<TaskGraphNode> nodes = new ArrayList<>();
-                    for (ObjectId oid : visited) {
-                        Task t = taskMap.get(oid);
-                        if (t != null) {
-                            nodes.add(new TaskGraphNode(
-                                t.id.toString(),
-                                t.title,
-                                t.status,
-                                t.project,
-                                t.assignee,
-                                t.priority != null ? t.priority.name() : null,
-                                t.urgency,
-                                false
-                            ));
-                        } else if (includePlaceholders) {
-                            nodes.add(new TaskGraphNode(
-                                oid.toString(),
-                                "(missing)",
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                true
-                            ));
-                        }
-                    }
-
-                    // Build edges among included nodes
-                    Map<String, List<String>> adjacency = new HashMap<>();
-                    List<TaskGraphEdge> edges = new ArrayList<>();
-                    for (Task t : taskMap.values()) {
-                        if (t.depends != null) {
-                            for (ObjectId dep : t.depends) {
-                                String from = dep.toString();
-                                String to = t.id.toString();
-                                if (visited.stream().anyMatch(v -> v.toString().equals(from))) {
-                                    edges.add(new TaskGraphEdge(from, to));
-                                    adjacency.computeIfAbsent(from, k -> new ArrayList<>()).add(to);
-                                }
-                            }
-                        }
-                    }
-                    boolean hasCycles = detectCycles(adjacency);
-                    return new TaskGraphResponse(centerId.toString(), nodes, edges, hasCycles);
-                });
-            });
-    }
-
-    private Task findTask(List<Task> all, ObjectId id) {
-        for (Task t : all) if (t.id.equals(id)) return t; return null;
-    }
-
-    private boolean detectCycles(Map<String, List<String>> adjacency) {
-        Map<String, String> color = new HashMap<>(); // white, gray, black
-        for (String node : adjacency.keySet()) {
-            color.put(node, "white");
-        }
-        for (String node : adjacency.keySet()) {
-            if (color.get(node).equals("white")) {
-                if (dfsCycle(node, adjacency, color)) return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean dfsCycle(String node, Map<String, List<String>> adjacency, Map<String, String> color) {
-        color.put(node, "gray");
-        for (String next : adjacency.getOrDefault(node, List.of())) {
-            String c = color.getOrDefault(next, "white");
-            if (c.equals("gray")) return true; // back edge
-            if (c.equals("white") && dfsCycle(next, adjacency, color)) return true;
-        }
-        color.put(node, "black");
-        return false;
     }
 }
