@@ -102,7 +102,6 @@ interface SortableTaskProps {
   task: Task;
   quadrant: number;
   onEditTask: (task: Task) => void;
-  onEditDate: (task: Task) => void;
   onMarkDone: (task: Task) => void;
   onUnmarkDone: (task: Task) => void;
   onDeleteTask: (task: Task) => void;
@@ -113,7 +112,6 @@ const SortableTask: React.FC<SortableTaskProps & { selected?: boolean; onSelect?
   task, 
   quadrant, 
   onEditTask,
-  onEditDate,
   onMarkDone,
   onUnmarkDone,
   onDeleteTask,
@@ -147,7 +145,6 @@ const SortableTask: React.FC<SortableTaskProps & { selected?: boolean; onSelect?
         onMarkDone={onMarkDone}
         onUnmarkDone={onUnmarkDone}
         onEdit={onEditTask}
-        onEditDate={onEditDate}
         onDelete={onDeleteTask}
         onLinkTask={onLinkTask}
         draggable={true}
@@ -164,7 +161,6 @@ interface DroppableQuadrantProps {
   color: string;
   icon: React.ComponentType<any>;
   onEditTask: (task: Task) => void;
-  onEditDate: (task: Task) => void;
   onMarkDone: (task: Task) => void;
   onUnmarkDone: (task: Task) => void;
   onDeleteTask: (task: Task) => void;
@@ -180,7 +176,6 @@ const DroppableQuadrant: React.FC<DroppableQuadrantProps> = ({
   color, 
   icon: IconComponent, 
   onEditTask,
-  onEditDate,
   onMarkDone,
   onUnmarkDone,
   onDeleteTask,
@@ -240,8 +235,7 @@ const DroppableQuadrant: React.FC<DroppableQuadrantProps> = ({
                 task={task} 
                 quadrant={quadrant} 
                 onEditTask={onEditTask}
-                onEditDate={onEditDate}
-                onMarkDone={onMarkDone}
+                        onMarkDone={onMarkDone}
                 onUnmarkDone={onUnmarkDone}
                 onDeleteTask={onDeleteTask}
                 onLinkTask={onLinkTask}
@@ -517,7 +511,6 @@ const EisenhowerMatrix: React.FC = () => {
                color={quadrantLabels[idx].color}
                icon={quadrantLabels[idx].icon}
                onEditTask={handleEditTask}
-               onEditDate={handleEditTask}
                onMarkDone={handleMarkDone}
                onUnmarkDone={handleUnmarkDone}
                onDeleteTask={handleDeleteTask}

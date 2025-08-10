@@ -57,8 +57,8 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
     setError(null);
     
     try {
-      // Fetch open statuses (pending, started, waiting)
-      const response = await fetch('/api/tasks?status=pending&status=started&status=waiting');
+      // Fetch open statuses (pending, started)
+      const response = await fetch('/api/tasks?status=pending&status=started');
       if (!response.ok) {
         throw new Error('Failed to fetch tasks');
       }

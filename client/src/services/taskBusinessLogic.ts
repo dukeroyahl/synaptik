@@ -111,13 +111,13 @@ export class TaskBusinessLogic {
   static canPerformAction(task: Task, action: 'start' | 'stop' | 'complete' | 'delete'): boolean {
     switch (action) {
       case 'start':
-        return ['PENDING', 'WAITING'].includes(task.status)
+        return ['PENDING'].includes(task.status)
       
       case 'stop':
-        return task.status === 'ACTIVE'
+        return task.status === 'STARTED'
       
       case 'complete':
-        return ['PENDING', 'ACTIVE', 'WAITING'].includes(task.status)
+        return ['PENDING', 'STARTED'].includes(task.status)
 
       case 'delete':
         return task.status !== 'DELETED'
@@ -184,9 +184,8 @@ export class TaskBusinessLogic {
    */
   static validateStatusTransition(from: Task['status'], to: Task['status']): boolean {
     const validTransitions: Record<Task['status'], Task['status'][]> = {
-      PENDING: ['ACTIVE', 'WAITING', 'COMPLETED', 'DELETED'],
-      WAITING: ['PENDING', 'ACTIVE', 'COMPLETED', 'DELETED'],
-      ACTIVE: ['PENDING', 'COMPLETED', 'DELETED'],
+      PENDING: ['STARTED', 'COMPLETED', 'DELETED'],
+      STARTED: ['PENDING', 'COMPLETED', 'DELETED'],
       COMPLETED: ['PENDING', 'DELETED'],
       DELETED: ['PENDING']
     }
@@ -254,7 +253,7 @@ export class TaskBusinessLogic {
       // TODO: implement isDueToday if needed
       
       // Include active tasks
-      if (task.status === 'ACTIVE') return true
+      if (task.status === 'STARTED') return true
 
       // Include high priority tasks without due dates
       if (task.priority === 'HIGH' && !task.dueDate) return true

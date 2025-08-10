@@ -195,7 +195,7 @@ export function isTaskDueToday(dueDate?: string): boolean {
  * - overdue
  * - dueToday
  * - completed
- * - open (default: pending/started/waiting)
+ * - open (default: pending/started)
  */
 export function getTaskColorCategory(task: import('../types').Task): 'overdue' | 'dueToday' | 'completed' | 'open' {
   if (task.status === 'COMPLETED') return 'completed';

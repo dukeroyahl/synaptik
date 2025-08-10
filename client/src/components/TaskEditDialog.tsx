@@ -77,11 +77,11 @@ const TaskEditDialog: React.FC<TaskEditDialogProps> = ({
     const updatedTask: Task = {
       ...task,
       title: formData.title,
-      description: formData.description || undefined,
+      description: formData.description?.trim() || null,
       priority: formData.priority,
-      assignee: formData.assignee || undefined,
-      dueDate: formData.dueDate && formData.dueDate.trim() !== '' ? formData.dueDate : undefined,
-      project: formData.project || undefined,
+      assignee: formData.assignee?.trim() || null,
+      dueDate: formData.dueDate && formData.dueDate.trim() !== '' ? formData.dueDate : null,
+      project: formData.project?.trim() || null,
       tags: formData.tags,
       depends: formData.depends,
     };

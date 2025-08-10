@@ -112,10 +112,6 @@ export class TaskService {
     return response.data
   }
 
-  async getWaitingTasks(): Promise<Task[]> {
-    const response = await apiClient.get<Task[]>(API_ENDPOINTS.TASKS_WAITING)
-    return response.data
-  }
 
   async getOverdueTasks(tz?: string): Promise<Task[]> {
     const url = tz ? `${API_ENDPOINTS.TASKS_OVERDUE}?tz=${encodeURIComponent(tz)}` : API_ENDPOINTS.TASKS_OVERDUE

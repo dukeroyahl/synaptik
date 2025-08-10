@@ -43,7 +43,6 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ open, onClose, permanent 
   const statusOptions: { key: any; label: string }[] = [
     { key: 'pending', label: 'Pending' },
     { key: 'started', label: 'Started' },
-    { key: 'waiting', label: 'Waiting' },
     { key: 'overdue', label: 'Overdue' },
     { key: 'completed', label: 'Completed' },
     { key: 'all', label: 'All' }

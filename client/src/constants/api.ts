@@ -3,7 +3,6 @@ export const API_ENDPOINTS = {
   TASKS: '/api/tasks',
   TASKS_PENDING: '/api/tasks/pending',
   TASKS_STARTED: '/api/tasks/started',
-  TASKS_WAITING: '/api/tasks/waiting',
   TASKS_OVERDUE: '/api/tasks/overdue',
   TASKS_TODAY: '/api/tasks/today',
   TASKS_COMPLETED: '/api/tasks/completed',

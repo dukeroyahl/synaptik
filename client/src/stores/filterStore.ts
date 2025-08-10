@@ -3,7 +3,7 @@ import { Task } from '../types';
 
 interface FilterStoreState {
   statuses: Set<Task['status']>;
-  status: 'pending' | 'started' | 'waiting' | 'completed' | 'overdue' | 'all';
+  status: 'pending' | 'started' | 'completed' | 'overdue' | 'all';
   overviewMode?: 'open' | 'closed' | 'today' | 'overdue' | null; // exclusive overview selection
   priorities: Set<Task['priority']>;
   assignees: Set<string>;
@@ -83,14 +83,13 @@ export const useFilterStore = create<FilterStoreState>((set, get) => ({
     const statusMap: Record<string, string | undefined> = {
       pending: 'PENDING',
       started: 'STARTED',
-      waiting: 'WAITING',
       completed: 'COMPLETED',
       overdue: undefined,
       all: undefined
     };
     // Overview overrides granular selection
     if (overviewMode) {
-      if (overviewMode === 'open') return { statuses: ['PENDING','STARTED','WAITING'] };
+      if (overviewMode === 'open') return { statuses: ['PENDING','STARTED'] };
       if (overviewMode === 'closed') return { statuses: ['COMPLETED'] };
       if (overviewMode === 'today') return { dueDate: 'today' };
       if (overviewMode === 'overdue') return { dueDate: 'overdue' };
@@ -124,30 +123,71 @@ export const useFilterStore = create<FilterStoreState>((set, get) => ({
   setCountsFromTasks: (tasks) => set(() => {
     const aCounts = new Map<string, number>();
     const pCounts = new Map<string, number>();
+    let noAssigneeCount = 0;
+    let noProjectCount = 0;
+    
     tasks.forEach(t => {
-      if (t.assignee) aCounts.set(t.assignee, (aCounts.get(t.assignee) || 0) + 1);
-      if (t.project) pCounts.set(t.project, (pCounts.get(t.project) || 0) + 1);
+      if (t.assignee) {
+        aCounts.set(t.assignee, (aCounts.get(t.assignee) || 0) + 1);
+      } else {
+        noAssigneeCount++;
+      }
+      
+      if (t.project) {
+        pCounts.set(t.project, (pCounts.get(t.project) || 0) + 1);
+      } else {
+        noProjectCount++;
+      }
     });
+    
+    // Add counts for special "No" options
+    if (noAssigneeCount > 0) {
+      aCounts.set('(No Assignee)', noAssigneeCount);
+    }
+    if (noProjectCount > 0) {
+      pCounts.set('(No Project)', noProjectCount);
+    }
+    
     return { assigneeCounts: aCounts, projectCounts: pCounts };
   }),
   decrementCountsForTask: (task) => set(state => {
     const aCounts = new Map(state.assigneeCounts);
     const pCounts = new Map(state.projectCounts);
+    
     if (task.assignee && aCounts.has(task.assignee)) {
       const next = Math.max(0, (aCounts.get(task.assignee) || 0) - 1);
       next === 0 ? aCounts.delete(task.assignee) : aCounts.set(task.assignee, next);
+    } else if (!task.assignee && aCounts.has('(No Assignee)')) {
+      const next = Math.max(0, (aCounts.get('(No Assignee)') || 0) - 1);
+      next === 0 ? aCounts.delete('(No Assignee)') : aCounts.set('(No Assignee)', next);
     }
+    
     if (task.project && pCounts.has(task.project)) {
       const next = Math.max(0, (pCounts.get(task.project) || 0) - 1);
       next === 0 ? pCounts.delete(task.project) : pCounts.set(task.project, next);
+    } else if (!task.project && pCounts.has('(No Project)')) {
+      const next = Math.max(0, (pCounts.get('(No Project)') || 0) - 1);
+      next === 0 ? pCounts.delete('(No Project)') : pCounts.set('(No Project)', next);
     }
+    
     return { assigneeCounts: aCounts, projectCounts: pCounts };
   }),
   incrementCountsForTask: (task) => set(state => {
     const aCounts = new Map(state.assigneeCounts);
     const pCounts = new Map(state.projectCounts);
-    if (task.assignee) aCounts.set(task.assignee, (aCounts.get(task.assignee) || 0) + 1);
-    if (task.project) pCounts.set(task.project, (pCounts.get(task.project) || 0) + 1);
+    
+    if (task.assignee) {
+      aCounts.set(task.assignee, (aCounts.get(task.assignee) || 0) + 1);
+    } else {
+      aCounts.set('(No Assignee)', (aCounts.get('(No Assignee)') || 0) + 1);
+    }
+    
+    if (task.project) {
+      pCounts.set(task.project, (pCounts.get(task.project) || 0) + 1);
+    } else {
+      pCounts.set('(No Project)', (pCounts.get('(No Project)') || 0) + 1);
+    }
+    
     return { assigneeCounts: aCounts, projectCounts: pCounts };
   })
 }));

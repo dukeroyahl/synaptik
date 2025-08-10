@@ -139,12 +139,6 @@ public class TaskResource {
         return taskService.getTasksByStatus(TaskStatus.STARTED);
     }
     
-    @GET
-    @Path("/waiting")
-    @Operation(summary = "Get waiting tasks")
-    public Uni<List<Task>> getWaitingTasks() {
-        return taskService.getTasksByStatus(TaskStatus.WAITING);
-    }
     
     @GET
     @Path("/completed")

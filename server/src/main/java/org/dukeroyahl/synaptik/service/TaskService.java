@@ -92,12 +92,11 @@ public class TaskService {
         return Task.<Task>find("status", status).list();
     }
     
-    // waiting tasks use generic getTasksByStatus via resource
     
     public Uni<List<Task>> getOverdueTasks(String tz) {
         ZoneId zone = resolveZone(tz);
         ZonedDateTime now = ZonedDateTime.now(zone);
-        List<TaskStatus> statuses = List.of(TaskStatus.PENDING, TaskStatus.STARTED, TaskStatus.WAITING, TaskStatus.COMPLETED);
+        List<TaskStatus> statuses = List.of(TaskStatus.PENDING, TaskStatus.STARTED, TaskStatus.COMPLETED);
         return Task.<Task>find("status in ?1", statuses).list()
             .onItem().transform(list -> list.stream()
                 .filter(t -> isOverdue(t, now))
@@ -107,7 +106,7 @@ public class TaskService {
     public Uni<List<Task>> getTodayTasks(String tz) {
         ZoneId zone = resolveZone(tz);
         LocalDate today = LocalDate.now(zone);
-        List<TaskStatus> statuses = List.of(TaskStatus.PENDING, TaskStatus.STARTED, TaskStatus.WAITING, TaskStatus.COMPLETED);
+        List<TaskStatus> statuses = List.of(TaskStatus.PENDING, TaskStatus.STARTED, TaskStatus.COMPLETED);
         return Task.<Task>find("status in ?1", statuses).list()
             .onItem().transform(list -> list.stream()
                 .filter(t -> isDueToday(t, today, zone))
@@ -156,13 +155,19 @@ public class TaskService {
     
     private void updateTaskFields(Task task, Task updates) {
         if (updates.title != null) task.title = updates.title;
-        if (updates.description != null) task.description = updates.description;
+        
+        // For nullable fields, we need to distinguish between "not provided" vs "explicitly set to null"
+        // Since we're using JSON serialization, null values are included in the updates object
+        // We'll update these fields even when they're null to allow clearing them
+        task.description = updates.description;
+        task.project = updates.project;
+        task.assignee = updates.assignee;
+        task.dueDate = updates.dueDate;
+        task.waitUntil = updates.waitUntil;
+        
+        // Non-nullable fields should still check for null
         if (updates.status != null) task.status = updates.status;
         if (updates.priority != null) task.priority = updates.priority;
-        if (updates.project != null) task.project = updates.project;
-        if (updates.assignee != null) task.assignee = updates.assignee;
-        if (updates.dueDate != null) task.dueDate = updates.dueDate;
-        if (updates.waitUntil != null) task.waitUntil = updates.waitUntil;
         if (updates.tags != null) task.tags = updates.tags;
         if (updates.depends != null) task.depends = updates.depends;
     }

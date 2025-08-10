@@ -15,19 +15,19 @@ import {
   Warning as OverdueIcon,
   Today as TodayIcon
 } from '@mui/icons-material';
+import { useFilterStore } from '../stores/filterStore';
 
 interface TaskStats {
   pending: number; // raw pending from endpoint
   started: number;  // started tasks (renamed from active)
-  waiting: number; // waiting tasks
   completed: number;
   overdue: number;
   today: number;
 }
 
 interface DailyGlanceProps {
-  onFilterChange?: (filter: 'pending' | 'started' | 'waiting' | 'completed' | 'overdue' | 'all') => void;
-  activeFilter?: 'pending' | 'started' | 'waiting' | 'completed' | 'overdue' | 'all';
+  onFilterChange?: (filter: 'pending' | 'started' | 'completed' | 'overdue' | 'all') => void;
+  activeFilter?: 'pending' | 'started' | 'completed' | 'overdue' | 'all';
   onDueDateChange?: (dueDate: string | null) => void;
   activeDueDate?: string | null; // if undefined we act uncontrolled locally
   fullHeight?: boolean; // when true stretch card to parent container height
@@ -42,10 +42,11 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
 }) => {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
+  const setOverviewMode = useFilterStore(s => s.setOverviewMode);
+  const overviewMode = useFilterStore(s => s.overviewMode);
   const [stats, setStats] = useState<TaskStats>({
     pending: 0,
     started: 0,
-    waiting: 0,
     completed: 0,
     overdue: 0,
     today: 0
@@ -60,22 +61,20 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const [pendingRes, startedRes, waitingRes, completedRes, overdueRes, todayRes] = await Promise.all([
+      const [pendingRes, startedRes, completedRes, overdueRes, todayRes] = await Promise.all([
         fetch('/api/tasks/pending'),
         fetch('/api/tasks/started'),
-        fetch('/api/tasks/waiting'),
         fetch('/api/tasks/completed'),
         fetch('/api/tasks/overdue'),
         fetch('/api/tasks/today')
       ]);
-      const [pendingArr, startedArr, waitingArr, completedArr, overdueArr, todayArr] = await Promise.all([
-        pendingRes.json(), startedRes.json(), waitingRes.json(), completedRes.json(), overdueRes.json(), todayRes.json()
+      const [pendingArr, startedArr, completedArr, overdueArr, todayArr] = await Promise.all([
+        pendingRes.json(), startedRes.json(), completedRes.json(), overdueRes.json(), todayRes.json()
       ]);
       const safeLen = (v: any) => Array.isArray(v) ? v.length : 0;
       setStats({
         pending: safeLen(pendingArr),
         started: safeLen(startedArr),
-        waiting: safeLen(waitingArr),
         completed: safeLen(completedArr),
         overdue: safeLen(overdueArr),
         today: safeLen(todayArr)
@@ -87,7 +86,7 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
     }
   };
 
-  const openCount = stats.pending + stats.started + stats.waiting;
+  const openCount = stats.pending + stats.started;
   const totalTasks = stats.pending + stats.completed;
   const completionPercentage = totalTasks > 0 ? Math.round((stats.completed / totalTasks) * 100) : 0;
 
@@ -190,7 +189,11 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
                   const isOverdueActive = effectiveDueDate === 'overdue';
 
                   // Active logic: status tiles by status, date tiles by dueDate
-                  const active = isToday ? isTodayActive : isOverdue ? isOverdueActive : activeFilter === (item.key as any);
+                  const active = isToday ? isTodayActive : 
+                    isOverdue ? isOverdueActive : 
+                    item.key === 'pending' ? overviewMode === 'open' :
+                    item.key === 'completed' ? overviewMode === 'closed' :
+                    activeFilter === (item.key as any);
                   const { digits, padCount } = formatValue(item.value);
 
                   return (
@@ -229,14 +232,23 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
                           const current = activeFilter === item.key;
                           // Open + Completed invalid -> last click wins: selecting one replaces the other
                           if (!current) {
-                            onFilterChange?.(item.key as any);
+                            if (item.key === 'pending') {
+                              // "Open" button should set overview mode to show both PENDING and STARTED
+                              setOverviewMode('open');
+                            } else if (item.key === 'completed') {
+                              // "Completed" button should set overview mode to show only COMPLETED
+                              setOverviewMode('closed');
+                            } else {
+                              onFilterChange?.(item.key as any);
+                            }
                             // if selecting Open or Completed while overdue active (invalid), clear overdue (last click wins)
                             if (isOverdueActive) {
                               onDueDateChange?.(null);
                               if (activeDueDate === undefined) setLocalDueDate(null);
                             }
                           } else {
-                            // toggling status off -> go to 'all'
+                            // toggling status off -> clear overview mode
+                            setOverviewMode(null);
                             onFilterChange?.('all');
                           }
                         }

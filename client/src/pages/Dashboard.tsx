@@ -15,12 +15,13 @@ const Dashboard = memo(() => {
   const theme = useTheme();
   const [availableAssignees, setAvailableAssignees] = useState<string[]>([])
   // Local status kept for keying TaskList; will sync with store
-  const [statusFilter, setStatusFilter] = useState<'pending' | 'started' | 'waiting' | 'completed' | 'overdue' | 'all'>('pending')
+  const [statusFilter, setStatusFilter] = useState<'pending' | 'started' | 'completed' | 'overdue' | 'all'>('pending')
   const [refreshCounter, setRefreshCounter] = useState(0)
   const [availableProjects, setAvailableProjects] = useState<string[]>([])
   // Subscribe to store status + setter
   const storeStatus = useFilterStore(s => s.status)
   const setStoreStatus = useFilterStore(s => s.setStatus)
+  const overviewMode = useFilterStore(s => s.overviewMode)
   const dueDate = useFilterStore(s => s.dueDate)
   const setDueDate = useFilterStore(s => s.setDueDate)
   const [filterOpen, setFilterOpen] = useState(false)
@@ -44,8 +45,9 @@ const Dashboard = memo(() => {
       const uniqueAssignees = [...new Set(assignees)] as string[];
       const uniqueProjects = [...new Set(projects)] as string[];
       
-      setAvailableAssignees(uniqueAssignees);
-      setAvailableProjects(uniqueProjects);
+      // Add special "No" options to the beginning of each list
+      setAvailableAssignees(['(No Assignee)', ...uniqueAssignees]);
+      setAvailableProjects(['(No Project)', ...uniqueProjects]);
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Failed to fetch assignees and projects:', error);
@@ -69,12 +71,20 @@ const Dashboard = memo(() => {
     if (statusFilter !== storeStatus) setStatusFilter(storeStatus)
   }, [storeStatus])
 
-  const handleStatusFilterChange = useCallback((filter: 'pending' | 'started' | 'waiting' | 'completed' | 'overdue' | 'all') => {
+  const handleStatusFilterChange = useCallback((filter: 'pending' | 'started' | 'completed' | 'overdue' | 'all') => {
     setStoreStatus(filter)
   }, [setStoreStatus]);
 
   // Memoize active filter calculation
   const activeFilter = useMemo(() => {
+    // Overview mode takes precedence
+    if (overviewMode === 'open') {
+      return 'all'; // TaskList will need to be updated to handle this properly
+    }
+    if (overviewMode === 'closed') {
+      return 'COMPLETED';
+    }
+    
     switch (statusFilter) {
       case 'all':
       case 'pending':
@@ -83,14 +93,12 @@ const Dashboard = memo(() => {
         return 'COMPLETED';
       case 'started':
         return 'STARTED';
-      case 'waiting':
-        return 'WAITING';
       case 'overdue':
         return 'overdue';
       default:
         return 'PENDING';
     }
-  }, [statusFilter]);
+  }, [statusFilter, overviewMode]);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -132,7 +140,7 @@ const Dashboard = memo(() => {
       <Card elevation={theme.palette.mode === 'dark' ? 2 : 1} className="custom-card glass-task-container" sx={{ mt: 1, p: 2 }}>
         <TaskList 
           key={`${statusFilter}-${refreshCounter}-${dueDate || 'none'}`}
-          filter={activeFilter as 'PENDING' | 'STARTED' | 'WAITING' | 'overdue' | 'COMPLETED' | 'all'} 
+          filter={activeFilter as 'PENDING' | 'STARTED' | 'overdue' | 'COMPLETED' | 'all'} 
           onTaskUpdate={handleTaskCaptured}
         />
       </Card>

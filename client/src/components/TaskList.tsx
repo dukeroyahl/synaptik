@@ -18,7 +18,7 @@ import { API_BASE_URL } from '../config'
 import { useFilterStore } from '../stores/filterStore'
 
 interface TaskListProps {
-  filter?: 'PENDING' | 'STARTED' | 'WAITING' | 'overdue' | 'today' | 'COMPLETED' | 'all'
+  filter?: 'PENDING' | 'STARTED' | 'overdue' | 'today' | 'COMPLETED' | 'all'
   onTaskUpdate?: (task: Task) => void
   assigneeFilter?: string // legacy (will be ignored if store provides assignees)
   projectFilter?: string  // legacy
@@ -51,6 +51,7 @@ const TaskList: React.FC<TaskListProps> = memo(({
     search: s.search,
     dueDate: s.dueDate,
     urgencyRange: s.urgencyRange,
+    overviewMode: s.overviewMode,
   }));
 
   // Derive effective filters (store overrides legacy props if set)
@@ -76,14 +77,22 @@ const TaskList: React.FC<TaskListProps> = memo(({
       const effectiveAssigneesArr = Array.from(effectiveAssignees);
       let endpoint = '/api/tasks';
       const dueIsSpecial = effectiveDueDate === 'today' || effectiveDueDate === 'overdue';
+      
+      // Check if we have special filters that require getting all tasks
+      const hasNoAssigneeFilter = effectiveAssignees.has('(No Assignee)');
+      const hasNoProjectFilter = effectiveProjects.has('(No Project)');
+      const needsAllTasks = hasNoAssigneeFilter || hasNoProjectFilter;
+      
       // If due date special and a specific status (other than all) is chosen we will still hit the special endpoint for broader set then intersect client-side
       if (dueIsSpecial) {
         endpoint = effectiveDueDate === 'today' ? '/api/tasks/today' : '/api/tasks/overdue';
+      } else if (needsAllTasks) {
+        // When using special filters, always get all tasks to apply client-side filtering
+        endpoint = '/api/tasks';
       } else {
         switch (filter.toUpperCase()) {
           case 'PENDING': endpoint = '/api/tasks/pending'; break;
           case 'STARTED': endpoint = '/api/tasks/started'; break;
-          case 'WAITING': endpoint = '/api/tasks/waiting'; break;
           case 'OVERDUE': endpoint = '/api/tasks/overdue'; break; // legacy direct selection
           case 'COMPLETED': endpoint = '/api/tasks/completed'; break;
           default: endpoint = '/api/tasks';
@@ -95,8 +104,22 @@ const TaskList: React.FC<TaskListProps> = memo(({
       }
       if (storeFilters.search) params.set('search', storeFilters.search);
       if (storeFilters.priorities.size) params.set('priority', Array.from(storeFilters.priorities).join(','));
-      if (effectiveAssignees.size) params.set('assignee', effectiveAssigneesArr.join(','));
-      if (effectiveProjects.size) params.set('project', Array.from(effectiveProjects).join(','));
+      
+      // Handle assignee filters - exclude special "(No Assignee)" from server params
+      if (effectiveAssignees.size) {
+        const serverAssignees = effectiveAssigneesArr.filter(a => a !== '(No Assignee)');
+        if (serverAssignees.length > 0) {
+          params.set('assignee', serverAssignees.join(','));
+        }
+      }
+      
+      // Handle project filters - exclude special "(No Project)" from server params
+      if (effectiveProjects.size) {
+        const serverProjects = Array.from(effectiveProjects).filter(p => p !== '(No Project)');
+        if (serverProjects.length > 0) {
+          params.set('project', serverProjects.join(','));
+        }
+      }
       if (!dueIsSpecial && effectiveDueDate && !['overdue','today'].includes(effectiveDueDate)) params.set('dueDate', effectiveDueDate);
       if (storeFilters.urgencyRange) {
         params.set('urgencyMin', String(storeFilters.urgencyRange[0]));
@@ -112,11 +135,20 @@ const TaskList: React.FC<TaskListProps> = memo(({
           switch (filter.toUpperCase()) {
             case 'PENDING': list = list.filter(t => t.status === 'PENDING'); break;
             case 'STARTED': list = list.filter(t => t.status === 'STARTED'); break;
-            case 'WAITING': list = list.filter(t => t.status === 'WAITING'); break;
             case 'COMPLETED': list = list.filter(t => t.status === 'COMPLETED'); break;
             default: break; // all or legacy
           }
         }
+        
+        // Apply overview mode filtering when using 'all' endpoint
+        if (filter === 'all' && storeFilters.overviewMode) {
+          if (storeFilters.overviewMode === 'open') {
+            list = list.filter(t => t.status === 'PENDING' || t.status === 'STARTED');
+          } else if (storeFilters.overviewMode === 'closed') {
+            list = list.filter(t => t.status === 'COMPLETED');
+          }
+        }
+        
         setTasks(list);
         useFilterStore.getState().setCountsFromTasks(list);
       }
@@ -127,7 +159,7 @@ const TaskList: React.FC<TaskListProps> = memo(({
     }
   }, [filter, querySignature, effectiveDueDate])
 
-  const handleTaskAction = useCallback(async (taskId: string, action: 'done' | 'delete' | 'start' | 'stop' | 'undone') => {
+  const handleTaskAction = useCallback(async (taskId: string, action: 'done' | 'delete' | 'start' | 'pause' | 'undone') => {
     try {
       const originalTasks = tasks;
       const targetTask = tasks.find(t => t.id === taskId) || null;
@@ -144,6 +176,8 @@ const TaskList: React.FC<TaskListProps> = memo(({
         const patched = { ...targetTask } as any;
         if (action === 'done') patched.status = 'COMPLETED';
         if (action === 'undone') patched.status = 'PENDING';
+        if (action === 'start') patched.status = 'STARTED';
+        if (action === 'pause') patched.status = 'PENDING';
         updatedTasks[idx] = patched;
       }
       setTasks(updatedTasks);
@@ -154,7 +188,9 @@ const TaskList: React.FC<TaskListProps> = memo(({
         endpoint = `/api/tasks/${taskId}`
         method = 'DELETE'
       } else {
-        endpoint = `/api/tasks/${taskId}/${action}`
+        // Map pause action to stop endpoint for API compatibility
+        const apiAction = action === 'pause' ? 'stop' : action;
+        endpoint = `/api/tasks/${taskId}/${apiAction}`;
       }
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const response = await fetch(fullUrl, { method, headers: { 'Content-Type': 'application/json' } })
@@ -283,8 +319,25 @@ const TaskList: React.FC<TaskListProps> = memo(({
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
       // Client-side supplemental filtering (mirrors params to be safe)
-      if (effectiveProjects.size && (!task.project || !effectiveProjects.has(task.project))) return false;
-      if (effectiveAssignees.size && (!task.assignee || !effectiveAssignees.has(task.assignee))) return false;
+      if (effectiveProjects.size) {
+        const hasNoProjectFilter = effectiveProjects.has('(No Project)');
+        const taskHasNoProject = !task.project;
+        const taskProjectMatches = task.project && effectiveProjects.has(task.project);
+        
+        // Task must match at least one project filter condition
+        const matchesProjectFilter = (hasNoProjectFilter && taskHasNoProject) || taskProjectMatches;
+        if (!matchesProjectFilter) return false;
+      }
+      
+      if (effectiveAssignees.size) {
+        const hasNoAssigneeFilter = effectiveAssignees.has('(No Assignee)');
+        const taskHasNoAssignee = !task.assignee;
+        const taskAssigneeMatches = task.assignee && effectiveAssignees.has(task.assignee);
+        
+        // Task must match at least one assignee filter condition
+        const matchesAssigneeFilter = (hasNoAssigneeFilter && taskHasNoAssignee) || taskAssigneeMatches;
+        if (!matchesAssigneeFilter) return false;
+      }
       if (storeFilters.priorities.size && (!task.priority || !storeFilters.priorities.has(task.priority))) return false;
       if (storeFilters.search) {
         const q = storeFilters.search.toLowerCase();
@@ -324,7 +377,8 @@ const TaskList: React.FC<TaskListProps> = memo(({
     onMarkDone: (task: Task) => handleTaskAction(task.id, 'done'),
     onUnmarkDone: (task: Task) => handleTaskAction(task.id, 'undone'),
     onDelete: (task: Task) => handleTaskAction(task.id, 'delete'),
-    onStop: (task: Task) => handleTaskAction(task.id, 'stop'),
+    onPause: (task: Task) => handleTaskAction(task.id, 'pause'),
+    onStart: (task: Task) => handleTaskAction(task.id, 'start'),
   }), [handleTaskAction]);
 
   if (loading) {
@@ -401,9 +455,9 @@ const TaskList: React.FC<TaskListProps> = memo(({
             onMarkDone={memoizedTaskHandlers.onMarkDone}
             onUnmarkDone={memoizedTaskHandlers.onUnmarkDone}
             onDelete={memoizedTaskHandlers.onDelete}
-            onStop={memoizedTaskHandlers.onStop}
+            onPause={memoizedTaskHandlers.onPause}
+            onStart={memoizedTaskHandlers.onStart}
             onEdit={handleEditTask}
-            onEditDate={handleEditDate}
             onLinkTask={handleLinkTask}
             compact={false}
           />

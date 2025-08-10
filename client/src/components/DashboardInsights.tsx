@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Card, Typography, Box, LinearProgress, useTheme, alpha, Divider, IconButton } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
-import GroupIcon from '@mui/icons-material/Group';
 import FolderIcon from '@mui/icons-material/Folder';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
@@ -10,9 +9,9 @@ import type { SxProps, Theme } from '@mui/material';
 import { taskService } from '../services/taskService';
 import type { Task } from '../types';
 
-interface ProjectOpenBreakdown { project: string; openTotal: number; pending: number; started: number; waiting: number; }
+interface ProjectOpenBreakdown { project: string; openTotal: number; pending: number; started: number; }
 interface AssigneeStat { assignee: string; open: number; }
-const openStatuses: Task['status'][] = ['PENDING','WAITING','STARTED'];
+const openStatuses: Task['status'][] = ['PENDING','STARTED'];
 interface DashboardInsightsProps { sx?: SxProps<Theme> }
 
 const DashboardInsights = ({ sx }: DashboardInsightsProps) => {
@@ -27,19 +26,19 @@ const DashboardInsights = ({ sx }: DashboardInsightsProps) => {
 
   const { assigneesAll, projectOpenAll } = useMemo(() => {
     if(!tasks) return { assigneesAll: [] as AssigneeStat[], projectOpenAll: [] as ProjectOpenBreakdown[] };
-    const projectMap = new Map<string,{ total:number; open:number; pending:number; started:number; waiting:number }>();
+    const projectMap = new Map<string,{ total:number; open:number; pending:number; started:number }>();
     const assigneeMap = new Map<string, number>();
     tasks.forEach(t => {
       if (t.project) {
-        const rec = projectMap.get(t.project) || { total:0, open:0, pending:0, started:0, waiting:0 };
+        const rec = projectMap.get(t.project) || { total:0, open:0, pending:0, started:0 };
         rec.total += 1;
-        if (openStatuses.includes(t.status)) { rec.open += 1; if (t.status === 'PENDING') rec.pending += 1; if (t.status === 'STARTED') rec.started += 1; if (t.status === 'WAITING') rec.waiting += 1; }
+        if (openStatuses.includes(t.status)) { rec.open += 1; if (t.status === 'PENDING') rec.pending += 1; if (t.status === 'STARTED') rec.started += 1; }
         projectMap.set(t.project, rec);
       }
       if (t.assignee && openStatuses.includes(t.status)) { assigneeMap.set(t.assignee, (assigneeMap.get(t.assignee)||0)+1); }
     });
     const projectOpenAll = Array.from(projectMap.entries())
-      .map(([project,v])=>({ project, openTotal:v.open, pending:v.pending, started:v.started, waiting:v.waiting }))
+      .map(([project,v])=>({ project, openTotal:v.open, pending:v.pending, started:v.started }))
       .filter(p => p.openTotal > 0)
       .sort((a,b)=> b.openTotal - a.openTotal);
     const assigneesAll = Array.from(assigneeMap.entries())
@@ -78,7 +77,6 @@ const DashboardInsights = ({ sx }: DashboardInsightsProps) => {
                 const total = p.openTotal || 1;
                 const pctPending = (p.pending/total)*100;
                 const pctStarted = (p.started/total)*100;
-                const pctWaiting = (p.waiting/total)*100;
                 return (
                   <Box key={p.project} sx={{ display:'flex', flexDirection:'column', gap:0.25 }}>
                      <Box sx={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:0.5, pr:'5px' }}>
@@ -90,15 +88,12 @@ const DashboardInsights = ({ sx }: DashboardInsightsProps) => {
                         <Typography variant='caption' color='text.secondary' sx={{ minWidth:38, textAlign:'right' }}>{p.openTotal} open</Typography>
                         <Typography variant='caption' sx={{ fontSize:'0.7rem', color:'#F7B801', fontWeight:500, mr:0.5 }}>P {p.pending}</Typography>
                         <Typography variant='caption' sx={{ fontSize:'0.7rem', color:'#2185D0', fontWeight:500, mr:0.5 }}>S {p.started}</Typography>
-                        <Typography variant='caption' sx={{ fontSize:'0.7rem', color:'#A259F7', fontWeight:500, mr:0.5 }}>W {p.waiting}</Typography>
                       </Box>
                     </Box>
                      <Box sx={{ position:'relative', height:10, borderRadius:5, background: alpha(theme.palette.divider,0.3), overflow:'hidden', display:'flex', mr:0.5 }}>
                        <Box title={`Pending ${p.pending}`} sx={{ width:`${pctPending}%`, background:'#F7B801', opacity:0.9 }} />
                        <Box title={`Started ${p.started}`} sx={{ width:`${pctStarted}%`, background:'#2185D0', opacity:0.9 }} />
-                       <Box title={`Waiting ${p.waiting}`} sx={{ width:`${pctWaiting}%`, background:'#A259F7', opacity:0.9 }} />
                      </Box>
-                     {/* P, S, W counts moved to the same line as open */}
                   </Box>
                 );
               })}

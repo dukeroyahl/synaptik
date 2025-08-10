@@ -47,7 +47,7 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
     setError(null);
     try {
       // Limit to non-completed tasks to reduce noise
-      const response = await fetch('/api/tasks?status=pending&status=started&status=waiting');
+      const response = await fetch('/api/tasks?status=pending&status=started');
       const result = await response.json();
 
       if (!response.ok) {
@@ -165,6 +165,7 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
                         </Typography>
                       </Box>
                     }
+                    primaryTypographyProps={{ component: 'div' }}
                     secondary={
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
                         {task.project && (
@@ -179,6 +180,7 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
                         )}
                       </Box>
                     }
+                    secondaryTypographyProps={{ component: 'div' }}
                   />
                 </ListItem>
                 <Divider component="li" />

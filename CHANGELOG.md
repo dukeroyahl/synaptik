@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Project Breakdown:**
 	- Only 3 projects shown by default, with an inline "more"/"less" toggle to expand/collapse the list.
 	- Folder icon added beside each project name.
-	- P, S, W (Pending, Started, Waiting) counts now appear on the same line as the open count, with improved spacing and right margin.
+	- P, S, W (Pending, Started) counts now appear on the same line as the open count, with improved spacing and right margin.
 	- Color legend and section headings removed for a cleaner look.
 	- Added right padding to project count bar for better alignment.
 - **People Section:**

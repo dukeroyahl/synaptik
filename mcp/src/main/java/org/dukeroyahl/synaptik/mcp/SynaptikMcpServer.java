@@ -452,7 +452,6 @@ public class SynaptikMcpServer {
         if (status == null) return "❓";
         return switch (status) {
             case PENDING -> "⏳";
-            case WAITING -> "⏸️";
             case STARTED -> "🔄";
             case COMPLETED -> "✅";
             case DELETED -> "🗑️";

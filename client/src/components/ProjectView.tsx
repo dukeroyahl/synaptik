@@ -28,7 +28,6 @@ interface ProjectViewProps {
   onMarkDone?: (task: Task) => void;
   onUnmarkDone?: (task: Task) => void;
   onEdit?: (task: Task) => void;
-  onEditDate?: (task: Task) => void;
   onDelete?: (task: Task) => void;
   onStop?: (task: Task) => void;
   onLinkTask?: (task: Task) => void;
@@ -52,7 +51,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({
   onMarkDone,
   onUnmarkDone,
   onEdit,
-  onEditDate,
   onDelete,
   onStop,
   onLinkTask
@@ -291,7 +289,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({
                       onMarkDone={onMarkDone}
                       onUnmarkDone={onUnmarkDone}
                       onEdit={onEdit}
-                      onEditDate={onEditDate}
                       onDelete={onDelete}
                       onStop={onStop}
                       onLinkTask={onLinkTask}

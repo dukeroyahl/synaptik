@@ -1,21 +1,21 @@
 export interface Task {
   id: string
   title: string
-  description?: string
-  status: 'PENDING' | 'WAITING' | 'STARTED' | 'COMPLETED' | 'DELETED'
+  description?: string | null
+  status: 'PENDING' | 'STARTED' | 'COMPLETED' | 'DELETED'
   priority: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE'
-  urgency?: number
-  project?: string
-  assignee?: string
-  dueDate?: string
-  waitUntil?: string
+  urgency?: number | null
+  project?: string | null
+  assignee?: string | null
+  dueDate?: string | null
+  waitUntil?: string | null
   tags: string[]
   annotations: Array<{
     timestamp: string
     description: string
   }>
   depends: string[]
-  originalInput?: string
+  originalInput?: string | null
   createdAt: string
   updatedAt: string
 }

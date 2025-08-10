@@ -42,7 +42,6 @@ const StatusFacet: React.FC = () => {
   const statuses: FacetOption<Task['status']>[] = [
     { value: 'PENDING', label: 'Pending' },
     { value: 'STARTED', label: 'Started' },
-    { value: 'WAITING', label: 'Waiting' },
     { value: 'COMPLETED', label: 'Completed' },
   ];
   const toggle = (val: Task['status']) => {
@@ -76,7 +75,8 @@ const AssigneeFacet: React.FC = () => {
     fetch('/api/tasks').then(r => r.json()).then((data: any) => {
       const arr: any[] = Array.isArray(data) ? data : (data?.data || []);
       const unique = Array.from(new Set(arr.map((t: any) => t.assignee).filter((v: any): v is string => !!v)));
-      setValues(unique as string[]);
+      // Add "No Assignee" as a special option
+      setValues(['(No Assignee)', ...unique as string[]]);
     }).catch(()=>{});
   }, []);
 
@@ -104,7 +104,8 @@ const ProjectFacet: React.FC = () => {
     fetch('/api/projects').then(r => r.json()).then((data: any) => {
       const arr: any[] = Array.isArray(data) ? data : (data?.data || []);
       const names = Array.from(new Set(arr.map((p: any) => p.name).filter((v: any): v is string => !!v)));
-      setProjects(names as string[]);
+      // Add "No Project" as a special option
+      setProjects(['(No Project)', ...names as string[]]);
     }).catch(()=>{});
   }, []);
 

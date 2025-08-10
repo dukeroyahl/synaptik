@@ -51,7 +51,7 @@ public class Task extends BaseEntity {
     public void stop() {
         if (this.status == TaskStatus.STARTED) {
             this.status = TaskStatus.PENDING;
-            addAnnotation("Task stopped");
+            addAnnotation("Task paused");
         }
     }
     
@@ -103,7 +103,6 @@ public class Task extends BaseEntity {
         }
         
         if (status == TaskStatus.STARTED) urgency += 4;
-        if (status == TaskStatus.WAITING) urgency -= 3;
         
         if (tags.contains("urgent")) urgency += 5;
         if (tags.contains("important")) urgency += 3;
