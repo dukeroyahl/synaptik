@@ -9,7 +9,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
-import org.bson.types.ObjectId;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -52,7 +51,7 @@ public class TaskGraphService {
                     processedIds.add(taskId);
                     
                     // Create edges for dependencies
-                    for (ObjectId depId : task.depends) {
+                    for (UUID depId : task.depends) {
                         String depIdStr = depId.toString();
                         edges.add(new TaskGraphEdge(depIdStr, taskId));
                         
@@ -160,7 +159,7 @@ public class TaskGraphService {
         String centerTaskId = centerTask.id.toString();
         
         // Add dependencies (tasks this task depends on)
-        for (ObjectId depId : centerTask.depends) {
+        for (UUID depId : centerTask.depends) {
             String depIdStr = depId.toString();
             edges.add(new TaskGraphEdge(depIdStr, centerTaskId));
             
@@ -184,7 +183,7 @@ public class TaskGraphService {
         for (Task task : allTasks) {
             String taskIdStr = task.id.toString();
             if (!processedIds.contains(taskIdStr) && 
-                task.depends.contains(new ObjectId(centerTaskId))) {
+                task.depends.contains(UUID.fromString(centerTaskId))) {
                 
                 edges.add(new TaskGraphEdge(centerTaskId, taskIdStr));
                 nodes.add(createTaskGraphNode(task, false));
