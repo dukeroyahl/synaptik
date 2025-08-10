@@ -2,7 +2,6 @@ package org.dukeroyahl.synaptik.domain;
 
 import io.quarkus.mongodb.panache.common.MongoEntity;
 import jakarta.validation.constraints.*;
-import org.bson.types.ObjectId;
 import org.bson.codecs.pojo.annotations.BsonIgnore;
 
 import java.time.ZonedDateTime;
@@ -42,7 +41,7 @@ public class Task extends BaseEntity {
     
     public List<String> tags = new ArrayList<>();
     public List<TaskAnnotation> annotations = new ArrayList<>();
-    public List<ObjectId> depends = new ArrayList<>();
+    public List<UUID> depends = new ArrayList<>();
     
     // Store the original user input for reference
     public String originalInput;
