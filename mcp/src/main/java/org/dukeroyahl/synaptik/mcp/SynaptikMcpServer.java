@@ -54,7 +54,7 @@ public class SynaptikMcpServer {
     @Tool(description = "Get all tasks from Synaptik")
     public Uni<String> getAllTasks() {
         return apiClient.getAllTasks()
-                .map(tasks -> formatTasksResponse(tasks, "Retrieved all tasks"));
+                .map(tasks -> formatTasksResponse(tasks, "All tasks from Synaptik"));
     }
 
     @Tool(description = "Get a specific task by ID")
