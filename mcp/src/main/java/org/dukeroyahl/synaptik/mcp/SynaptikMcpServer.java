@@ -54,7 +54,7 @@ public class SynaptikMcpServer {
     @Tool(description = "Get all tasks from Synaptik")
     public Uni<String> getAllTasks() {
         return apiClient.getAllTasks()
-                .map(tasks -> formatTasksResponse(tasks, "All tasks from Synaptik"));
+                .map(tasks -> formatTasksResponse(tasks, "All tasks"));
     }
 
     @Tool(description = "Get a specific task by ID")
@@ -219,19 +219,19 @@ public class SynaptikMcpServer {
     @Tool(description = "Get all pending tasks")
     public Uni<String> getPendingTasks() {
         return apiClient.getPendingTasks()
-                .map(tasks -> formatTasksResponse(tasks, "Pending tasks"));
+                .map(tasks -> formatTasksResponseWithEmoji(tasks, "Pending tasks", "⏳"));
     }
 
     @Tool(description = "Get all active tasks")
     public Uni<String> getActiveTasks() {
         return apiClient.getActiveTasks()
-                .map(tasks -> formatTasksResponse(tasks, "Active tasks"));
+                .map(tasks -> formatTasksResponseWithEmoji(tasks, "Active tasks", "🔄"));
     }
 
     @Tool(description = "Get all completed tasks")
     public Uni<String> getCompletedTasks() {
         return apiClient.getCompletedTasks()
-                .map(tasks -> formatTasksResponse(tasks, "Completed tasks"));
+                .map(tasks -> formatTasksResponseWithEmoji(tasks, "Completed tasks", "✅"));
     }
 
     @Tool(description = "Get all overdue tasks")
@@ -421,16 +421,23 @@ public class SynaptikMcpServer {
     }
 
     private String formatTasksResponse(List<Task> tasks, String title) {
+        return formatTasksResponseWithEmoji(tasks, title, "📋");
+    }
+
+    private String formatTasksResponseWithEmoji(List<Task> tasks, String title, String emoji) {
         if (tasks == null || tasks.isEmpty()) {
-            return "📋 " + title + ": No tasks found";
+            return emoji + " " + title + ": No tasks found";
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("📋 ").append(title).append(" (").append(tasks.size()).append(" tasks):\n\n");
+        sb.append(emoji).append(" ").append(title).append(" (").append(tasks.size()).append(" tasks):\n\n");
 
         for (Task task : tasks) {
             sb.append(formatTaskSummary(task)).append("\n");
         }
+
+        // Add total summary
+        sb.append("\n📊 Total: ").append(tasks.size()).append(" tasks");
 
         return sb.toString();
     }
