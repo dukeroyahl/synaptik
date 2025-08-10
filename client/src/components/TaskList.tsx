@@ -140,6 +140,19 @@ const TaskList: React.FC<TaskListProps> = memo(({
           }
         }
         
+        // If we fetched all tasks due to special filters but user has specific status, filter client side
+        if (needsAllTasks && filter !== 'all') {
+          switch (filter.toUpperCase()) {
+            case 'PENDING': list = list.filter(t => t.status === 'PENDING'); break;
+            case 'STARTED': list = list.filter(t => t.status === 'STARTED'); break;
+            case 'COMPLETED': list = list.filter(t => t.status === 'COMPLETED'); break;
+            case 'OVERDUE': 
+              // Keep existing overdue logic or implement if needed
+              break;
+            default: break; // all or legacy
+          }
+        }
+        
         // Apply overview mode filtering when using 'all' endpoint
         if (filter === 'all' && storeFilters.overviewMode) {
           if (storeFilters.overviewMode === 'open') {
