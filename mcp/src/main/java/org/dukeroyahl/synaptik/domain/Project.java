@@ -15,7 +15,7 @@ public class Project {
     
     public String name;
     public String description;
-    public ProjectStatus status = ProjectStatus.PLANNING;
+    public ProjectStatus status = ProjectStatus.PENDING;
     public Double progress = 0.0;
     public String owner;
     
@@ -27,7 +27,7 @@ public class Project {
     public List<String> collaborators = new ArrayList<>();
     
     public void activate() {
-        this.status = ProjectStatus.ACTIVE;
+        this.status = ProjectStatus.STARTED;
     }
     
     public void complete() {
@@ -36,7 +36,7 @@ public class Project {
     }
     
     public void putOnHold() {
-        this.status = ProjectStatus.ON_HOLD;
+        this.status = ProjectStatus.PENDING; // Closest equivalent to ON_HOLD
     }
     
     public void updateProgress(double newProgress) {
