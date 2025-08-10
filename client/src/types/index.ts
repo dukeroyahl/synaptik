@@ -20,6 +20,25 @@ export interface Task {
   updatedAt: string
 }
 
+export interface Project {
+  id: string
+  name: string
+  description?: string | null
+  status: 'PENDING' | 'STARTED' | 'COMPLETED' | 'DELETED'
+  progress?: number
+  color?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  dueDate?: string | null
+  tags?: string[]
+  owner?: string | null
+  members?: string[]
+  overdue?: boolean
+  daysUntilDue?: number
+  createdAt: string
+  updatedAt: string
+}
+
 export interface User {
   id: string
   name: string
