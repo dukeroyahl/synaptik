@@ -40,85 +40,84 @@ public class TaskService {
     }
     
     public Uni<Task> createTask(Task task) {
+        task.prePersist();
+        task.urgency = task.calculateUrgency();
+        logger.infof("Creating new task: %s", task.title);
+        return task.persist()
+            .onItem().transformToUni(persistedEntity -> {
+                Task createdTask = (Task) persistedEntity;
+                // Update project status after task creation
+                if (createdTask.projectId != null) {
+                    return projectService.updateProjectStatusBasedOnTasks(createdTask.projectId)
+                        .onItem().transformToUni(project2 -> 
+                            enrichTaskWithProject(createdTask)
+                        );
+                } else {
+                    return enrichTaskWithProject(createdTask);
+                }
+            });
+    }
+    
+    /**
+     * Create a task with project name (for API use).
+     * This method handles project auto-creation based on project name.
+     */
+    public Uni<Task> createTaskWithProject(Task task, String projectName) {
         // Handle project auto-creation if project name is provided
-        if (task.project != null && !task.project.trim().isEmpty()) {
-            return projectService.findOrCreateProject(task.project.trim())
+        if (projectName != null && !projectName.trim().isEmpty()) {
+            return projectService.findOrCreateProject(projectName.trim())
                 .onItem().transformToUni(project -> {
                     if (project != null) {
-                        task.setProjectId(project.id);
+                        task.projectId = project.id;
                     }
-                    task.prePersist();
-                    task.urgency = task.calculateUrgency();
-                    logger.infof("Creating new task: %s", task.title);
-                    return task.persist()
-                        .onItem().transformToUni(persistedEntity -> {
-                            Task createdTask = (Task) persistedEntity;
-                            // Update project status after task creation
-                            if (createdTask.projectId != null) {
-                                return projectService.updateProjectStatusBasedOnTasks(createdTask.projectId)
-                                    .onItem().transformToUni(project2 -> 
-                                        enrichTaskWithProject(createdTask)
-                                    );
-                            } else {
-                                return enrichTaskWithProject(createdTask);
-                            }
-                        });
+                    return createTask(task);
                 });
         } else {
-            task.prePersist();
-            task.urgency = task.calculateUrgency();
-            logger.infof("Creating new task: %s", task.title);
-            return task.persist()
-                .onItem().transformToUni(persistedEntity -> enrichTaskWithProject((Task) persistedEntity));
+            return createTask(task);
         }
     }
     
     public Uni<Task> updateTask(UUID id, Task updates) {
         return Task.<Task>find("_id", id).firstResult()
             .onItem().ifNotNull().transformToUni(task -> {
+                updateTaskFields(task, updates);
+                task.urgency = task.calculateUrgency();
+                task.prePersist();
+                logger.infof("Updating task: %s", task.title);
+                return task.persistOrUpdate()
+                    .onItem().transformToUni(persistedEntity -> {
+                        Task updatedTask = (Task) persistedEntity;
+                        // Update project status after task update
+                        if (updatedTask.projectId != null) {
+                            return projectService.updateProjectStatusBasedOnTasks(updatedTask.projectId)
+                                .onItem().transformToUni(proj -> 
+                                    enrichTaskWithProject(updatedTask)
+                                );
+                        } else {
+                            return enrichTaskWithProject(updatedTask);
+                        }
+                    });
+            });
+    }
+    
+    /**
+     * Update a task with project name (for API use).
+     * This method handles project auto-creation based on project name.
+     */
+    public Uni<Task> updateTaskWithProject(UUID id, Task updates, String projectName) {
+        return Task.<Task>find("_id", id).firstResult()
+            .onItem().ifNotNull().transformToUni(task -> {
                 // Handle project update if project name is provided
-                if (updates.project != null && !updates.project.trim().isEmpty()) {
-                    return projectService.findOrCreateProject(updates.project.trim())
+                if (projectName != null && !projectName.trim().isEmpty()) {
+                    return projectService.findOrCreateProject(projectName.trim())
                         .onItem().transformToUni(project -> {
                             if (project != null) {
-                                task.setProjectId(project.id); // Set on the actual task, not updates
+                                task.projectId = project.id;
                             }
-                            updateTaskFields(task, updates);
-                            task.urgency = task.calculateUrgency();
-                            task.prePersist();
-                            logger.infof("Updating task: %s", task.title);
-                            return task.persistOrUpdate()
-                                .onItem().transformToUni(persistedEntity -> {
-                                    Task updatedTask = (Task) persistedEntity;
-                                    // Update project status after task update
-                                    if (updatedTask.projectId != null) {
-                                        return projectService.updateProjectStatusBasedOnTasks(updatedTask.projectId)
-                                            .onItem().transformToUni(proj -> 
-                                                enrichTaskWithProject(updatedTask)
-                                            );
-                                    } else {
-                                        return enrichTaskWithProject(updatedTask);
-                                    }
-                                });
+                            return updateTask(id, updates);
                         });
                 } else {
-                    updateTaskFields(task, updates);
-                    task.urgency = task.calculateUrgency();
-                    task.prePersist();
-                    logger.infof("Updating task: %s", task.title);
-                    return task.persistOrUpdate()
-                        .onItem().transformToUni(persistedEntity -> {
-                            Task updatedTask = (Task) persistedEntity;
-                            // Update project status after task update
-                            if (updatedTask.projectId != null) {
-                                return projectService.updateProjectStatusBasedOnTasks(updatedTask.projectId)
-                                    .onItem().transformToUni(proj -> 
-                                        enrichTaskWithProject(updatedTask)
-                                    );
-                            } else {
-                                return enrichTaskWithProject(updatedTask);
-                            }
-                        });
+                    return updateTask(id, updates);
                 }
             });
     }
@@ -224,7 +223,7 @@ public class TaskService {
     public Uni<List<Task>> getOverdueTasks(String tz) {
         ZoneId zone = resolveZone(tz);
         ZonedDateTime now = ZonedDateTime.now(zone);
-        List<TaskStatus> statuses = List.of(TaskStatus.PENDING, TaskStatus.STARTED, TaskStatus.COMPLETED);
+        List<TaskStatus> statuses = List.of(TaskStatus.PENDING, TaskStatus.ACTIVE, TaskStatus.COMPLETED);
         return Task.<Task>find("status in ?1", statuses).list()
             .onItem().transform(list -> list.stream()
                 .filter(t -> isOverdue(t, now))
@@ -235,7 +234,7 @@ public class TaskService {
     public Uni<List<Task>> getTodayTasks(String tz) {
         ZoneId zone = resolveZone(tz);
         LocalDate today = LocalDate.now(zone);
-        List<TaskStatus> statuses = List.of(TaskStatus.PENDING, TaskStatus.STARTED, TaskStatus.COMPLETED);
+        List<TaskStatus> statuses = List.of(TaskStatus.PENDING, TaskStatus.ACTIVE, TaskStatus.COMPLETED);
         return Task.<Task>find("status in ?1", statuses).list()
             .onItem().transform(list -> list.stream()
                 .filter(t -> isDueToday(t, today, zone))

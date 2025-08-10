@@ -199,7 +199,7 @@ public class TaskResourceTest {
     @Order(14)
     public void testGetNonExistentTask() {
         given()
-            .when().get("/api/tasks/507f1f77bcf86cd799439011")
+            .when().get("/api/tasks/550e8400-e29b-41d4-a716-446655440000")
             .then()
                 .statusCode(404);
     }
@@ -216,7 +216,7 @@ public class TaskResourceTest {
         given()
             .contentType(ContentType.JSON)
             .body(updateJson)
-            .when().put("/api/tasks/507f1f77bcf86cd799439011")
+            .when().put("/api/tasks/550e8400-e29b-41d4-a716-446655440000")
             .then()
                 .statusCode(404);
     }
@@ -225,7 +225,7 @@ public class TaskResourceTest {
     @Order(16)
     public void testDeleteNonExistentTask() {
         given()
-            .when().delete("/api/tasks/507f1f77bcf86cd799439011")
+            .when().delete("/api/tasks/550e8400-e29b-41d4-a716-446655440000")
             .then()
                 .statusCode(404);
     }

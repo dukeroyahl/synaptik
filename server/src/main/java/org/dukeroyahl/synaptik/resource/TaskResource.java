@@ -3,7 +3,9 @@ package org.dukeroyahl.synaptik.resource;
 import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
 import org.dukeroyahl.synaptik.dto.TaskGraphResponse;
+import org.dukeroyahl.synaptik.dto.TaskRequest;
 import org.dukeroyahl.synaptik.service.TaskService;
+import org.dukeroyahl.synaptik.service.TaskGraphService;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
@@ -24,6 +26,9 @@ public class TaskResource {
     
     @Inject
     TaskService taskService;
+    
+    @Inject
+    TaskGraphService taskGraphService;
     
     @GET
     @Operation(summary = "Get all tasks")
@@ -47,7 +52,7 @@ public class TaskResource {
                 .filter(java.util.Objects::nonNull)
                 .toList();
         }
-        return taskService.buildTaskGraph(statuses);
+        return taskGraphService.buildTaskGraph(statuses);
     }
 
     @GET
@@ -58,7 +63,7 @@ public class TaskResource {
                                          @QueryParam("includePlaceholders") @DefaultValue("true") boolean includePlaceholders) {
         try {
             UUID taskId = UUID.fromString(id);
-            return taskService.buildNeighborsGraph(taskId, depth, includePlaceholders)
+            return taskGraphService.buildNeighborsGraph(taskId, depth, includePlaceholders)
                 .onItem().transform(graph -> Response.ok(graph).build());
         } catch (IllegalArgumentException e) {
             return Uni.createFrom().item(Response.status(Response.Status.BAD_REQUEST)
@@ -83,18 +88,24 @@ public class TaskResource {
     
     @POST
     @Operation(summary = "Create a new task")
-    public Uni<Response> createTask(@Valid Task task) {
-        return taskService.createTask(task)
+    public Uni<Response> createTask(@Valid TaskRequest taskRequest) {
+        Task task = taskRequest.toTask();
+        String projectName = taskRequest.getProjectName();
+        
+        return taskService.createTaskWithProject(task, projectName)
             .onItem().transform(createdTask -> Response.status(Response.Status.CREATED).entity(createdTask).build());
     }
     
     @PUT
     @Path("/{id}")
     @Operation(summary = "Update a task")
-    public Uni<Response> updateTask(@PathParam("id") String id, @Valid Task updates) {
+    public Uni<Response> updateTask(@PathParam("id") String id, @Valid TaskRequest taskRequest) {
         try {
             UUID taskId = UUID.fromString(id);
-            return taskService.updateTask(taskId, updates)
+            Task updates = taskRequest.toTask();
+            String projectName = taskRequest.getProjectName();
+            
+            return taskService.updateTaskWithProject(taskId, updates, projectName)
                 .onItem().ifNotNull().transform(task -> Response.ok(task).build())
                 .onItem().ifNull().continueWith(Response.status(Response.Status.NOT_FOUND).build());
         } catch (IllegalArgumentException e) {
@@ -126,7 +137,7 @@ public class TaskResource {
             .onItem().transform(v -> Response.noContent().build());
     }
     
-    @PUT
+    @POST
     @Path("/{id}/start")
     @Consumes({})
     @Operation(summary = "Start a task")
@@ -142,7 +153,7 @@ public class TaskResource {
         }
     }
     
-    @PUT
+    @POST
     @Path("/{id}/stop")
     @Consumes({})
     @Operation(summary = "Stop a task")
@@ -158,7 +169,7 @@ public class TaskResource {
         }
     }
     
-    @PUT
+    @POST
     @Path("/{id}/done")
     @Consumes({})
     @Operation(summary = "Mark task as done")
@@ -182,10 +193,10 @@ public class TaskResource {
     }
     
     @GET
-    @Path("/started")
-    @Operation(summary = "Get started tasks")
-    public Uni<List<Task>> getStartedTasks() {
-        return taskService.getTasksByStatus(TaskStatus.STARTED);
+    @Path("/active")
+    @Operation(summary = "Get active tasks")
+    public Uni<List<Task>> getActiveTasks() {
+        return taskService.getTasksByStatus(TaskStatus.ACTIVE);
     }
     
 

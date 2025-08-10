@@ -162,7 +162,7 @@ public class ProjectService {
                             .mapToLong(t -> t.status == org.dukeroyahl.synaptik.domain.TaskStatus.COMPLETED ? 1 : 0)
                             .sum();
                         long activeTasks = tasks.stream()
-                            .mapToLong(t -> t.status == org.dukeroyahl.synaptik.domain.TaskStatus.STARTED ? 1 : 0)
+                            .mapToLong(t -> t.status == org.dukeroyahl.synaptik.domain.TaskStatus.ACTIVE ? 1 : 0)
                             .sum();
                         
                         // Calculate progress

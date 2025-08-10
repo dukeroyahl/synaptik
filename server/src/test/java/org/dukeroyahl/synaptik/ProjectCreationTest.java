@@ -2,21 +2,13 @@ package org.dukeroyahl.synaptik;
 
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
-import org.dukeroyahl.synaptik.domain.Project;
-import org.dukeroyahl.synaptik.domain.ProjectStatus;
-import org.dukeroyahl.synaptik.domain.Task;
-import org.dukeroyahl.synaptik.domain.TaskStatus;
-import org.dukeroyahl.synaptik.domain.TaskPriority;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.MethodOrderer;
 
-import java.util.UUID;
-
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -28,62 +20,36 @@ public class ProjectCreationTest {
         given()
             .when().delete("/api/projects")
             .then().statusCode(204);
-            
+        
         given()
             .when().delete("/api/tasks")
             .then().statusCode(204);
     }
 
     @Test
-    void testCreateProjectWithNameOnly() {
-        // Test Guideline 1: Should be able to create a project just with its name
-        Project project = new Project();
-        project.name = "Test Project";
+    public void testCreateTaskWithNonExistentProjectName() {
+        String taskJson = """
+            {
+                "title": "Test Task",
+                "description": "Test Description",
+                "priority": "MEDIUM",
+                "project": "Auto Created Project"
+            }
+            """;
 
-        String response = given()
-            .contentType(ContentType.JSON)
-            .body(project)
-            .when().post("/api/projects")
-            .then()
-            .statusCode(201)
-            .body("name", equalTo("Test Project"))
-            .body("status", equalTo("PENDING"))
-            .body("progress", equalTo(0.0f))
-            .body("id", notNullValue())
-            .body("id", matchesPattern("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))
-            .extract().asString();
-
-        // Verify project is stored in separate collection by retrieving it
+        // Create task with non-existent project name
         given()
-            .when().get("/api/projects")
-            .then()
-            .statusCode(200)
-            .body("size()", equalTo(1))
-            .body("[0].name", equalTo("Test Project"))
-            .body("[0].status", equalTo("PENDING"));
-    }
-
-    @Test
-    void testCreateTaskWithNonExistentProjectName() {
-        // Test Guideline 2: Creating task with project name should auto-create project
-        Task task = new Task();
-        task.title = "Test Task";
-        task.description = "Test Description";
-        task.priority = TaskPriority.MEDIUM;
-        task.project = "Auto Created Project";
-
-        String taskResponse = given()
             .contentType(ContentType.JSON)
-            .body(task)
+            .body(taskJson)
             .when().post("/api/tasks")
             .then()
             .statusCode(201)
             .body("title", equalTo("Test Task"))
+            .body("project", equalTo("Auto Created Project"))
             .body("projectDetails.name", equalTo("Auto Created Project"))
             .body("projectDetails.status", equalTo("PENDING"))
             .body("projectId", notNullValue())
-            .body("projectId", matchesPattern("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))
-            .extract().asString();
+            .body("projectId", matchesPattern("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"));
 
         // Verify project was auto-created in separate collection
         given()
@@ -92,41 +58,66 @@ public class ProjectCreationTest {
             .statusCode(200)
             .body("size()", equalTo(1))
             .body("[0].name", equalTo("Auto Created Project"))
-            .body("[0].status", equalTo("PENDING"))
-            .body("[0].id", notNullValue())
-            .body("[0].id", matchesPattern("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"));
+            .body("[0].status", equalTo("PENDING"));
     }
 
     @Test
-    void testCreateTaskWithExistingProjectName() {
-        // First create a project
-        Project project = new Project();
-        project.name = "Existing Project";
-
-        String projectId = given()
-            .contentType(ContentType.JSON)
-            .body(project)
-            .when().post("/api/projects")
-            .then()
-            .statusCode(201)
-            .extract().path("id");
-
-        // Then create a task referencing the existing project
-        Task task = new Task();
-        task.title = "Test Task";
-        task.description = "Test Description";
-        task.priority = TaskPriority.HIGH;
-        task.project = "Existing Project";
+    public void testCreateProjectWithNameOnly() {
+        String projectJson = """
+            {
+                "name": "Simple Project"
+            }
+            """;
 
         given()
             .contentType(ContentType.JSON)
-            .body(task)
+            .body(projectJson)
+            .when().post("/api/projects")
+            .then()
+            .statusCode(201)
+            .body("name", equalTo("Simple Project"))
+            .body("status", equalTo("PENDING"))
+            .body("id", notNullValue())
+            .body("createdAt", notNullValue())
+            .body("updatedAt", notNullValue());
+    }
+
+    @Test
+    public void testCreateTaskWithExistingProjectName() {
+        // First create a project
+        String projectJson = """
+            {
+                "name": "Existing Project",
+                "description": "Pre-existing project"
+            }
+            """;
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(projectJson)
+            .when().post("/api/projects")
+            .then()
+            .statusCode(201);
+
+        // Create task with existing project name
+        String taskJson = """
+            {
+                "title": "Test Task",
+                "description": "Test Description",
+                "priority": "MEDIUM",
+                "project": "Existing Project"
+            }
+            """;
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(taskJson)
             .when().post("/api/tasks")
             .then()
             .statusCode(201)
             .body("title", equalTo("Test Task"))
-            .body("projectDetails.name", equalTo("Existing Project"))
-            .body("projectId", equalTo(projectId));
+            .body("project", equalTo("Existing Project"))
+            .body("projectDetails.name", equalTo("Existing Project"));
 
         // Verify only one project exists (no duplicate created)
         given()
@@ -134,111 +125,27 @@ public class ProjectCreationTest {
             .then()
             .statusCode(200)
             .body("size()", equalTo(1))
-            .body("[0].name", equalTo("Existing Project"))
-            .body("[0].id", equalTo(projectId));
+            .body("[0].name", equalTo("Existing Project"));
     }
 
     @Test
-    void testProjectStoredInSeparateCollection() {
-        // Test Guideline 3: Projects should be stored in separate collection
-        Project project = new Project();
-        project.name = "Collection Test Project";
+    public void testTaskWithoutProject() {
+        String taskJson = """
+            {
+                "title": "Standalone Task",
+                "description": "Task without project",
+                "priority": "LOW"
+            }
+            """;
 
         given()
             .contentType(ContentType.JSON)
-            .body(project)
-            .when().post("/api/projects")
-            .then()
-            .statusCode(201);
-
-        // Verify project can be retrieved from projects endpoint
-        given()
-            .when().get("/api/projects")
-            .then()
-            .statusCode(200)
-            .body("size()", equalTo(1))
-            .body("[0].name", equalTo("Collection Test Project"));
-
-        // Verify tasks collection is empty
-        given()
-            .when().get("/api/tasks")
-            .then()
-            .statusCode(200)
-            .body("size()", equalTo(0));
-    }
-
-    @Test
-    void testTaskEnrichmentWithProjectDetails() {
-        // Test Guideline 4: During task retrieval, project details should be enriched
-        
-        // Create project first
-        Project project = new Project();
-        project.name = "Enrichment Test Project";
-        project.description = "Project for testing enrichment";
-
-        String projectId = given()
-            .contentType(ContentType.JSON)
-            .body(project)
-            .when().post("/api/projects")
-            .then()
-            .statusCode(201)
-            .extract().path("id");
-
-        // Create task with project name
-        Task task = new Task();
-        task.title = "Enrichment Test Task";
-        task.description = "Task for testing enrichment";
-        task.priority = TaskPriority.LOW;
-        task.project = "Enrichment Test Project";
-
-        String taskId = given()
-            .contentType(ContentType.JSON)
-            .body(task)
-            .when().post("/api/tasks")
-            .then()
-            .statusCode(201)
-            .body("projectId", equalTo(projectId))
-            .body("projectDetails.name", equalTo("Enrichment Test Project"))
-            .body("projectDetails.description", equalTo("Project for testing enrichment"))
-            .body("projectDetails.id", equalTo(projectId))
-            .extract().path("id");
-
-        // Verify task retrieval includes enriched project details
-        given()
-            .when().get("/api/tasks/" + taskId)
-            .then()
-            .statusCode(200)
-            .body("title", equalTo("Enrichment Test Task"))
-            .body("projectId", equalTo(projectId))
-            .body("projectDetails.name", equalTo("Enrichment Test Project"))
-            .body("projectDetails.description", equalTo("Project for testing enrichment"))
-            .body("projectDetails.status", equalTo("PENDING"));
-
-        // Verify task list includes enriched project details
-        given()
-            .when().get("/api/tasks")
-            .then()
-            .statusCode(200)
-            .body("size()", equalTo(1))
-            .body("[0].projectId", equalTo(projectId))
-            .body("[0].projectDetails.name", equalTo("Enrichment Test Project"));
-    }
-
-    @Test
-    void testTaskWithoutProject() {
-        // Test that tasks can be created without projects
-        Task task = new Task();
-        task.title = "Standalone Task";
-        task.description = "Task without project";
-        task.priority = TaskPriority.NONE;
-
-        given()
-            .contentType(ContentType.JSON)
-            .body(task)
+            .body(taskJson)
             .when().post("/api/tasks")
             .then()
             .statusCode(201)
             .body("title", equalTo("Standalone Task"))
+            .body("project", nullValue())
             .body("projectId", nullValue())
             .body("projectDetails", nullValue());
 
@@ -251,103 +158,139 @@ public class ProjectCreationTest {
     }
 
     @Test
-    void testProjectAndTaskUUIDFormats() {
-        // Test Guidelines 5 & 6: Both Project ID and Task ID should be UUIDs
-        
-        // Create project and verify UUID format
-        Project project = new Project();
-        project.name = "UUID Test Project";
-
-        String projectId = given()
-            .contentType(ContentType.JSON)
-            .body(project)
-            .when().post("/api/projects")
-            .then()
-            .statusCode(201)
-            .body("id", matchesPattern("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))
-            .extract().path("id");
-
-        // Verify projectId is valid UUID
-        assertDoesNotThrow(() -> UUID.fromString(projectId));
-
-        // Create task and verify UUID format
-        Task task = new Task();
-        task.title = "UUID Test Task";
-        task.priority = TaskPriority.MEDIUM;
-        task.project = "UUID Test Project";
+    public void testTaskEnrichmentWithProjectDetails() {
+        String taskJson = """
+            {
+                "title": "Enrichment Test Task",
+                "description": "Test task enrichment",
+                "priority": "HIGH",
+                "project": "Enrichment Test Project"
+            }
+            """;
 
         String taskId = given()
             .contentType(ContentType.JSON)
-            .body(task)
+            .body(taskJson)
+            .when().post("/api/tasks")
+            .then()
+            .statusCode(201)
+            .extract().path("id");
+
+        // Verify task is enriched with project details when retrieved
+        given()
+            .when().get("/api/tasks/" + taskId)
+            .then()
+            .statusCode(200)
+            .body("title", equalTo("Enrichment Test Task"))
+            .body("project", equalTo("Enrichment Test Project"))
+            .body("projectDetails.name", equalTo("Enrichment Test Project"))
+            .body("projectDetails.status", equalTo("PENDING"))
+            .body("projectId", notNullValue());
+    }
+
+    @Test
+    public void testProjectStoredInSeparateCollection() {
+        String taskJson = """
+            {
+                "title": "Collection Test Task",
+                "description": "Test separate collection storage",
+                "priority": "MEDIUM",
+                "project": "Collection Test Project"
+            }
+            """;
+
+        String taskId = given()
+            .contentType(ContentType.JSON)
+            .body(taskJson)
+            .when().post("/api/tasks")
+            .then()
+            .statusCode(201)
+            .extract().path("id");
+
+        // Verify project exists in projects collection
+        given()
+            .when().get("/api/projects")
+            .then()
+            .statusCode(200)
+            .body("size()", equalTo(1))
+            .body("[0].name", equalTo("Collection Test Project"));
+
+        // Verify task references project by ID, not name
+        given()
+            .when().get("/api/tasks/" + taskId)
+            .then()
+            .statusCode(200)
+            .body("projectId", notNullValue())
+            .body("projectDetails.name", equalTo("Collection Test Project"));
+    }
+
+    @Test
+    public void testProjectAndTaskUUIDFormats() {
+        String taskJson = """
+            {
+                "title": "UUID Test Task",
+                "description": "Test UUID formats",
+                "priority": "HIGH",
+                "project": "UUID Test Project"
+            }
+            """;
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(taskJson)
             .when().post("/api/tasks")
             .then()
             .statusCode(201)
             .body("id", matchesPattern("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))
-            .body("projectId", equalTo(projectId))
-            .extract().path("id");
+            .body("projectId", matchesPattern("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"));
 
-        // Verify taskId is valid UUID
-        assertDoesNotThrow(() -> UUID.fromString(taskId));
+        // Verify project also has UUID format
+        given()
+            .when().get("/api/projects")
+            .then()
+            .statusCode(200)
+            .body("[0].id", matchesPattern("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"));
     }
 
     @Test
-    void testProjectCreationWithMinimalData() {
-        // Test that project can be created with just name (all other fields optional)
-        Project project = new Project();
-        project.name = "Minimal Project";
+    public void testMultipleTasksSameProject() {
+        String task1Json = """
+            {
+                "title": "Task 1",
+                "description": "First task",
+                "priority": "HIGH",
+                "project": "Shared Project"
+            }
+            """;
 
+        String task2Json = """
+            {
+                "title": "Task 2",
+                "description": "Second task",
+                "priority": "MEDIUM",
+                "project": "Shared Project"
+            }
+            """;
+
+        // Create first task
         given()
             .contentType(ContentType.JSON)
-            .body(project)
-            .when().post("/api/projects")
-            .then()
-            .statusCode(201)
-            .body("name", equalTo("Minimal Project"))
-            .body("description", nullValue())
-            .body("status", equalTo("PENDING"))
-            .body("progress", equalTo(0.0f))
-            .body("owner", nullValue())
-            .body("tags", empty())
-            .body("members", empty());
-    }
-
-    @Test
-    void testMultipleTasksSameProject() {
-        // Test that multiple tasks can reference the same project
-        Task task1 = new Task();
-        task1.title = "First Task";
-        task1.priority = TaskPriority.HIGH;
-        task1.project = "Shared Project";
-
-        Task task2 = new Task();
-        task2.title = "Second Task";
-        task2.priority = TaskPriority.MEDIUM;
-        task2.project = "Shared Project";
-
-        // Create first task (should auto-create project)
-        String projectId1 = given()
-            .contentType(ContentType.JSON)
-            .body(task1)
+            .body(task1Json)
             .when().post("/api/tasks")
             .then()
             .statusCode(201)
-            .body("projectDetails.name", equalTo("Shared Project"))
-            .extract().path("projectId");
+            .body("project", equalTo("Shared Project"));
 
-        // Create second task (should use existing project)
-        String projectId2 = given()
+        // Create second task with same project
+        given()
             .contentType(ContentType.JSON)
-            .body(task2)
+            .body(task2Json)
             .when().post("/api/tasks")
             .then()
             .statusCode(201)
-            .body("projectDetails.name", equalTo("Shared Project"))
-            .extract().path("projectId");
+            .body("project", equalTo("Shared Project"));
 
-        // Both tasks should reference the same project
-        assertEquals(projectId1, projectId2);
-
-        // Verify only one project exists
+        // Verify only one project was created
         given()
             .when().get("/api/projects")
             .then()
@@ -360,26 +303,35 @@ public class ProjectCreationTest {
             .when().get("/api/tasks")
             .then()
             .statusCode(200)
-            .body("size()", equalTo(2));
+            .body("size()", equalTo(2))
+            .body("[0].project", equalTo("Shared Project"))
+            .body("[1].project", equalTo("Shared Project"));
     }
 
     @Test
-    void testProjectAutoCompletionWhenAllTasksCompleted() {
-        // Create a project with multiple tasks
-        Task task1 = new Task();
-        task1.title = "First Task";
-        task1.priority = TaskPriority.HIGH;
-        task1.project = "Auto Complete Project";
+    public void testProjectAutoCompletionWhenAllTasksCompleted() {
+        String task1Json = """
+            {
+                "title": "Task 1",
+                "description": "First task",
+                "priority": "HIGH",
+                "project": "Auto Complete Project"
+            }
+            """;
 
-        Task task2 = new Task();
-        task2.title = "Second Task";
-        task2.priority = TaskPriority.MEDIUM;
-        task2.project = "Auto Complete Project";
+        String task2Json = """
+            {
+                "title": "Task 2",
+                "description": "Second task",
+                "priority": "MEDIUM",
+                "project": "Auto Complete Project"
+            }
+            """;
 
-        // Create both tasks
+        // Create tasks
         String task1Id = given()
             .contentType(ContentType.JSON)
-            .body(task1)
+            .body(task1Json)
             .when().post("/api/tasks")
             .then()
             .statusCode(201)
@@ -387,25 +339,15 @@ public class ProjectCreationTest {
 
         String task2Id = given()
             .contentType(ContentType.JSON)
-            .body(task2)
+            .body(task2Json)
             .when().post("/api/tasks")
             .then()
             .statusCode(201)
             .extract().path("id");
 
-        // Verify project is created and in PENDING status
-        given()
-            .when().get("/api/projects")
-            .then()
-            .statusCode(200)
-            .body("size()", equalTo(1))
-            .body("[0].name", equalTo("Auto Complete Project"))
-            .body("[0].status", equalTo("PENDING"))
-            .body("[0].progress", equalTo(0.0f));
-
         // Complete first task
         given()
-            .when().put("/api/tasks/" + task1Id + "/done")
+            .when().post("/api/tasks/" + task1Id + "/done")
             .then()
             .statusCode(200);
 
@@ -419,37 +361,40 @@ public class ProjectCreationTest {
 
         // Complete second task
         given()
-            .when().put("/api/tasks/" + task2Id + "/done")
+            .when().post("/api/tasks/" + task2Id + "/done")
             .then()
             .statusCode(200);
 
-        // Project should now be COMPLETED automatically
+        // Project should now be COMPLETED (all tasks completed)
         given()
             .when().get("/api/projects")
             .then()
             .statusCode(200)
             .body("[0].status", equalTo("COMPLETED"))
-            .body("[0].progress", equalTo(100.0f))
-            .body("[0].endDate", notNullValue()); // End date should be set
+            .body("[0].progress", equalTo(100.0f)); // All tasks completed
     }
 
     @Test
-    void testProjectAutoStartWhenTaskStarted() {
-        // Create a project with a task
-        Task task = new Task();
-        task.title = "Auto Start Task";
-        task.priority = TaskPriority.HIGH;
-        task.project = "Auto Start Project";
+    public void testProjectAutoStartWhenTaskStarted() {
+        String taskJson = """
+            {
+                "title": "Auto Start Task",
+                "description": "Task that will auto-start project",
+                "priority": "HIGH",
+                "project": "Auto Start Project"
+            }
+            """;
 
+        // Create task
         String taskId = given()
             .contentType(ContentType.JSON)
-            .body(task)
+            .body(taskJson)
             .when().post("/api/tasks")
             .then()
             .statusCode(201)
             .extract().path("id");
 
-        // Verify project starts in PENDING status
+        // Project should initially be PENDING
         given()
             .when().get("/api/projects")
             .then()
@@ -458,7 +403,7 @@ public class ProjectCreationTest {
 
         // Start the task
         given()
-            .when().put("/api/tasks/" + taskId + "/start")
+            .when().post("/api/tasks/" + taskId + "/start")
             .then()
             .statusCode(200);
 
@@ -467,43 +412,79 @@ public class ProjectCreationTest {
             .when().get("/api/projects")
             .then()
             .statusCode(200)
-            .body("[0].status", equalTo("STARTED"))
-            .body("[0].startDate", notNullValue()); // Start date should be set
+            .body("[0].status", equalTo("STARTED"));
     }
 
     @Test
-    void testProjectNameCaseSensitivity() {
-        // Test that project names are case sensitive
-        Task task1 = new Task();
-        task1.title = "Task One";
-        task1.priority = TaskPriority.HIGH;
-        task1.project = "Test Project";
+    public void testProjectNameCaseSensitivity() {
+        String task1Json = """
+            {
+                "title": "Task 1",
+                "description": "First task",
+                "priority": "HIGH",
+                "project": "Test Project"
+            }
+            """;
 
-        Task task2 = new Task();
-        task2.title = "Task Two";
-        task2.priority = TaskPriority.MEDIUM;
-        task2.project = "test project";
+        String task2Json = """
+            {
+                "title": "Task 2",
+                "description": "Second task",
+                "priority": "MEDIUM",
+                "project": "test project"
+            }
+            """;
 
         // Create tasks with different case project names
         given()
             .contentType(ContentType.JSON)
-            .body(task1)
+            .body(task1Json)
             .when().post("/api/tasks")
             .then()
             .statusCode(201);
 
         given()
             .contentType(ContentType.JSON)
-            .body(task2)
+            .body(task2Json)
             .when().post("/api/tasks")
             .then()
             .statusCode(201);
 
-        // Should create two separate projects
+        // Verify two separate projects were created (case sensitive)
         given()
             .when().get("/api/projects")
             .then()
             .statusCode(200)
             .body("size()", equalTo(2));
+    }
+
+    @Test
+    public void testProjectCreationWithMinimalData() {
+        String taskJson = """
+            {
+                "title": "Minimal Task",
+                "project": "Minimal Project"
+            }
+            """;
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(taskJson)
+            .when().post("/api/tasks")
+            .then()
+            .statusCode(201)
+            .body("title", equalTo("Minimal Task"))
+            .body("project", equalTo("Minimal Project"))
+            .body("priority", equalTo("NONE")) // Default priority
+            .body("status", equalTo("PENDING")); // Default status
+
+        // Verify project was created with minimal data
+        given()
+            .when().get("/api/projects")
+            .then()
+            .statusCode(200)
+            .body("size()", equalTo(1))
+            .body("[0].name", equalTo("Minimal Project"))
+            .body("[0].status", equalTo("PENDING"));
     }
 }

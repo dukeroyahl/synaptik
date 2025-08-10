@@ -373,14 +373,14 @@ public class TaskProjectIntegrationTest {
             .statusCode(201)
             .extract().path("id");
 
-        // Verify that the task response contains projectId but not project name in the base fields
-        // (project name should only be in projectDetails for display)
+        // Verify that the task response contains projectId and project name for backward compatibility
+        // The project field is populated from projectDetails via getProject() method
         given()
             .when().get("/api/tasks/" + taskId)
             .then()
             .statusCode(200)
             .body("projectId", notNullValue())
-            .body("project", anyOf(nullValue(), equalTo(""))) // The original project field should be null or empty
+            .body("project", equalTo("Storage Test Project")) // Now populated for backward compatibility
             .body("projectDetails.name", equalTo("Storage Test Project"));
     }
 }

@@ -34,10 +34,6 @@ public class Task extends BaseEntity {
     // Store project ID as UUID instead of project name
     public UUID projectId;
     
-    // Keep the original project field for backward compatibility but don't use it for storage
-    @Deprecated
-    public String project;
-    
     public String assignee;
     
     // Store as string to avoid MongoDB serialization issues
@@ -56,12 +52,12 @@ public class Task extends BaseEntity {
     public Project projectDetails;
     
     public void start() {
-        this.status = TaskStatus.STARTED;
+        this.status = TaskStatus.ACTIVE;
         addAnnotation("Task started");
     }
     
     public void stop() {
-        if (this.status == TaskStatus.STARTED) {
+        if (this.status == TaskStatus.ACTIVE) {
             this.status = TaskStatus.PENDING;
             addAnnotation("Task paused");
         }
@@ -81,10 +77,16 @@ public class Task extends BaseEntity {
         annotations.add(new TaskAnnotation(LocalDateTime.now(), description));
     }
     
-    public void setProjectId(UUID projectId) {
-        this.projectId = projectId;
-        // Clear the deprecated project field when setting projectId
-        this.project = null;
+    /**
+     * Get the project name from projectDetails for JSON serialization.
+     * This maintains backward compatibility by providing project name in API responses.
+     */
+    @com.fasterxml.jackson.annotation.JsonProperty("project")
+    public String getProject() {
+        if (projectDetails != null) {
+            return projectDetails.name;
+        }
+        return null;
     }
     
     public double calculateUrgency() {
@@ -120,7 +122,7 @@ public class Task extends BaseEntity {
             urgency += ageInDays * 0.01;
         }
         
-        if (status == TaskStatus.STARTED) urgency += 4;
+        if (status == TaskStatus.ACTIVE) urgency += 4;
         
         if (tags.contains("urgent")) urgency += 5;
         if (tags.contains("important")) urgency += 3;
