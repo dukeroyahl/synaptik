@@ -121,7 +121,6 @@ public class ProjectService {
         if (updates.endDate != null) project.endDate = updates.endDate;
         if (updates.dueDate != null) project.dueDate = updates.dueDate;
         if (updates.owner != null) project.owner = updates.owner;
-        if (updates.mindmapId != null) project.mindmapId = updates.mindmapId;
         if (updates.tags != null) project.tags = updates.tags;
         if (updates.members != null) project.members = updates.members;
     }

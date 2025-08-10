@@ -40,17 +40,18 @@ const TaskDependencyView: React.FC<TaskDependencyViewProps> = ({ taskId }) => {
         }
         
         const taskResult = await taskResponse.json();
-        setTask(taskResult.data);
+        const taskData = taskResult.data || taskResult; // support either wrapped or direct
+        setTask(taskData);
         
         // Fetch dependency tasks
-        if (taskResult.data.depends && taskResult.data.depends.length > 0) {
+        if (taskData.depends && taskData.depends.length > 0) {
           const dependencyDetails: Task[] = [];
           
-          for (const depId of taskResult.data.depends) {
+          for (const depId of taskData.depends) {
             const depResponse = await fetch(`/api/tasks/${depId}`);
             if (depResponse.ok) {
               const depResult = await depResponse.json();
-              dependencyDetails.push(depResult.data);
+              dependencyDetails.push(depResult.data || depResult);
             }
           }
           
@@ -63,7 +64,8 @@ const TaskDependencyView: React.FC<TaskDependencyViewProps> = ({ taskId }) => {
         const dependentResponse = await fetch(`/api/tasks?depends=${taskId}`);
         if (dependentResponse.ok) {
           const dependentResult = await dependentResponse.json();
-          setDependentTasks(dependentResult.data || []);
+          const depList = Array.isArray(dependentResult) ? dependentResult : (dependentResult.data || []);
+          setDependentTasks(depList);
         }
       } catch (err) {
         setError('Failed to load dependency information');

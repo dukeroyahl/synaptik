@@ -30,7 +30,7 @@ import {
 import { Task } from '../types';
 import TaskEditDialog from './TaskEditDialog';
 import UnifiedTaskGraph from './UnifiedTaskGraph';
-import { formatTaskDate, getPriorityColor, toSentenceCase } from '../utils/taskUtils';
+import { formatTaskDate, toSentenceCase } from '../utils/taskUtils';
 
 interface UnifiedDependencyViewProps {
   open: boolean;
@@ -57,13 +57,15 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
     setError(null);
     
     try {
-      const response = await fetch('/api/tasks?status=pending&status=active&status=waiting');
+      // Fetch open statuses (pending, started, waiting)
+      const response = await fetch('/api/tasks?status=pending&status=started&status=waiting');
       if (!response.ok) {
         throw new Error('Failed to fetch tasks');
       }
       
       const result = await response.json();
-      setTasks(result.data || []);
+      const list = Array.isArray(result) ? result : (result.data || []);
+      setTasks(list);
     } catch (error) {
       console.error('Error fetching tasks:', error);
       setError('Failed to load tasks');
@@ -123,12 +125,24 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <TaskIcon color="primary" />
             {task.priority && (
-              <Chip
-                label={task.priority}
-                size="small"
-                color={getPriorityColor(task.priority)}
-                sx={{ fontSize: '0.7rem', height: 20 }}
-              />
+              (() => {
+                const theme: any = (globalThis as any).muiTheme || undefined; // fallback if needed
+                return (
+                  <Chip
+                    label={task.priority}
+                    size="small"
+                    sx={{
+                      fontSize: '0.7rem',
+                      height: 20,
+                      ...(theme?.semanticStyles?.priority[task.priority] ? {
+                        background: theme.semanticStyles.priority[task.priority].gradient,
+                        border: `1px solid ${theme.semanticStyles.priority[task.priority].border}`,
+                        color: theme.semanticStyles.priority[task.priority].color
+                      } : {})
+                    }}
+                  />
+                );
+              })()
             )}
           </Box>
         }
@@ -139,12 +153,18 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
         }
         subheader={
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            <Chip
-              label={task.status.toUpperCase()}
-              size="small"
-              color={task.status === 'COMPLETED' ? 'success' : task.status === 'ACTIVE' ? 'primary' : 'default'}
-              sx={{ fontSize: '0.65rem' }}
-            />
+            {(() => {
+              const theme: any = (globalThis as any).muiTheme || undefined;
+              const statusKey = task.status as keyof any;
+              const style = theme?.semanticStyles?.status[statusKey] || theme?.semanticStyles?.status.PENDING;
+              return (
+                <Chip
+                  label={task.status.toUpperCase()}
+                  size="small"
+                  sx={{ fontSize: '0.65rem', ...(style ? { background: style.gradient, border: `1px solid ${style.border}`, color: style.color } : {}) }}
+                />
+              );
+            })()}
             {task.assignee && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <PersonIcon sx={{ fontSize: '0.8rem', color: 'text.secondary' }} />

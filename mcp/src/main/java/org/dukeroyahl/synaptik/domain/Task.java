@@ -34,12 +34,12 @@ public class Task {
     public String originalInput;
     
     public void start() {
-        this.status = TaskStatus.ACTIVE;
+        this.status = TaskStatus.STARTED;
         addAnnotation("Task started");
     }
     
     public void stop() {
-        if (this.status == TaskStatus.ACTIVE) {
+        if (this.status == TaskStatus.STARTED) {
             this.status = TaskStatus.PENDING;
             addAnnotation("Task stopped");
         }

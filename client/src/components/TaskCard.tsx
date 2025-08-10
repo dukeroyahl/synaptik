@@ -1,5 +1,6 @@
 import React, { memo, useMemo, useCallback } from 'react';
 import { useTheme, Box, Card, CardContent, Typography, Chip } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import {
   Flag as PriorityIcon,
   Assignment as ProjectIcon,
@@ -12,16 +13,18 @@ import { Task } from '../types';
 import { 
   generateTaskId,
   isTaskOverdue,
-  getPriorityColor,
-  getStatusColor,
   formatTag,
-  toSentenceCase
+  toSentenceCase,
+  getTaskColorCategory
 } from '../utils/taskUtils';
 import { getTimeRemaining, parseBackendDate } from '../utils/dateUtils';
 import TaskActions from './TaskActions';
+import UrgencyChip from './UrgencyChip';
 
 interface TaskCardProps {
   task: Task;
+  selected?: boolean;
+  onSelect?: (task: Task) => void;
   onViewDependencies?: (task: Task) => void;
   onMarkDone?: (task: Task) => void;
   onUnmarkDone?: (task: Task) => void;
@@ -36,6 +39,8 @@ interface TaskCardProps {
 
 const TaskCard: React.FC<TaskCardProps> = memo(({
   task,
+  selected = false,
+  onSelect,
   onViewDependencies,
   onMarkDone,
   onUnmarkDone,
@@ -47,7 +52,40 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
   draggable = false
 }) => {
   const theme = useTheme();
-  
+  const semantic = (theme as any).semanticStyles;
+  const priorityStyle = task.priority && task.priority !== 'NONE' ? semantic.priority[task.priority] : null;
+  const statusStyle = semantic.status[task.status as keyof typeof semantic.status] || semantic.status.PENDING;
+  const colorCategory = getTaskColorCategory(task);
+
+  // Map color category to surface/background accent overrides
+  const categoryStyles: Record<string, { ring: string; bg: string; chip: string; text: string }> = {
+    overdue: {
+      ring: theme.palette.error.main,
+      bg: theme.palette.mode === 'dark' ? '#2d0f12' : '#ffe5e7',
+      chip: theme.palette.error.dark,
+      text: theme.palette.error.contrastText || '#fff'
+    },
+    dueToday: { // Blue
+      ring: theme.palette.info.main,
+      bg: theme.palette.mode === 'dark' ? '#0f2a38' : '#e3f4ff',
+      chip: theme.palette.info.dark,
+      text: theme.palette.getContrastText(theme.palette.info.dark)
+    },
+    completed: {
+      ring: theme.palette.success.main,
+      bg: theme.palette.mode === 'dark' ? '#0f2416' : '#e6f6ed',
+      chip: theme.palette.success.dark,
+      text: theme.palette.success.contrastText || '#fff'
+    },
+    open: { // Yellow
+      ring: theme.palette.warning.main,
+      bg: theme.palette.mode === 'dark' ? '#33250a' : '#fff6db',
+      chip: theme.palette.warning.dark,
+      text: theme.palette.getContrastText(theme.palette.warning.dark)
+    }
+  };
+  const cat = categoryStyles[colorCategory];
+
   // Memoize taskId calculation
   const taskId = useMemo(() => {
     try {
@@ -58,41 +96,6 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
     }
   }, [task.id, task.title]);
   
-  // Memoize glass color calculation to prevent recalculating on every render
-  const glassColor = useMemo(() => {
-    // Priority-based colors (high contrast)
-    if (task.priority === 'HIGH') {
-      return 'linear-gradient(135deg, rgba(255,107,107,0.12) 0%, rgba(255,107,107,0.06) 50%, rgba(255,255,255,0.04) 100%)';
-    } else if (task.priority === 'MEDIUM') {
-      return 'linear-gradient(135deg, rgba(249,194,60,0.12) 0%, rgba(249,194,60,0.06) 50%, rgba(255,255,255,0.04) 100%)';
-    }
-    
-    // Status-based colors (high contrast)
-    if (task.status === 'COMPLETED') {
-      return 'linear-gradient(135deg, rgba(86,211,100,0.12) 0%, rgba(86,211,100,0.06) 50%, rgba(255,255,255,0.04) 100%)';
-    } else if (task.status === 'ACTIVE') {
-      return 'linear-gradient(135deg, rgba(88,166,255,0.12) 0%, rgba(88,166,255,0.06) 50%, rgba(255,255,255,0.04) 100%)';
-    }
-    
-    // Default glass effect (high contrast)
-    return 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0.06) 100%)';
-  }, [task.priority, task.status]);
-  
-  // Memoize border color calculation
-  const borderColor = useMemo(() => {
-    if (task.priority === 'HIGH') {
-      return 'rgba(255,107,107,0.25)';
-    } else if (task.priority === 'MEDIUM') {
-      return 'rgba(249,194,60,0.25)';
-    } else if (task.status === 'COMPLETED') {
-      return 'rgba(86,211,100,0.25)';
-    } else if (task.status === 'ACTIVE') {
-      return 'rgba(88,166,255,0.25)';
-    }
-    
-    return 'rgba(255,255,255,0.15)';
-  }, [task.priority, task.status]);
-
   // Memoize time remaining calculation
   const timeRemaining = useMemo(() => {
     try {
@@ -167,29 +170,151 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
   }, [onLinkTask, task]);
   
   return (
-    <Card
-      sx={{
-        mb: 0.5,
-        position: 'relative',
-        opacity: task.status === 'COMPLETED' ? 0.85 : 1,
-        cursor: draggable ? 'grab' : 'default',
-        background: glassColor,
-        backdropFilter: 'blur(20px) saturate(1.8)',
-        WebkitBackdropFilter: 'blur(20px) saturate(1.8)',
-        border: `1px solid ${borderColor}`,
-        borderRadius: theme.ds?.radii.lg,
-        boxShadow: theme.ds?.elevation[1],
-        transition: `box-shadow ${theme.ds?.motion.duration.normal}ms ${theme.ds?.motion.easing.standard}, transform ${theme.ds?.motion.duration.normal}ms ${theme.ds?.motion.easing.standard}`,
-        '&:hover': {
-          boxShadow: theme.ds?.elevation[3],
-          transform: 'translateY(-2px)'
-        },
-        '&:focus-within': {
-          outline: `2px solid ${theme.ds?.color[theme.palette.mode].focusRing}`,
-          outlineOffset: 2
+  <Card
+  onClick={(_e) => {
+      // Avoid triggering when clicking interactive child buttons (stop propagation there if needed)
+      if (onSelect) onSelect(task);
+    }}
+    onDoubleClick={(e) => {
+      e.stopPropagation();
+      if (onEdit) onEdit(task);
+    }}
+    onKeyDown={(e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && onEdit) {
+        e.preventDefault();
+        onEdit(task);
+      }
+    }}
+    tabIndex={0}
+    sx={(t) => {
+      const dark = t.palette.mode === 'dark';
+      const ring = cat.ring || (dark ? t.palette.primary.light : t.palette.primary.main);
+      const isCompleted = task.status === 'COMPLETED';
+      const isStarted = task.status === 'STARTED';
+      const isOverdueLocal = colorCategory === 'overdue';
+      const active = selected || isCompleted || isStarted || isOverdueLocal; // selection boosts active state
+      // Base alphas tuned per state; overdue gets a slightly stronger base and selected jump
+      const bg = isOverdueLocal
+        ? (selected ? alpha(ring, 0.26) : alpha(ring, 0.12))
+        : active
+          ? alpha(ring, selected ? 0.24 : 0.18)
+          : alpha(ring, 0.06);
+      // Unified border color logic to match overview tiles: inactive .22, active .9, selected 1
+      const borderColor = active ? alpha(ring, selected ? 1 : 0.9) : alpha(ring, 0.22);
+      const radius = 2;
+
+      // --- Dynamic Contrast Handling ---
+      // Attempt to approximate final blended background color by blending ring over base surface.
+      const parseColor = (c: string): { r: number; g: number; b: number } | null => {
+        if (!c) return null;
+        // rgba(r,g,b,a)
+        const rgbaMatch = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+        if (rgbaMatch) {
+          return { r: +rgbaMatch[1], g: +rgbaMatch[2], b: +rgbaMatch[3] };
         }
-      }}
-    >
+        // hex
+        const hex = c.replace('#','');
+        if (hex.length === 3) {
+          const r = parseInt(hex[0]+hex[0],16);
+          const g = parseInt(hex[1]+hex[1],16);
+          const b = parseInt(hex[2]+hex[2],16);
+          return { r,g,b };
+        } else if (hex.length === 6) {
+          const r = parseInt(hex.slice(0,2),16);
+          const g = parseInt(hex.slice(2,4),16);
+          const b = parseInt(hex.slice(4,6),16);
+          return { r,g,b };
+        }
+        return null;
+      };
+      const relativeLuminance = ({r,g,b}:{r:number;g:number;b:number}) => {
+        const srgb = [r,g,b].map(v => {
+          const c = v/255;
+            return c <= 0.03928 ? c/12.92 : Math.pow((c+0.055)/1.055,2.4);
+        });
+        return 0.2126*srgb[0] + 0.7152*srgb[1] + 0.0722*srgb[2];
+      };
+      const contrastRatio = (lum1:number, lum2:number) => {
+        const L1 = Math.max(lum1, lum2);
+        const L2 = Math.min(lum1, lum2);
+        return (L1 + 0.05) / (L2 + 0.05);
+      };
+      // Extract alpha used in bg string for ring overlay
+      const alphaMatch = bg.match(/rgba\([^,]+,[^,]+,[^,]+,\s*([0-9.]+)\)/);
+      const overlayAlpha = alphaMatch ? parseFloat(alphaMatch[1]) : 0.12;
+      const ringRgb = parseColor(ring) || { r: 0, g: 0, b: 0 };
+      const baseSurface = parseColor(dark ? '#121212' : '#ffffff')!; // fallback typical surfaces
+      // Alpha blend ring over base
+      const blended = {
+        r: Math.round(ringRgb.r * overlayAlpha + baseSurface.r * (1 - overlayAlpha)),
+        g: Math.round(ringRgb.g * overlayAlpha + baseSurface.g * (1 - overlayAlpha)),
+        b: Math.round(ringRgb.b * overlayAlpha + baseSurface.b * (1 - overlayAlpha))
+      };
+      const bgLum = relativeLuminance(blended);
+      const whiteLum = relativeLuminance({r:255,g:255,b:255});
+      const blackLum = relativeLuminance({r:0,g:0,b:0});
+      const contrastWithWhite = contrastRatio(bgLum, whiteLum);
+      const contrastWithBlack = contrastRatio(bgLum, blackLum);
+      let textColor: string;
+      // Prefer theme text.primary if sufficient; else pick better of white/black
+      const primaryRgb = parseColor(dark ? '#ffffff' : '#000000')!;
+      const primaryLum = relativeLuminance(primaryRgb);
+      const contrastWithPrimary = contrastRatio(bgLum, primaryLum);
+      if (contrastWithPrimary >= 4.2) {
+        textColor = t.palette.text.primary;
+      } else {
+        textColor = contrastWithWhite > contrastWithBlack ? '#fff' : '#000';
+      }
+
+      return {
+        position: 'relative',
+        mb: 0.25,
+  cursor: onSelect ? 'pointer' : (draggable ? 'grab' : 'default'),
+        background: bg,
+        color: textColor,
+        borderRadius: radius,
+        overflow: 'hidden',
+        border: `1px solid ${borderColor}`,
+        boxShadow: active
+          ? `${(t as any).ds?.elevation?.[2] || '0 2px 4px rgba(0,0,0,0.12)'}${selected ? `, inset 0 -3px 0 0 ${ring}` : ''}`
+          : (t as any).ds?.elevation?.[1] || '0 1px 2px rgba(0,0,0,0.08)',
+        ...(isOverdueLocal && selected ? {
+          boxShadow: `${(t as any).ds?.elevation?.[3] || '0 3px 8px rgba(0,0,0,0.18)'} , 0 0 0 2px ${alpha(ring,0.55)}, inset 0 -3px 0 0 ${ring}`,
+        }: {}),
+        transition: 'all 180ms cubic-bezier(.4,.2,.2,1)',
+        '&:hover': {
+          background: selected
+            ? bg
+            : (isOverdueLocal ? alpha(ring, 0.26) : alpha(ring, 0.20)),
+          transform: 'translateY(-2px)',
+          boxShadow: `${(t as any).ds?.elevation?.[3] || '0 3px 8px rgba(0,0,0,0.18)'} , inset 0 -3px 0 0 ${ring}`,
+          border: `1px solid ${alpha(ring, 1)}`,
+          outline: `2px solid ${alpha(ring,0.65)}`,
+          outlineOffset: 0
+        },
+        ...(selected ? {
+          boxShadow: `${(t as any).ds?.elevation?.[3] || '0 3px 8px rgba(0,0,0,0.18)'} , inset 0 -3px 0 0 ${ring}`,
+          outline: `2px solid ${alpha(ring,0.65)}`,
+          outlineOffset: 0
+        }: {}),
+        ...(isOverdueLocal && selected ? {
+          '&:after': {
+            content: '""',
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            background: `linear-gradient(145deg, ${alpha(ring,0.18)} 0%, ${alpha(ring,0)} 60%)`,
+            mixBlendMode: 'overlay'
+          }
+        }: {}),
+        '&:focus-within': {
+          outline: `2px solid ${alpha(ring,0.6)}`,
+          outlineOffset: 0,
+          boxShadow: `${(t as any).ds?.elevation?.[2] || '0 2px 6px rgba(0,0,0,0.16)'}, 0 0 0 2px ${alpha(ring,0.35)}, inset 0 -3px 0 0 ${ring}`
+        }
+      };
+    }}
+  >
       <CardContent sx={{ py: 1, px: 2, '&:last-child': { pb: 1 } }}>
         {/* Header Row: Status, Task ID, Urgency, Assignee, Actions */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
@@ -215,13 +340,17 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
             </Box>
             
             <Chip
-              label={task.status}
+              label={colorCategory === 'open' ? task.status : toSentenceCase(colorCategory)}
               size="small"
-              color={getStatusColor(task.status)}
               sx={{ 
-                fontSize: '0.7rem',
+                fontSize: '0.65rem',
                 height: 20,
-                fontWeight: 'medium'
+                fontWeight: 600,
+                backgroundColor: cat.chip,
+                color: cat.text,
+                border: `1px solid ${cat.ring}`,
+                letterSpacing: 0.25,
+                textTransform: 'uppercase'
               }}
             />
 
@@ -248,18 +377,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
             )}
 
             {task.urgency && task.urgency > 0 && (
-              <Chip
-                label={`${task.urgency.toFixed(1)}`}
-                size="small"
-                variant="outlined"
-                sx={{ 
-                  fontSize: '0.7rem',
-                  height: 20,
-                  borderColor: 'warning.main',
-                  color: 'warning.main',
-                  fontWeight: 'bold'
-                }}
-              />
+              <UrgencyChip urgency={task.urgency} />
             )}
           </Box>
 
@@ -308,14 +426,17 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
                 <Chip
                   label={task.priority}
                   size="small"
-                  color={getPriorityColor(task.priority)}
                   icon={<PriorityIcon sx={{ fontSize: 12 }} />}
                   sx={{ 
                     fontSize: '0.7rem',
                     height: 20,
                     fontWeight: 'bold',
                     mt: 0.1,
-                    flexShrink: 0
+                    flexShrink: 0,
+                    background: priorityStyle?.gradient,
+                    border: `1px solid ${priorityStyle?.border}`,
+                    color: priorityStyle?.color,
+                    '.MuiChip-icon': { color: priorityStyle?.color }
                   }}
                 />
               )}
@@ -323,7 +444,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
               <Typography 
                 variant="h6" 
                 sx={{ 
-                  fontWeight: task.status === 'ACTIVE' ? 700 : 600,
+                  fontWeight: task.status === 'STARTED' ? 700 : 600,
                   textDecoration: task.status === 'COMPLETED' ? 'line-through' : 'none',
                   fontSize: '1.15rem',
                   lineHeight: 1.3,
@@ -405,48 +526,38 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '0.125em',
-                backgroundColor: isOverdue ? 'rgba(255,107,107,0.15)' : 
-                                timeRemaining?.includes('today') ? 'rgba(249,194,60,0.15)' : 
-                                timeRemaining?.includes('1 day left') ? 'rgba(249,194,60,0.15)' : 
-                                'rgba(255,255,255,0.08)',
+                ...(isOverdue ? {
+                  background: semantic.status.OVERDUE.gradient,
+                  border: `1px solid ${semantic.status.OVERDUE.border}`,
+                  color: semantic.status.OVERDUE.color
+                } : timeRemaining?.includes('today') || timeRemaining?.includes('1 day left') ? {
+                  background: semantic.priority.MEDIUM.gradient,
+                  border: `1px solid ${semantic.priority.MEDIUM.border}`,
+                  color: semantic.priority.MEDIUM.color
+                } : {
+                  background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                  border: `1px solid ${theme.palette.divider}`,
+                  color: theme.palette.text.primary
+                }),
                 padding: '0.25em 0.5em',
                 borderRadius: '0.375em',
                 flexShrink: 0,
-                minHeight: task.description || (task.tags && task.tags.length > 0) ? '4.5em' : task.description ? '3.5em' : '2.5em', // Reduced height for 2 lines
-                border: `1px solid ${
-                  isOverdue ? 'rgba(255,107,107,0.3)' : 
-                  timeRemaining?.includes('today') ? 'rgba(249,194,60,0.3)' : 
-                  timeRemaining?.includes('1 day left') ? 'rgba(249,194,60,0.3)' : 
-                  'rgba(255,255,255,0.15)'
-                }`,
+                minHeight: task.description || (task.tags && task.tags.length > 0) ? '4.5em' : task.description ? '3.5em' : '2.5em',
                 boxShadow: '0 0.0625em 0.1875em rgba(0,0,0,0.1)',
                 cursor: onEditDate ? 'pointer' : 'default',
                 transition: 'all 0.2s ease',
                 '&:hover': onEditDate ? {
-                  backgroundColor: isOverdue ? 'rgba(255,107,107,0.2)' : 
-                                  timeRemaining?.includes('today') ? 'rgba(249,194,60,0.2)' : 
-                                  timeRemaining?.includes('1 day left') ? 'rgba(249,194,60,0.2)' : 
-                                  'rgba(255,255,255,0.12)',
-                  border: `1px solid ${
-                    isOverdue ? 'rgba(255,107,107,0.4)' : 
-                    timeRemaining?.includes('today') ? 'rgba(249,194,60,0.4)' : 
-                    timeRemaining?.includes('1 day left') ? 'rgba(249,194,60,0.4)' : 
-                    'rgba(255,255,255,0.25)'
-                  }`,
-                  transform: 'scale(1.02)',
+                  boxShadow: theme.ds?.elevation[2],
+                  transform: 'scale(1.02)'
                 } : {}
               }}
             >
-              {/* Time Remaining - Primary Display */}
               <Typography 
                 variant="h6" 
                 sx={{ 
                   fontSize: '0.9em',
                   fontWeight: 700,
-                  color: isOverdue ? '#ff6b6b' : 
-                         timeRemaining?.includes('today') ? '#f9c23c' : 
-                         timeRemaining?.includes('1 day left') ? '#f9c23c' : 
-                         '#f0f6fc',
+                  color: 'inherit',
                   textAlign: 'center',
                   lineHeight: 1.1,
                   whiteSpace: 'nowrap',
@@ -455,14 +566,12 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
               >
                 {timeRemaining || 'Due Soon'}
               </Typography>
-              
-              {/* Full Date Display - Always Show Actual Date */}
               <Typography 
                 variant="body2" 
                 sx={{ 
                   fontSize: '0.75em',
                   fontWeight: 500,
-                  color: isOverdue ? '#ff6b6b' : '#e6edf3',
+                  color: 'inherit',
                   textAlign: 'center',
                   lineHeight: 1.1,
                   whiteSpace: 'nowrap',
@@ -473,7 +582,6 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
               </Typography>
             </Box>
           ) : (
-            /* Add Due Date Chip - Only show if onEditDate is available */
             onEditDate && (
               <Box 
                 onClick={handleEditDate}
@@ -483,29 +591,28 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '0.125em',
-                  backgroundColor: 'rgba(88,166,255,0.08)',
+                  background: statusStyle.gradient,
+                  border: `1px dashed ${statusStyle.border}`,
+                  color: statusStyle.color,
                   padding: '0.25em 0.5em',
                   borderRadius: '0.375em',
                   flexShrink: 0,
                   minHeight: task.description || (task.tags && task.tags.length > 0) ? '4.5em' : task.description ? '3.5em' : '2.5em',
-                  border: '1px dashed rgba(88,166,255,0.3)',
                   boxShadow: '0 0.0625em 0.1875em rgba(0,0,0,0.1)',
                   cursor: 'pointer',
                   transition: 'all 0.1s ease',
                   '&:hover': {
-                    backgroundColor: 'rgba(88,166,255,0.12)',
-                    border: '1px dashed rgba(88,166,255,0.5)',
-                    transform: 'scale(1.02)',
+                    boxShadow: theme.ds?.elevation[2],
+                    transform: 'scale(1.02)'
                   }
                 }}
               >
-                {/* Add Due Date Text */}
                 <Typography 
                   variant="h6" 
                   sx={{ 
                     fontSize: '0.8em',
                     fontWeight: 500,
-                    color: '#58a6ff',
+                    color: 'inherit',
                     textAlign: 'center',
                     lineHeight: 1.1,
                     whiteSpace: 'nowrap',
@@ -513,12 +620,10 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
                 >
                   No Due Date
                 </Typography>
-                
-                {/* Calendar Icon */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.125em' }}>
                   <DueIcon sx={{ 
                     fontSize: '0.75em', 
-                    color: '#58a6ff',
+                    color: 'inherit',
                     opacity: 0.8
                   }} />
                   <Typography 
@@ -526,7 +631,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
                     sx={{ 
                       fontSize: '0.7em',
                       fontWeight: 400,
-                      color: '#58a6ff',
+                      color: 'inherit',
                       textAlign: 'center',
                       lineHeight: 1,
                       opacity: 0.8,

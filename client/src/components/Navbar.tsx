@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useLocation } from 'react-router-dom';
 import {
   AppBar,
   Box,
@@ -30,6 +30,7 @@ import {
 import { setTheme } from '../utils/themeUtils';
 import ImportTasksDialog from './ImportTasksDialog';
 import UnifiedDependencyView from './UnifiedDependencyView';
+import pkg from '../../package.json';
 
 interface NavbarProps {
   darkMode: boolean;
@@ -38,10 +39,11 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
   const theme = useTheme();
+  const location = useLocation();
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [dependencyViewOpen, setDependencyViewOpen] = useState(false);
-  
+
   const handleThemeToggle = () => {
     toggleDarkMode();
     setTheme(!darkMode);
@@ -69,6 +71,8 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
     // Refresh the page or update the task list
     window.location.reload();
   };
+
+  const isActive = (path: string) => location.pathname === path;
 
   return (
     <>
@@ -98,10 +102,28 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: 1
+              gap: 1,
+              letterSpacing: '0.5px',
+              color: theme.palette.mode === 'light' ? theme.palette.text.primary : theme.palette.text.primary,
+              textShadow: theme.palette.mode === 'light' ? '0 1px 2px rgba(255,255,255,0.6)' : '0 1px 2px rgba(0,0,0,0.6)'
             }}
           >
             <span role="img" aria-label="brain">🧠</span> Synaptik
+            <Box component="span" sx={{
+              fontSize: '0.6rem',
+              fontWeight: 600,
+              px: 0.75,
+              py: 0.3,
+              lineHeight: 1,
+              borderRadius: 1, // reduced from pill to slight rounding
+              background: alpha(theme.palette.primary.main, theme.palette.mode === 'light' ? 0.15 : 0.25),
+              color: theme.palette.primary.main,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.35)}`,
+              display: 'inline-flex',
+              alignItems: 'center'
+            }}>
+              v{(pkg as any).version}
+            </Box>
           </Typography>
           
           <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1 }}>
@@ -111,8 +133,21 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
               startIcon={<DashboardIcon />}
               sx={{ 
                 color: theme.palette.text.primary,
+                position: 'relative',
+                '&:after': {
+                  content: '""',
+                  position: 'absolute',
+                  left: theme.spacing(1),
+                  right: theme.spacing(1),
+                  bottom: 2,
+                  height: 3,
+                  borderRadius: 2,
+                  background: isActive('/') ? theme.palette.primary.main : 'transparent',
+                  transition: `background ${theme.ds?.motion.duration.fast}ms ${theme.ds?.motion.easing.standard}`
+                },
                 '&:hover': {
-                  backgroundColor: alpha(theme.palette.primary.main, 0.1)
+                  backgroundColor: 'transparent',
+                  '&:after': { background: theme.palette.primary.main }
                 }
               }}
             >
@@ -125,8 +160,21 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
               startIcon={<CalendarIcon />}
               sx={{ 
                 color: theme.palette.text.primary,
+                position: 'relative',
+                '&:after': {
+                  content: '""',
+                  position: 'absolute',
+                  left: theme.spacing(1),
+                  right: theme.spacing(1),
+                  bottom: 2,
+                  height: 3,
+                  borderRadius: 2,
+                  background: isActive('/calendar') ? theme.palette.primary.main : 'transparent',
+                  transition: `background ${theme.ds?.motion.duration.fast}ms ${theme.ds?.motion.easing.standard}`
+                },
                 '&:hover': {
-                  backgroundColor: alpha(theme.palette.primary.main, 0.1)
+                  backgroundColor: 'transparent',
+                  '&:after': { background: theme.palette.primary.main }
                 }
               }}
             >
@@ -139,8 +187,21 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
               startIcon={<MatrixIcon />}
               sx={{ 
                 color: theme.palette.text.primary,
+                position: 'relative',
+                '&:after': {
+                  content: '""',
+                  position: 'absolute',
+                  left: theme.spacing(1),
+                  right: theme.spacing(1),
+                  bottom: 2,
+                  height: 3,
+                  borderRadius: 2,
+                  background: isActive('/matrix') ? theme.palette.primary.main : 'transparent',
+                  transition: `background ${theme.ds?.motion.duration.fast}ms ${theme.ds?.motion.easing.standard}`
+                },
                 '&:hover': {
-                  backgroundColor: alpha(theme.palette.primary.main, 0.1)
+                  backgroundColor: 'transparent',
+                  '&:after': { background: theme.palette.primary.main }
                 }
               }}
             >
@@ -153,12 +214,51 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
               startIcon={<ProjectsIcon />}
               sx={{ 
                 color: theme.palette.text.primary,
+                position: 'relative',
+                '&:after': {
+                  content: '""',
+                  position: 'absolute',
+                  left: theme.spacing(1),
+                  right: theme.spacing(1),
+                  bottom: 2,
+                  height: 3,
+                  borderRadius: 2,
+                  background: isActive('/projects') ? theme.palette.primary.main : 'transparent',
+                  transition: `background ${theme.ds?.motion.duration.fast}ms ${theme.ds?.motion.easing.standard}`
+                },
                 '&:hover': {
-                  backgroundColor: alpha(theme.palette.primary.main, 0.1)
+                  backgroundColor: 'transparent',
+                  '&:after': { background: theme.palette.primary.main }
                 }
               }}
             >
               Projects
+            </Button>
+            
+            <Button 
+              onClick={handleDependencyViewClick}
+              startIcon={<DependencyIcon />}
+              sx={{ 
+                color: theme.palette.text.primary,
+                position: 'relative',
+                '&:after': {
+                  content: '""',
+                  position: 'absolute',
+                  left: theme.spacing(1),
+                  right: theme.spacing(1),
+                  bottom: 2,
+                  height: 3,
+                  borderRadius: 2,
+                  background: dependencyViewOpen ? theme.palette.primary.main : 'transparent',
+                  transition: `background ${theme.ds?.motion.duration.fast}ms ${theme.ds?.motion.easing.standard}`
+                },
+                '&:hover': {
+                  backgroundColor: 'transparent',
+                  '&:after': { background: theme.palette.primary.main }
+                }
+              }}
+            >
+              Dependencies
             </Button>
             
             <IconButton 

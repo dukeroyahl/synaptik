@@ -109,7 +109,7 @@ interface SortableTaskProps {
   onLinkTask: (task: Task) => void;
 }
 
-const SortableTask: React.FC<SortableTaskProps> = ({ 
+const SortableTask: React.FC<SortableTaskProps & { selected?: boolean; onSelect?: (task: Task) => void }> = ({ 
   task, 
   quadrant, 
   onEditTask,
@@ -117,7 +117,9 @@ const SortableTask: React.FC<SortableTaskProps> = ({
   onMarkDone,
   onUnmarkDone,
   onDeleteTask,
-  onLinkTask
+  onLinkTask,
+  selected,
+  onSelect
 }) => {
   const {
     attributes,
@@ -140,6 +142,8 @@ const SortableTask: React.FC<SortableTaskProps> = ({
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <TaskCard 
         task={task}
+        selected={selected}
+        onSelect={() => onSelect?.(task)}
         onMarkDone={onMarkDone}
         onUnmarkDone={onUnmarkDone}
         onEdit={onEditTask}
@@ -165,6 +169,8 @@ interface DroppableQuadrantProps {
   onUnmarkDone: (task: Task) => void;
   onDeleteTask: (task: Task) => void;
   onLinkTask: (task: Task) => void;
+  selectedTaskId: string | null;
+  setSelectedTaskId: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
 const DroppableQuadrant: React.FC<DroppableQuadrantProps> = ({ 
@@ -178,7 +184,9 @@ const DroppableQuadrant: React.FC<DroppableQuadrantProps> = ({
   onMarkDone,
   onUnmarkDone,
   onDeleteTask,
-  onLinkTask
+  onLinkTask,
+  selectedTaskId,
+  setSelectedTaskId
 }) => {
   const theme = useTheme();
   const { isOver, setNodeRef } = useDroppable({
@@ -237,6 +245,8 @@ const DroppableQuadrant: React.FC<DroppableQuadrantProps> = ({
                 onUnmarkDone={onUnmarkDone}
                 onDeleteTask={onDeleteTask}
                 onLinkTask={onLinkTask}
+                selected={task.id === selectedTaskId}
+                onSelect={(t) => setSelectedTaskId(prev => prev === t.id ? null : t.id)}
               />
             ))
           )}
@@ -253,6 +263,7 @@ const EisenhowerMatrix: React.FC = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   
   // Debug state changes
   console.log('EisenhowerMatrix: Component render - tasks.length:', tasks.length, 'loading:', loading);
@@ -497,22 +508,24 @@ const EisenhowerMatrix: React.FC = () => {
         onDragEnd={handleDragEnd}
       >
         <Grid container spacing={2}>
-          {quadrants.map((quadrantTasks, idx) => (
-            <DroppableQuadrant
-              key={idx}
-              quadrant={idx}
-              tasks={quadrantTasks}
-              title={quadrantLabels[idx].title}
-              color={quadrantLabels[idx].color}
-              icon={quadrantLabels[idx].icon}
-              onEditTask={handleEditTask}
-              onEditDate={handleEditTask}
-              onMarkDone={handleMarkDone}
-              onUnmarkDone={handleUnmarkDone}
-              onDeleteTask={handleDeleteTask}
-              onLinkTask={handleLinkTask}
-            />
-          ))}
+           {quadrants.map((quadrantTasks, idx) => (
+             <DroppableQuadrant
+               key={idx}
+               quadrant={idx}
+               tasks={quadrantTasks}
+               title={quadrantLabels[idx].title}
+               color={quadrantLabels[idx].color}
+               icon={quadrantLabels[idx].icon}
+               onEditTask={handleEditTask}
+               onEditDate={handleEditTask}
+               onMarkDone={handleMarkDone}
+               onUnmarkDone={handleUnmarkDone}
+               onDeleteTask={handleDeleteTask}
+               onLinkTask={handleLinkTask}
+               selectedTaskId={selectedTaskId}
+               setSelectedTaskId={setSelectedTaskId}
+             />
+           ))}
         </Grid>
         <DragOverlay>
           {activeTask ? (

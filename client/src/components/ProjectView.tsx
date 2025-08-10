@@ -59,6 +59,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({
 }) => {
   const theme = useTheme();
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   // Group tasks by project
   const projectGroups: ProjectGroup[] = React.useMemo(() => {
@@ -77,7 +78,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({
         total: projectTasks.length,
         completed: projectTasks.filter(t => t.status === 'COMPLETED').length,
         pending: projectTasks.filter(t => t.status === 'PENDING').length,
-        active: projectTasks.filter(t => t.status === 'ACTIVE').length,
+        active: projectTasks.filter(t => t.status === 'STARTED').length,
         overdue: projectTasks.filter(t => {
           if (!t.dueDate) return false;
           return new Date(t.dueDate) < new Date();
@@ -236,7 +237,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({
                       {project.stats.active > 0 && (
                         <Chip
                           icon={<ActiveIcon />}
-                          label={`${project.stats.active} active`}
+                          label={`${project.stats.active} started`}
                           size="small"
                           color="info"
                           variant="outlined"
@@ -284,6 +285,8 @@ const ProjectView: React.FC<ProjectViewProps> = ({
                     <TaskCard
                       key={task.id}
                       task={task}
+                      selected={task.id === selectedTaskId}
+                      onSelect={() => setSelectedTaskId(prev => prev === task.id ? null : task.id)}
                       onViewDependencies={onViewDependencies}
                       onMarkDone={onMarkDone}
                       onUnmarkDone={onUnmarkDone}

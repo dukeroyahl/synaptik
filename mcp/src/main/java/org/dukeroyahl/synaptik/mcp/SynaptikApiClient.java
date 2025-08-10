@@ -4,9 +4,6 @@ import java.util.List;
 
 import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.Project;
-import org.dukeroyahl.synaptik.domain.Mindmap;
-import org.dukeroyahl.synaptik.domain.MindmapNode;
-import org.dukeroyahl.synaptik.domain.TaskStatus;
 import org.dukeroyahl.synaptik.domain.ProjectStatus;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
@@ -60,8 +57,8 @@ public interface SynaptikApiClient {
     Uni<List<Task>> getPendingTasks();
     
     @GET
-    @Path("/api/tasks/active")
-    Uni<List<Task>> getActiveTasks();
+    @Path("/api/tasks/started")
+    Uni<List<Task>> getStartedTasks();
     
     @GET
     @Path("/api/tasks/completed")
@@ -133,80 +130,4 @@ public interface SynaptikApiClient {
     @Path("/api/projects/tag/{tag}")
     Uni<List<Project>> getProjectsByTag(@PathParam("tag") String tag);
     
-    // ===== MINDMAP ENDPOINTS =====
-    
-    @GET
-    @Path("/api/mindmaps")
-    Uni<List<Mindmap>> getAllMindmaps();
-    
-    @GET
-    @Path("/api/mindmaps/{id}")
-    Uni<Response> getMindmap(@PathParam("id") String id);
-    
-    @POST
-    @Path("/api/mindmaps")
-    Uni<Response> createMindmap(Mindmap mindmap);
-    
-    @PUT
-    @Path("/api/mindmaps/{id}")
-    Uni<Response> updateMindmap(@PathParam("id") String id, Mindmap updates);
-    
-    @DELETE
-    @Path("/api/mindmaps/{id}")
-    Uni<Response> deleteMindmap(@PathParam("id") String id);
-    
-    @GET
-    @Path("/api/mindmaps/owner/{owner}")
-    Uni<List<Mindmap>> getMindmapsByOwner(@PathParam("owner") String owner);
-    
-    @GET
-    @Path("/api/mindmaps/accessible/{userId}")
-    Uni<List<Mindmap>> getAccessibleMindmaps(@PathParam("userId") String userId);
-    
-    @GET
-    @Path("/api/mindmaps/public")
-    Uni<List<Mindmap>> getPublicMindmaps();
-    
-    @GET
-    @Path("/api/mindmaps/templates")
-    Uni<List<Mindmap>> getTemplates();
-    
-    @GET
-    @Path("/api/mindmaps/templates/{category}")
-    Uni<List<Mindmap>> getTemplatesByCategory(@PathParam("category") String category);
-    
-    @GET
-    @Path("/api/mindmaps/project/{projectId}")
-    Uni<List<Mindmap>> getMindmapsByProjectId(@PathParam("projectId") String projectId);
-    
-    @POST
-    @Path("/api/mindmaps/{id}/collaborators")
-    Uni<Response> addCollaborator(@PathParam("id") String id, @QueryParam("collaborator") String collaborator);
-    
-    @DELETE
-    @Path("/api/mindmaps/{id}/collaborators")
-    Uni<Response> removeCollaborator(@PathParam("id") String id, @QueryParam("collaborator") String collaborator);
-    
-    @POST
-    @Path("/api/mindmaps/{id}/nodes")
-    Uni<Response> addNode(@PathParam("id") String id, @QueryParam("parentId") String parentId, MindmapNode node);
-    
-    @DELETE
-    @Path("/api/mindmaps/{id}/nodes/{nodeId}")
-    Uni<Response> removeNode(@PathParam("id") String id, @PathParam("nodeId") String nodeId);
-    
-    @PUT
-    @Path("/api/mindmaps/{id}/canvas")
-    Uni<Response> updateCanvasSettings(@PathParam("id") String id, 
-                                     @QueryParam("width") Double width,
-                                     @QueryParam("height") Double height,
-                                     @QueryParam("zoom") Double zoom,
-                                     @QueryParam("panX") Double panX,
-                                     @QueryParam("panY") Double panY);
-    
-    @POST
-    @Path("/api/mindmaps/{id}/duplicate")
-    Uni<Response> duplicateMindmap(@PathParam("id") String id, 
-                                 @QueryParam("title") String newTitle,
-                                 @QueryParam("owner") String newOwner);
 }

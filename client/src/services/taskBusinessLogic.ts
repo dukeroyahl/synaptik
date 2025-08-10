@@ -12,14 +12,11 @@ export interface TaskDisplayProperties {
   daysUntilDue: number | null
   timeRemaining: string
   urgencyLevel: UrgencyLevel
-  urgencyColor: string
   quadrant: EisenhowerQuadrant
   canStart: boolean
   canStop: boolean
   canComplete: boolean
   canDelete: boolean
-  statusColor: string
-  priorityColor: string
 }
 
 export interface TaskAction {
@@ -48,14 +45,11 @@ export class TaskBusinessLogic {
       daysUntilDue,
       timeRemaining,
       urgencyLevel: this.getUrgencyLevel(task.urgency),
-      urgencyColor: this.getUrgencyColor(task.urgency),
       quadrant: this.getEisenhowerQuadrant(task),
       canStart: this.canPerformAction(task, 'start'),
       canStop: this.canPerformAction(task, 'stop'),
       canComplete: this.canPerformAction(task, 'complete'),
       canDelete: this.canPerformAction(task, 'delete'),
-      statusColor: this.getStatusColor(task.status),
-      priorityColor: this.getPriorityColor(task.priority),
     }
   }
 
@@ -70,21 +64,6 @@ export class TaskBusinessLogic {
     if (urgency >= 6) return 'medium'
     if (urgency >= 3) return 'low'
     return 'none'
-  }
-
-  /**
-   * Get color for urgency level
-   */
-  static getUrgencyColor(urgency?: number): string {
-    const level = this.getUrgencyLevel(urgency)
-    
-    switch (level) {
-      case 'critical': return '#d32f2f'
-      case 'high': return '#f57c00'
-      case 'medium': return '#fbc02d'
-      case 'low': return '#388e3c'
-      default: return '#666666'
-    }
   }
 
   /**
@@ -213,32 +192,6 @@ export class TaskBusinessLogic {
     }
 
     return validTransitions[from]?.includes(to) ?? false
-  }
-
-  /**
-   * Get color for task status
-   */
-  static getStatusColor(status: Task['status']): string {
-    switch (status) {
-      case 'PENDING': return '#1976d2'
-      case 'ACTIVE': return '#388e3c'
-      case 'WAITING': return '#f57c00'
-      case 'COMPLETED': return '#666666'
-      case 'DELETED': return '#d32f2f'
-      default: return '#666666'
-    }
-  }
-
-  /**
-   * Get color for task priority
-   */
-  static getPriorityColor(priority: Task['priority']): string {
-    switch (priority) {
-      case 'HIGH': return '#d32f2f'
-      case 'MEDIUM': return '#f57c00'
-      case 'LOW': return '#388e3c'
-      default: return '#666666'
-    }
   }
 
   /**

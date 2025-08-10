@@ -15,13 +15,14 @@ import TaskCard from './TaskCard'
 import LinkTaskDialog from './LinkTaskDialog'
 import { parseBackendDate } from '../utils/dateUtils'
 import { API_BASE_URL } from '../config'
+import { useFilterStore } from '../stores/filterStore'
 
 interface TaskListProps {
-  filter?: 'PENDING' | 'ACTIVE' | 'overdue' | 'today' | 'COMPLETED' | 'all'
+  filter?: 'PENDING' | 'STARTED' | 'WAITING' | 'overdue' | 'today' | 'COMPLETED' | 'all'
   onTaskUpdate?: (task: Task) => void
-  assigneeFilter?: string
-  projectFilter?: string
-  dueDateFilter?: string
+  assigneeFilter?: string // legacy (will be ignored if store provides assignees)
+  projectFilter?: string  // legacy
+  dueDateFilter?: string  // legacy
 }
 
 const TaskList: React.FC<TaskListProps> = memo(({ 
@@ -40,113 +41,148 @@ const TaskList: React.FC<TaskListProps> = memo(({
   const [viewingTaskId, setViewingTaskId] = useState<string | null>(null)
   const [linkTaskDialogOpen, setLinkTaskDialogOpen] = useState(false)
   const [linkingTask, setLinkingTask] = useState<Task | null>(null)
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+
+  const storeFilters = useFilterStore(s => ({
+    status: s.status,
+    priorities: s.priorities,
+    assignees: s.assignees,
+    projects: s.projects,
+    search: s.search,
+    dueDate: s.dueDate,
+    urgencyRange: s.urgencyRange,
+  }));
+
+  // Derive effective filters (store overrides legacy props if set)
+  const effectiveAssignees = storeFilters.assignees.size ? storeFilters.assignees : (assigneeFilter ? new Set([assigneeFilter]) : new Set<string>());
+  const effectiveProjects = storeFilters.projects.size ? storeFilters.projects : (projectFilter ? new Set([projectFilter]) : new Set<string>());
+  const effectiveDueDate = storeFilters.dueDate || dueDateFilter || '';
+
+  const querySignature = useMemo(() => (
+    [
+      filter,
+      Array.from(storeFilters.priorities).join(','),
+      Array.from(effectiveAssignees).join(','),
+      Array.from(effectiveProjects).join(','),
+      storeFilters.search,
+      effectiveDueDate,
+      storeFilters.urgencyRange ? storeFilters.urgencyRange.join('-') : ''
+    ].join('|')
+  ), [filter, storeFilters.priorities, effectiveAssignees, effectiveProjects, storeFilters.search, effectiveDueDate, storeFilters.urgencyRange]);
 
   const fetchTasks = useCallback(async () => {
     setLoading(true)
     try {
-      let endpoint = '/api/tasks'
-      
-      switch (filter) {
-        case 'PENDING':
-          endpoint = '/api/tasks/pending'
-          break
-        case 'ACTIVE':
-          endpoint = '/api/tasks/active'
-          break
-        case 'overdue':
-          endpoint = '/api/tasks/overdue'
-          break
-        case 'today':
-          endpoint = '/api/tasks/today'
-          break
-        case 'COMPLETED':
-          endpoint = '/api/tasks/completed'
-          break
-        default:
-          endpoint = '/api/tasks'
+      const effectiveAssigneesArr = Array.from(effectiveAssignees);
+      let endpoint = '/api/tasks';
+      const dueIsSpecial = effectiveDueDate === 'today' || effectiveDueDate === 'overdue';
+      // If due date special and a specific status (other than all) is chosen we will still hit the special endpoint for broader set then intersect client-side
+      if (dueIsSpecial) {
+        endpoint = effectiveDueDate === 'today' ? '/api/tasks/today' : '/api/tasks/overdue';
+      } else {
+        switch (filter.toUpperCase()) {
+          case 'PENDING': endpoint = '/api/tasks/pending'; break;
+          case 'STARTED': endpoint = '/api/tasks/started'; break;
+          case 'WAITING': endpoint = '/api/tasks/waiting'; break;
+          case 'OVERDUE': endpoint = '/api/tasks/overdue'; break; // legacy direct selection
+          case 'COMPLETED': endpoint = '/api/tasks/completed'; break;
+          default: endpoint = '/api/tasks';
+        }
       }
-
-      // Add assignee filter if provided
-      if (assigneeFilter) {
-        endpoint += endpoint.includes('?') ? '&' : '?'
-        endpoint += `assignee=${encodeURIComponent(assigneeFilter)}`
+      const params = new URLSearchParams();
+      if (['/api/tasks/overdue','/api/tasks/today'].includes(endpoint)) {
+        try { params.set('tz', Intl.DateTimeFormat().resolvedOptions().timeZone); } catch { /* ignore tz detection errors */ }
       }
-
-      const fullUrl = `${API_BASE_URL}${endpoint}`;
-      
-      const response = await fetch(fullUrl)
-      const result = await response.json()
-      
+      if (storeFilters.search) params.set('search', storeFilters.search);
+      if (storeFilters.priorities.size) params.set('priority', Array.from(storeFilters.priorities).join(','));
+      if (effectiveAssignees.size) params.set('assignee', effectiveAssigneesArr.join(','));
+      if (effectiveProjects.size) params.set('project', Array.from(effectiveProjects).join(','));
+      if (!dueIsSpecial && effectiveDueDate && !['overdue','today'].includes(effectiveDueDate)) params.set('dueDate', effectiveDueDate);
+      if (storeFilters.urgencyRange) {
+        params.set('urgencyMin', String(storeFilters.urgencyRange[0]));
+        params.set('urgencyMax', String(storeFilters.urgencyRange[1]));
+      }
+      const fullUrl = `${API_BASE_URL}${endpoint}${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await fetch(fullUrl);
+      const result = await response.json();
       if (response.ok) {
-        setTasks(Array.isArray(result) ? result : [])
+        let list: Task[] = Array.isArray(result) ? result : [];
+        // If combining today/overdue with a specific status subset, filter client side
+        if (dueIsSpecial) {
+          switch (filter.toUpperCase()) {
+            case 'PENDING': list = list.filter(t => t.status === 'PENDING'); break;
+            case 'STARTED': list = list.filter(t => t.status === 'STARTED'); break;
+            case 'WAITING': list = list.filter(t => t.status === 'WAITING'); break;
+            case 'COMPLETED': list = list.filter(t => t.status === 'COMPLETED'); break;
+            default: break; // all or legacy
+          }
+        }
+        setTasks(list);
+        useFilterStore.getState().setCountsFromTasks(list);
       }
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('Failed to fetch tasks:', error)
-      }
+      if (import.meta.env.DEV) console.error('Failed to fetch tasks:', error)
     } finally {
       setLoading(false)
     }
-  }, [filter, assigneeFilter])
+  }, [filter, querySignature, effectiveDueDate])
 
   const handleTaskAction = useCallback(async (taskId: string, action: 'done' | 'delete' | 'start' | 'stop' | 'undone') => {
     try {
+      const originalTasks = tasks;
+      const targetTask = tasks.find(t => t.id === taskId) || null;
+      // Optimistic local mutation snapshot
+      let updatedTasks = [...tasks];
+      // Apply optimistic diff
+      if (action === 'delete') {
+        if (targetTask) {
+          updatedTasks = updatedTasks.filter(t => t.id !== taskId);
+          useFilterStore.getState().decrementCountsForTask(targetTask);
+        }
+      } else if (targetTask) {
+        const idx = updatedTasks.findIndex(t => t.id === taskId);
+        const patched = { ...targetTask } as any;
+        if (action === 'done') patched.status = 'COMPLETED';
+        if (action === 'undone') patched.status = 'PENDING';
+        updatedTasks[idx] = patched;
+      }
+      setTasks(updatedTasks);
+
       let endpoint = `/api/tasks/${taskId}`
       let method = 'POST'
-      
       if (action === 'delete') {
-        endpoint = `/api/tasks/${taskId}` // Use the simpler delete route
+        endpoint = `/api/tasks/${taskId}`
         method = 'DELETE'
       } else {
         endpoint = `/api/tasks/${taskId}/${action}`
       }
-
       const fullUrl = `${API_BASE_URL}${endpoint}`;
-      
-      const response = await fetch(fullUrl, { 
-        method,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      
+      const response = await fetch(fullUrl, { method, headers: { 'Content-Type': 'application/json' } })
       if (!response.ok) {
-        const errorText = await response.text()
-        if (import.meta.env.DEV) {
-          console.error(`Request failed with status ${response.status}:`, errorText)
-        }
-        throw new Error(`HTTP ${response.status}: ${errorText}`)
+        // Revert on failure
+        setTasks(originalTasks);
+        // Rebuild counts from original
+        useFilterStore.getState().setCountsFromTasks(originalTasks);
+        throw new Error(`HTTP ${response.status}`)
       }
-      
-      // Handle different response types
-      let result = null
-      if (action === 'delete') {
-        // Delete returns 204 No Content, no JSON body
-        result = { success: true }
-      } else {
-        result = await response.json()
-      }
-
-      if (response.ok) {
-        await fetchTasks() // Refresh the list
-        if (onTaskUpdate) {
-          // For delete operations, pass a dummy task object to trigger refresh
-          const updateData = action === 'delete' ? { id: taskId } : (result.data || result)
-          onTaskUpdate(updateData)
+      // On success reconcile with server if mutated (non-delete)
+      if (action !== 'delete') {
+        const data = await response.json();
+        if (data) {
+          // Merge updated task
+            setTasks(prev => prev.map(t => t.id === taskId ? { ...(data.data || data) } : t));
+            useFilterStore.getState().setCountsFromTasks(useFilterStore.getState().assigneeCounts ? updatedTasks : updatedTasks);
         }
       }
+      // Refresh counts after final state
+      useFilterStore.getState().setCountsFromTasks(updatedTasks);
+      if (onTaskUpdate) onTaskUpdate({ id: taskId } as Task);
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error(`Failed to ${action} task:`, error)
-      }
-      // You might want to show a user-friendly error message here
+      if (import.meta.env.DEV) console.error(`Failed to ${action} task:`, error)
     }
-  }, [fetchTasks, onTaskUpdate])
+  }, [tasks, onTaskUpdate])
 
-  useEffect(() => {
-    fetchTasks()
-  }, [fetchTasks])
+  useEffect(() => { fetchTasks() }, [fetchTasks])
 
   const handleEditTask = useCallback((task: Task) => {
     setEditingTask(task)
@@ -246,63 +282,42 @@ const TaskList: React.FC<TaskListProps> = memo(({
   // Memoize filtered tasks to prevent unnecessary recalculations
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
-      // Project filter
-      if (projectFilter && task.project !== projectFilter) {
-        return false;
+      // Client-side supplemental filtering (mirrors params to be safe)
+      if (effectiveProjects.size && (!task.project || !effectiveProjects.has(task.project))) return false;
+      if (effectiveAssignees.size && (!task.assignee || !effectiveAssignees.has(task.assignee))) return false;
+      if (storeFilters.priorities.size && (!task.priority || !storeFilters.priorities.has(task.priority))) return false;
+      if (storeFilters.search) {
+        const q = storeFilters.search.toLowerCase();
+        if (!(task.title?.toLowerCase().includes(q) || task.description?.toLowerCase().includes(q))) return false;
       }
-
-      // Assignee filter (already applied in server endpoint, but also check quick filter)
-      if (assigneeFilter && task.assignee !== assigneeFilter) {
-        return false;
+      if (storeFilters.urgencyRange && typeof (task as any).urgency === 'number') {
+        const [minU, maxU] = storeFilters.urgencyRange;
+        if ((task as any).urgency < minU || (task as any).urgency > maxU) return false;
       }
-
-      // Due date filter
-      if (dueDateFilter) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        
-        const nextWeek = new Date(today);
-        nextWeek.setDate(nextWeek.getDate() + 7);
-        
-        const thisMonth = new Date(today);
-        thisMonth.setMonth(thisMonth.getMonth() + 1);
-
+      // Due date (reuse existing logic)
+      if (effectiveDueDate) {
+        const today = new Date(); today.setHours(0,0,0,0);
+        const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
+        const nextWeek = new Date(today); nextWeek.setDate(nextWeek.getDate()+7);
+        const thisMonth = new Date(today); thisMonth.setMonth(thisMonth.getMonth()+1);
         if (task.dueDate) {
-          const dueDate = parseBackendDate(task.dueDate);
-          dueDate.setHours(0, 0, 0, 0);
-
-          switch (dueDateFilter) {
-            case 'today':
-              return dueDate.getTime() === today.getTime();
-            case 'tomorrow':
-              return dueDate.getTime() === tomorrow.getTime();
-            case 'this-week':
-              return dueDate >= today && dueDate < nextWeek;
+          const due = parseBackendDate(task.dueDate); due.setHours(0,0,0,0);
+          switch (effectiveDueDate) {
+            case 'today': if (due.getTime() !== today.getTime()) return false; break;
+            case 'tomorrow': if (due.getTime() !== tomorrow.getTime()) return false; break;
+            case 'this-week': if (!(due >= today && due < nextWeek)) return false; break;
             case 'next-week': {
-              const nextWeekStart = new Date(nextWeek);
-              const nextWeekEnd = new Date(nextWeek);
-              nextWeekEnd.setDate(nextWeekEnd.getDate() + 7);
-              return dueDate >= nextWeekStart && dueDate < nextWeekEnd;
+              const start = nextWeek; const end = new Date(nextWeek); end.setDate(end.getDate()+7);
+              if (!(due >= start && due < end)) return false; break;
             }
-            case 'this-month':
-              return dueDate >= today && dueDate < thisMonth;
-            case 'overdue':
-              return dueDate < today;
-            default:
-              return true;
+            case 'this-month': if (!(due >= today && due < thisMonth)) return false; break;
+            case 'overdue': if (!(due < today)) return false; break;
           }
-        } else {
-          // Tasks without due dates are excluded from date-specific filters (except 'all')
-          return dueDateFilter === '';
-        }
+        } else if (effectiveDueDate) return false;
       }
-
       return true;
     });
-  }, [tasks, projectFilter, assigneeFilter, dueDateFilter]);
+  }, [tasks, effectiveProjects, effectiveAssignees, storeFilters.priorities, storeFilters.search, storeFilters.urgencyRange, effectiveDueDate]);
 
   // Memoize individual task action handlers to prevent unnecessary re-renders
   const memoizedTaskHandlers = useMemo(() => ({
@@ -315,20 +330,22 @@ const TaskList: React.FC<TaskListProps> = memo(({
   if (loading) {
     return (
       <Box sx={{ 
-        p: 3, 
+        p: theme.spacing(3), 
         textAlign: 'center',
-        background: 'linear-gradient(135deg, rgba(25,118,210,0.05) 0%, rgba(0,0,0,0) 100%)',
-        borderRadius: 2,
-        border: '1px solid rgba(25,118,210,0.1)'
-      }}>
-        <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+        background: theme.palette.mode === 'dark'
+          ? `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, transparent 100%)`
+          : `linear-gradient(135deg, ${theme.palette.primary.main}14 0%, transparent 100%)`,
+        borderRadius: theme.ds?.radii.md,
+        border: `1px solid ${theme.palette.divider}`
+      }} aria-busy="true" aria-live="polite">
+        <Typography variant="h6" sx={{ mb: theme.spacing(2), color: 'primary.main' }}>
           Loading tasks...
         </Typography>
         <LinearProgress sx={{ 
-          borderRadius: 1,
+          borderRadius: theme.ds?.radii.xs,
           height: 6,
           '& .MuiLinearProgress-bar': {
-            borderRadius: 1
+            borderRadius: theme.ds?.radii.xs
           }
         }} />
       </Box>
@@ -337,29 +354,26 @@ const TaskList: React.FC<TaskListProps> = memo(({
 
   if (filteredTasks.length === 0) {
     const hasActiveFilters = assigneeFilter || projectFilter || dueDateFilter;
-    
     return (
       <Box 
         sx={{ 
-          p: 4, 
+          p: theme.spacing(4), 
           textAlign: 'center',
           background: theme.palette.mode === 'dark' 
-            ? 'linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(0,0,0,0) 100%)'
-            : 'linear-gradient(135deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0) 100%)',
-          borderRadius: 2,
-          border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+            ? `linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0) 100%)`
+            : `linear-gradient(135deg, rgba(0,0,0,0.03) 0%, rgba(0,0,0,0) 100%)`,
+          borderRadius: theme.ds?.radii.md,
+          border: `1px solid ${theme.palette.divider}`,
           minHeight: '300px',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'center',
-          position: 'relative',
-          overflow: 'hidden'
+          justifyContent: 'center'
         }}
       >
-        <Typography variant="h6" color="text.secondary" sx={{ mb: 1, zIndex: 2, position: 'relative' }}>
+        <Typography variant="h6" color="text.secondary" sx={{ mb: theme.spacing(1) }}>
           No tasks found
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ zIndex: 2, position: 'relative' }}>
+        <Typography variant="body2" color="text.secondary">
           {hasActiveFilters
             ? `No ${filter} tasks found matching your current filters`
             : `No ${filter} tasks found. Create a new task to get started!`
@@ -373,16 +387,16 @@ const TaskList: React.FC<TaskListProps> = memo(({
     <Box 
       sx={{ 
         '& > *:not(:last-child)': { 
-          marginBottom: 1.5 
-        },
-        position: 'relative',
-        zIndex: 1
+          marginBottom: theme.spacing(1.5) 
+        }
       }}
     >
       {filteredTasks.map((task) => (
         <Box key={task.id}>
           <TaskCard
             task={task}
+            selected={task.id === selectedTaskId}
+            onSelect={() => setSelectedTaskId(prev => prev === task.id ? null : task.id)}
             onViewDependencies={handleViewDependencies}
             onMarkDone={memoizedTaskHandlers.onMarkDone}
             onUnmarkDone={memoizedTaskHandlers.onUnmarkDone}

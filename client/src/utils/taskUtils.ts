@@ -71,8 +71,8 @@ export function getTaskCardClass(task: Task): string {
     // Add status class for glass effects
     if (task.status === 'COMPLETED') {
       classes.push('status-completed');
-    } else if (task.status === 'ACTIVE') {
-      classes.push('status-active');
+    } else if (task.status === 'STARTED') {
+      classes.push('status-started');
     }
     
     return classes.join(' ');
@@ -168,32 +168,44 @@ export function isTaskOverdue(dueDate?: string): boolean {
 }
 
 /**
- * Get color for task priority
+ * Check if a task is due today (local date match, not overdue yet)
  */
-export function getPriorityColor(priority: string): 'error' | 'warning' | 'info' | 'default' {
-  if (!priority || typeof priority !== 'string') return 'default';
-  
-  switch (priority.toUpperCase()) {
-    case 'HIGH': return 'error';
-    case 'MEDIUM': return 'warning';
-    case 'LOW': return 'info';
-    default: return 'default';
+export function isTaskDueToday(dueDate?: string): boolean {
+  if (!dueDate) return false;
+  try {
+    let date: Date;
+    if (/^\d+$/.test(dueDate)) {
+      const timestamp = parseInt(dueDate);
+      if (timestamp < 100000000000) return false;
+      date = new Date(timestamp);
+    } else {
+      date = parseBackendDate(dueDate);
+    }
+    const today = new Date();
+    return date.getFullYear() === today.getFullYear() &&
+           date.getMonth() === today.getMonth() &&
+           date.getDate() === today.getDate();
+  } catch {
+    return false;
   }
 }
 
 /**
- * Get color for task status
+ * Derive a simplified color category for a task:
+ * - overdue
+ * - dueToday
+ * - completed
+ * - open (default: pending/started/waiting)
  */
-export function getStatusColor(status: string): 'success' | 'warning' | 'default' {
-  if (!status || typeof status !== 'string') return 'default';
-  
-  switch (status.toUpperCase()) {
-    case 'ACTIVE': return 'success';
-    case 'WAITING': return 'warning';
-    case 'COMPLETED': return 'success';
-    default: return 'default';
+export function getTaskColorCategory(task: import('../types').Task): 'overdue' | 'dueToday' | 'completed' | 'open' {
+  if (task.status === 'COMPLETED') return 'completed';
+  if (task.dueDate) {
+    if (isTaskOverdue(task.dueDate)) return 'overdue';
+    if (isTaskDueToday(task.dueDate)) return 'dueToday';
   }
+  return 'open';
 }
+
 /**
  * Get avatar color for assignee (consistent color based on name)
  */

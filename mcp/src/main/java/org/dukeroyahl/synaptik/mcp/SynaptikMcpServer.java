@@ -7,7 +7,6 @@ import java.util.logging.Logger;
 import jakarta.inject.Singleton;
 import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.Project;
-import org.dukeroyahl.synaptik.domain.Mindmap;
 import org.dukeroyahl.synaptik.domain.TaskPriority;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
@@ -20,7 +19,7 @@ import jakarta.annotation.PostConstruct;
 
 /**
  * MCP service that calls Synaptik API via HTTP.
- * Comprehensive tool set for task, project, and mindmap management.
+ * Tool set for task and project management.
  */
 @Singleton
 public class SynaptikMcpServer {
@@ -203,10 +202,10 @@ public class SynaptikMcpServer {
                 .map(tasks -> formatTasksResponse(tasks, "Pending tasks"));
     }
 
-    @Tool(description = "Get all active tasks")
-    public Uni<String> getActiveTasks() {
-        return apiClient.getActiveTasks()
-                .map(tasks -> formatTasksResponse(tasks, "Active tasks"));
+    @Tool(description = "Get all started tasks")
+    public Uni<String> getStartedTasks() {
+        return apiClient.getStartedTasks()
+                .map(tasks -> formatTasksResponse(tasks, "Started tasks"));
     }
 
     @Tool(description = "Get all completed tasks")
@@ -310,64 +309,6 @@ public class SynaptikMcpServer {
                 });
     }
 
-    // ===== MINDMAP MANAGEMENT TOOLS =====
-
-    @Tool(description = "Get all mindmaps")
-    public Uni<String> getAllMindmaps() {
-        return apiClient.getAllMindmaps()
-                .map(mindmaps -> formatMindmapsResponse(mindmaps, "All mindmaps"));
-    }
-
-    @Tool(description = "Get a specific mindmap by ID")
-    public Uni<String> getMindmap(@ToolArg(description = "Mindmap ID") String mindmapId) {
-        return apiClient.getMindmap(mindmapId)
-                .map(response -> {
-                    if (response.getStatus() == 200) {
-                        Mindmap mindmap = response.readEntity(Mindmap.class);
-                        return formatSingleMindmapResponse(mindmap, "Mindmap retrieved successfully");
-                    } else {
-                        return "❌ Mindmap not found with ID: " + mindmapId;
-                    }
-                });
-    }
-
-    @Tool(description = "Create a new mindmap")
-    public Uni<String> createMindmap(
-            @ToolArg(description = "Mindmap title") String title,
-            @ToolArg(description = "Mindmap description (optional)") String description,
-            @ToolArg(description = "Owner name (optional)") String owner,
-            @ToolArg(description = "Is public (true/false, optional)") Boolean isPublic) {
-        
-        Mindmap mindmap = new Mindmap();
-        mindmap.title = title;
-        mindmap.description = description;
-        mindmap.owner = owner;
-        if (isPublic != null) {
-            mindmap.isPublic = isPublic;
-        }
-        
-        return apiClient.createMindmap(mindmap)
-                .map(response -> {
-                    if (response.getStatus() == 201) {
-                        Mindmap createdMindmap = response.readEntity(Mindmap.class);
-                        return formatSingleMindmapResponse(createdMindmap, "✅ Mindmap created successfully");
-                    } else {
-                        return "❌ Failed to create mindmap: " + response.getStatusInfo().getReasonPhrase();
-                    }
-                });
-    }
-
-    @Tool(description = "Get public mindmaps")
-    public Uni<String> getPublicMindmaps() {
-        return apiClient.getPublicMindmaps()
-                .map(mindmaps -> formatMindmapsResponse(mindmaps, "Public mindmaps"));
-    }
-
-    @Tool(description = "Get mindmap templates")
-    public Uni<String> getMindmapTemplates() {
-        return apiClient.getTemplates()
-                .map(mindmaps -> formatMindmapsResponse(mindmaps, "Mindmap templates"));
-    }
 
     // ===== HELPER METHODS =====
 
@@ -506,70 +447,13 @@ public class SynaptikMcpServer {
         return sb.toString();
     }
 
-    private String formatMindmapsResponse(List<Mindmap> mindmaps, String title) {
-        if (mindmaps == null || mindmaps.isEmpty()) {
-            return "🧠 " + title + ": No mindmaps found";
-        }
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("🧠 ").append(title).append(" (").append(mindmaps.size()).append(" mindmaps):\n\n");
-
-        for (Mindmap mindmap : mindmaps) {
-            sb.append(formatMindmapSummary(mindmap)).append("\n");
-        }
-
-        return sb.toString();
-    }
-
-    private String formatSingleMindmapResponse(Mindmap mindmap, String message) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(message).append("\n\n");
-        sb.append(formatMindmapDetails(mindmap));
-        return sb.toString();
-    }
-
-    private String formatMindmapSummary(Mindmap mindmap) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("🧠 ").append(mindmap.title);
-        
-        if (mindmap.owner != null) {
-            sb.append(" 👤 ").append(mindmap.owner);
-        }
-        
-        if (mindmap.isPublic != null && mindmap.isPublic) {
-            sb.append(" 🌐 Public");
-        }
-        
-        sb.append(" (ID: ").append(mindmap.id).append(")");
-        
-        return sb.toString();
-    }
-
-    private String formatMindmapDetails(Mindmap mindmap) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("🧠 Mindmap Details:\n");
-        sb.append("  ID: ").append(mindmap.id).append("\n");
-        sb.append("  Title: ").append(mindmap.title).append("\n");
-        
-        if (mindmap.description != null) {
-            sb.append("  Description: ").append(mindmap.description).append("\n");
-        }
-        if (mindmap.owner != null) {
-            sb.append("  Owner: ").append(mindmap.owner).append("\n");
-        }
-        if (mindmap.isPublic != null) {
-            sb.append("  Public: ").append(mindmap.isPublic ? "Yes" : "No").append("\n");
-        }
-        
-        return sb.toString();
-    }
 
     private String getStatusIcon(TaskStatus status) {
         if (status == null) return "❓";
         return switch (status) {
             case PENDING -> "⏳";
             case WAITING -> "⏸️";
-            case ACTIVE -> "🔄";
+            case STARTED -> "🔄";
             case COMPLETED -> "✅";
             case DELETED -> "🗑️";
         };

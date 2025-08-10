@@ -34,6 +34,7 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
 }) => {
   const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTasks, setSelectedTasks] = useState<string[]>(dependencies || []);
 
@@ -43,19 +44,35 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
 
   const fetchAvailableTasks = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const response = await fetch('/api/tasks');
+      // Limit to non-completed tasks to reduce noise
+      const response = await fetch('/api/tasks?status=pending&status=started&status=waiting');
       const result = await response.json();
-      
-      if (response.ok) {
-        // Filter out the current task and completed tasks
-        const filteredTasks = result.data.filter((task: Task) => 
-          task.id !== taskId && task.status !== 'COMPLETED'
-        );
-        setAvailableTasks(filteredTasks);
+
+      if (!response.ok) {
+        throw new Error(result?.message || 'Request failed');
       }
-    } catch (error) {
-      console.error('Failed to fetch available tasks:', error);
+
+      const list = Array.isArray(result)
+        ? result
+        : Array.isArray(result?.data)
+          ? result.data
+          : [];
+
+      if (!Array.isArray(list)) {
+        throw new Error('Unexpected tasks response shape');
+      }
+
+      // Filter out the current task and any completed just in case
+      const filteredTasks = list.filter((task: Task) =>
+        task && task.id !== taskId && task.status !== 'COMPLETED'
+      );
+      setAvailableTasks(filteredTasks);
+    } catch (err: any) {
+      console.error('Failed to fetch available tasks:', err);
+      setError(err.message || 'Failed to load tasks');
+      setAvailableTasks([]);
     } finally {
       setLoading(false);
     }
@@ -107,6 +124,13 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
             <CircularProgress size={24} />
           </Box>
+        ) : error ? (
+          <Box sx={{ p: 2, textAlign: 'center' }}>
+            <Typography color="error" variant="body2">{error}</Typography>
+            <Button onClick={fetchAvailableTasks} size="small" sx={{ mt: 1 }}>
+              Retry
+            </Button>
+          </Box>
         ) : filteredTasks.length === 0 ? (
           <Box sx={{ p: 2, textAlign: 'center' }}>
             <Typography color="text.secondary">
@@ -117,8 +141,8 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
           <List dense>
             {filteredTasks.map((task) => (
               <React.Fragment key={task.id}>
-                <ListItem 
-                  button 
+                <ListItem
+                  button
                   onClick={() => handleToggleTask(task.id)}
                   selected={selectedTasks.includes(task.id)}
                 >
@@ -130,7 +154,7 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
                       disableRipple
                     />
                   </ListItemIcon>
-                  <ListItemText 
+                  <ListItemText
                     primary={
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Typography variant="body2" fontWeight="medium">

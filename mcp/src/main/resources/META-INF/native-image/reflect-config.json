@@ -31,12 +31,7 @@
       {"name": "getActiveProjects", "parameterTypes": []},
       {"name": "getOverdueProjects", "parameterTypes": []},
       {"name": "activateProject", "parameterTypes": ["java.lang.String"]},
-      {"name": "completeProject", "parameterTypes": ["java.lang.String"]},
-      {"name": "getAllMindmaps", "parameterTypes": []},
-      {"name": "getMindmap", "parameterTypes": ["java.lang.String"]},
-      {"name": "createMindmap", "parameterTypes": ["java.lang.String", "java.lang.String", "java.lang.String", "java.lang.Boolean"]},
-      {"name": "getPublicMindmaps", "parameterTypes": []},
-      {"name": "getMindmapTemplates", "parameterTypes": []}
+  {"name": "completeProject", "parameterTypes": ["java.lang.String"]}
     ]
   },
   {

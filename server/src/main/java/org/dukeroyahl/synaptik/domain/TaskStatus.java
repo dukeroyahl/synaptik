@@ -3,7 +3,7 @@ package org.dukeroyahl.synaptik.domain;
 public enum TaskStatus {
     PENDING("pending"),
     WAITING("waiting"),
-    ACTIVE("active"),
+    STARTED("started"),
     COMPLETED("completed"),
     DELETED("deleted");
     

@@ -5,7 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
 ## [Unreleased]
+
+### 🖥️ Dashboard UI/UX Changes
+- **Layout and Sizing:**
+	- Unified card heights for Task Trend, Insights, and Today's Overview (all now 260px).
+	- Adjusted dashboard row and card widths for better balance (Task Trend and Insights now 50% each).
+	- Reduced padding in Quick Task Capture for a more compact input area.
+- **Project Breakdown:**
+	- Only 3 projects shown by default, with an inline "more"/"less" toggle to expand/collapse the list.
+	- Folder icon added beside each project name.
+	- P, S, W (Pending, Started, Waiting) counts now appear on the same line as the open count, with improved spacing and right margin.
+	- Color legend and section headings removed for a cleaner look.
+	- Added right padding to project count bar for better alignment.
+- **People Section:**
+	- People pills now display horizontally, with an inline "more"/"less" link at the end of the row.
+	- Pie chart and progress bars removed for simplicity.
+- **Task Trend Chart:**
+	- X-axis now shows only month or quarter labels (no dates/years).
+	- Chart width increased for better visibility.
+- **General:**
+	- Numerous wrapper and DOM depth reductions for performance and clarity.
+	- All visual changes are consistent with the new minimal, modern dashboard style.
+
+## [0.0.6] - 2025-08-09
+
+### 🔧 Technical Changes
+- **Quarkus configuration modernization** - Replaced deprecated `quarkus.package.type=native` with `quarkus.native.enabled=true`
+- **Build system updates** - Updated native binary build configuration to use current Quarkus properties
+- **Documentation accuracy** - Fixed binary platform references to match actual build targets
+
+### 📚 Documentation
+- **Platform clarity** - Removed references to non-existent Linux ARM64 binaries
+- **Version references** - Updated documentation to reference v0.0.6+ for native binary availability
 
 ## [0.0.5] - 2025-08-09
 

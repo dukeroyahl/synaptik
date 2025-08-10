@@ -3,7 +3,6 @@ package org.dukeroyahl.synaptik.domain;
 import io.quarkus.mongodb.panache.common.MongoEntity;
 import jakarta.validation.constraints.*;
 import org.bson.types.ObjectId;
-import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.ZonedDateTime;
 import java.time.LocalDateTime;
@@ -45,12 +44,12 @@ public class Task extends BaseEntity {
     public String originalInput;
     
     public void start() {
-        this.status = TaskStatus.ACTIVE;
+        this.status = TaskStatus.STARTED;
         addAnnotation("Task started");
     }
     
     public void stop() {
-        if (this.status == TaskStatus.ACTIVE) {
+        if (this.status == TaskStatus.STARTED) {
             this.status = TaskStatus.PENDING;
             addAnnotation("Task stopped");
         }
@@ -77,6 +76,7 @@ public class Task extends BaseEntity {
             case HIGH -> urgency += 6.0;
             case MEDIUM -> urgency += 3.9;
             case LOW -> urgency += 1.8;
+            case NONE -> { /* no base urgency */ }
         }
         
         if (dueDate != null && !dueDate.trim().isEmpty()) {
@@ -102,7 +102,7 @@ public class Task extends BaseEntity {
             urgency += ageInDays * 0.01;
         }
         
-        if (status == TaskStatus.ACTIVE) urgency += 4;
+        if (status == TaskStatus.STARTED) urgency += 4;
         if (status == TaskStatus.WAITING) urgency -= 3;
         
         if (tags.contains("urgent")) urgency += 5;

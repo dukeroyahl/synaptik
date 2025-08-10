@@ -2,14 +2,12 @@ package org.dukeroyahl.synaptik.resource;
 
 import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
+import org.dukeroyahl.synaptik.dto.TaskGraphResponse;
 import org.dukeroyahl.synaptik.service.TaskService;
 import io.smallrye.mutiny.Uni;
-import io.smallrye.common.annotation.Blocking;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.Context;
-import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.bson.types.ObjectId;
@@ -32,6 +30,34 @@ public class TaskResource {
     @Operation(summary = "Get all tasks")
     public Uni<List<Task>> getAllTasks() {
         return taskService.getAllTasks();
+    }
+
+    @GET
+    @Path("/graph")
+    @Operation(summary = "Get task dependency graph")
+    public Uni<TaskGraphResponse> getTaskGraph(@QueryParam("statuses") String statusesParam) {
+        List<TaskStatus> statuses = null;
+        if (statusesParam != null && !statusesParam.isBlank()) {
+            statuses = java.util.Arrays.stream(statusesParam.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(String::toUpperCase)
+                .map(s -> {
+                    try { return TaskStatus.valueOf(s); } catch (Exception e) { return null; }
+                })
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        }
+        return taskService.buildTaskGraph(statuses);
+    }
+
+    @GET
+    @Path("/{id}/neighbors")
+    @Operation(summary = "Get subgraph consisting of task, its dependencies, and its dependents")
+    public Uni<TaskGraphResponse> getTaskNeighbors(@PathParam("id") String id,
+                                                   @QueryParam("depth") @DefaultValue("1") int depth,
+                                                   @QueryParam("includePlaceholders") @DefaultValue("true") boolean includePlaceholders) {
+        return taskService.buildNeighborsGraph(new ObjectId(id), depth, includePlaceholders);
     }
     
     @GET
@@ -107,10 +133,17 @@ public class TaskResource {
     }
     
     @GET
-    @Path("/active")
-    @Operation(summary = "Get active tasks")
-    public Uni<List<Task>> getActiveTasks() {
-        return taskService.getTasksByStatus(TaskStatus.ACTIVE);
+    @Path("/started")
+    @Operation(summary = "Get started tasks")
+    public Uni<List<Task>> getStartedTasks() {
+        return taskService.getTasksByStatus(TaskStatus.STARTED);
+    }
+    
+    @GET
+    @Path("/waiting")
+    @Operation(summary = "Get waiting tasks")
+    public Uni<List<Task>> getWaitingTasks() {
+        return taskService.getTasksByStatus(TaskStatus.WAITING);
     }
     
     @GET
@@ -123,15 +156,15 @@ public class TaskResource {
     @GET
     @Path("/overdue")
     @Operation(summary = "Get overdue tasks")
-    public Uni<List<Task>> getOverdueTasks() {
-        return taskService.getOverdueTasks();
+    public Uni<List<Task>> getOverdueTasks(@QueryParam("tz") String tz) {
+        return taskService.getOverdueTasks(tz);
     }
     
     @GET
     @Path("/today")
     @Operation(summary = "Get today's tasks")
-    public Uni<List<Task>> getTodayTasks() {
-        return taskService.getTodayTasks();
+    public Uni<List<Task>> getTodayTasks(@QueryParam("tz") String tz) {
+        return taskService.getTodayTasks(tz);
     }
     
 }

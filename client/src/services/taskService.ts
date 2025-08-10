@@ -107,18 +107,25 @@ export class TaskService {
     return response.data
   }
 
-  async getActiveTasks(): Promise<Task[]> {
-    const response = await apiClient.get<Task[]>(API_ENDPOINTS.TASKS_ACTIVE)
+  async getStartedTasks(): Promise<Task[]> {
+    const response = await apiClient.get<Task[]>(API_ENDPOINTS.TASKS_STARTED)
     return response.data
   }
 
-  async getOverdueTasks(): Promise<Task[]> {
-    const response = await apiClient.get<Task[]>(API_ENDPOINTS.TASKS_OVERDUE)
+  async getWaitingTasks(): Promise<Task[]> {
+    const response = await apiClient.get<Task[]>(API_ENDPOINTS.TASKS_WAITING)
     return response.data
   }
 
-  async getTodayTasks(): Promise<Task[]> {
-    const response = await apiClient.get<Task[]>(API_ENDPOINTS.TASKS_TODAY)
+  async getOverdueTasks(tz?: string): Promise<Task[]> {
+    const url = tz ? `${API_ENDPOINTS.TASKS_OVERDUE}?tz=${encodeURIComponent(tz)}` : API_ENDPOINTS.TASKS_OVERDUE
+    const response = await apiClient.get<Task[]>(url)
+    return response.data
+  }
+
+  async getTodayTasks(tz?: string): Promise<Task[]> {
+    const url = tz ? `${API_ENDPOINTS.TASKS_TODAY}?tz=${encodeURIComponent(tz)}` : API_ENDPOINTS.TASKS_TODAY
+    const response = await apiClient.get<Task[]>(url)
     return response.data
   }
 

@@ -37,7 +37,6 @@ public class Project extends BaseEntity {
     
     public List<String> members = new ArrayList<>();
     
-    public String mindmapId;
     
     public void activate() {
         this.status = ProjectStatus.ACTIVE;
