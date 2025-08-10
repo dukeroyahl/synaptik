@@ -2,7 +2,7 @@ export interface Task {
   id: string
   title: string
   description?: string | null
-  status: 'PENDING' | 'STARTED' | 'COMPLETED' | 'DELETED'
+  status: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'DELETED'
   priority: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE'
   urgency?: number | null
   project?: string | null

@@ -71,8 +71,8 @@ export function getTaskCardClass(task: Task): string {
     // Add status class for glass effects
     if (task.status === 'COMPLETED') {
       classes.push('status-completed');
-    } else if (task.status === 'STARTED') {
-      classes.push('status-started');
+    } else if (task.status === 'ACTIVE') {
+      classes.push('status-active');
     }
     
     return classes.join(' ');

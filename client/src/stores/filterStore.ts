@@ -3,7 +3,7 @@ import { Task } from '../types';
 
 interface FilterStoreState {
   statuses: Set<Task['status']>;
-  status: 'pending' | 'started' | 'completed' | 'overdue' | 'all';
+  status: 'pending' | 'active' | 'completed' | 'overdue' | 'all';
   overviewMode?: 'open' | 'closed' | 'today' | 'overdue' | null; // exclusive overview selection
   priorities: Set<Task['priority']>;
   assignees: Set<string>;
@@ -82,14 +82,14 @@ export const useFilterStore = create<FilterStoreState>((set, get) => ({
     const { overviewMode, statuses, status, priorities, assignees, projects, urgencyRange, search, dueDate } = get();
     const statusMap: Record<string, string | undefined> = {
       pending: 'PENDING',
-      started: 'STARTED',
+      active: 'ACTIVE',
       completed: 'COMPLETED',
       overdue: undefined,
       all: undefined
     };
     // Overview overrides granular selection
     if (overviewMode) {
-      if (overviewMode === 'open') return { statuses: ['PENDING','STARTED'] };
+      if (overviewMode === 'open') return { statuses: ['PENDING','ACTIVE'] };
       if (overviewMode === 'closed') return { statuses: ['COMPLETED'] };
       if (overviewMode === 'today') return { dueDate: 'today' };
       if (overviewMode === 'overdue') return { dueDate: 'overdue' };

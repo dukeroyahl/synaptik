@@ -165,7 +165,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
           <Typography 
             variant="h6" 
             sx={{ 
-              fontWeight: task.status === 'STARTED' ? 700 : 600,
+              fontWeight: task.status === 'ACTIVE' ? 700 : 600,
               textDecoration: task.status === 'COMPLETED' ? 'line-through' : 'none',
               fontSize: '1.1rem',
               color: task.status === 'COMPLETED' ? 'text.secondary' : 'text.primary',
@@ -314,7 +314,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
           {/* Right side: Action buttons */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             {/* Start/Pause button - conditional based on status */}
-            {task.status === 'STARTED' ? (
+            {task.status === 'ACTIVE' ? (
               <IconButton 
                 size="small" 
                 onClick={handlePause}

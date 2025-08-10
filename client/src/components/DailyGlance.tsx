@@ -26,8 +26,8 @@ interface TaskStats {
 }
 
 interface DailyGlanceProps {
-  onFilterChange?: (filter: 'pending' | 'started' | 'completed' | 'overdue' | 'all') => void;
-  activeFilter?: 'pending' | 'started' | 'completed' | 'overdue' | 'all';
+  onFilterChange?: (filter: 'pending' | 'active' | 'completed' | 'overdue' | 'all') => void;
+  activeFilter?: 'pending' | 'active' | 'completed' | 'overdue' | 'all';
   onDueDateChange?: (dueDate: string | null) => void;
   activeDueDate?: string | null; // if undefined we act uncontrolled locally
   fullHeight?: boolean; // when true stretch card to parent container height
@@ -63,7 +63,7 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
     try {
       const [pendingRes, startedRes, completedRes, overdueRes, todayRes] = await Promise.all([
         fetch('/api/tasks/pending'),
-        fetch('/api/tasks/started'),
+        fetch('/api/tasks/active'),
         fetch('/api/tasks/completed'),
         fetch('/api/tasks/overdue'),
         fetch('/api/tasks/today')

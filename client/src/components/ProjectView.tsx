@@ -76,7 +76,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({
         total: projectTasks.length,
         completed: projectTasks.filter(t => t.status === 'COMPLETED').length,
         pending: projectTasks.filter(t => t.status === 'PENDING').length,
-        active: projectTasks.filter(t => t.status === 'STARTED').length,
+        active: projectTasks.filter(t => t.status === 'ACTIVE').length,
         overdue: projectTasks.filter(t => {
           if (!t.dueDate) return false;
           return new Date(t.dueDate) < new Date();

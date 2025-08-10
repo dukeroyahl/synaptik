@@ -15,7 +15,7 @@ const Dashboard = memo(() => {
   const theme = useTheme();
   const [availableAssignees, setAvailableAssignees] = useState<string[]>([])
   // Local status kept for keying TaskList; will sync with store
-  const [statusFilter, setStatusFilter] = useState<'pending' | 'started' | 'completed' | 'overdue' | 'all'>('pending')
+  const [statusFilter, setStatusFilter] = useState<'pending' | 'active' | 'completed' | 'overdue' | 'all'>('pending')
   const [refreshCounter, setRefreshCounter] = useState(0)
   const [availableProjects, setAvailableProjects] = useState<string[]>([])
   // Subscribe to store status + setter
@@ -71,7 +71,7 @@ const Dashboard = memo(() => {
     if (statusFilter !== storeStatus) setStatusFilter(storeStatus)
   }, [storeStatus])
 
-  const handleStatusFilterChange = useCallback((filter: 'pending' | 'started' | 'completed' | 'overdue' | 'all') => {
+  const handleStatusFilterChange = useCallback((filter: 'pending' | 'active' | 'completed' | 'overdue' | 'all') => {
     setStoreStatus(filter)
   }, [setStoreStatus]);
 
@@ -91,8 +91,8 @@ const Dashboard = memo(() => {
         return 'PENDING';
       case 'completed':
         return 'COMPLETED';
-      case 'started':
-        return 'STARTED';
+      case 'active':
+        return 'ACTIVE';
       case 'overdue':
         return 'overdue';
       default:
@@ -140,7 +140,7 @@ const Dashboard = memo(() => {
       <Card elevation={theme.palette.mode === 'dark' ? 2 : 1} className="custom-card glass-task-container" sx={{ mt: 1, p: 2 }}>
         <TaskList 
           key={`${statusFilter}-${refreshCounter}-${dueDate || 'none'}`}
-          filter={activeFilter as 'PENDING' | 'STARTED' | 'overdue' | 'COMPLETED' | 'all'} 
+          filter={activeFilter as 'PENDING' | 'ACTIVE' | 'overdue' | 'COMPLETED' | 'all'} 
           onTaskUpdate={handleTaskCaptured}
         />
       </Card>

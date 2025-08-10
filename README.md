@@ -132,10 +132,15 @@ docker pull roudranil/synaptik/backend:latest
 [![macOS ARM64](https://img.shields.io/badge/macOS%20ARM64-Available-success?logo=apple&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-darwin-arm64)
 [![Linux x86_64](https://img.shields.io/badge/Linux%20x86__64-Available-success?logo=linux&logoColor=white)](https://github.com/dukeroyahl/synaptik/releases/latest/download/synaptik-mcp-linux-amd64)
 
+**Download pre-built binaries** from [GitHub Releases](https://github.com/dukeroyahl/synaptik/releases/latest) or **build from source**:
+
 ```bash
-# Native binaries available in v0.0.6+ - or build from source:
-cd mcp && ./gradlew quarkusBuild
-java -jar build/quarkus-app/quarkus-run.jar
+# Build MCP server binary for your platform
+./scripts/build-mcp.sh current
+# Binary will be available at: dist/native/synaptik-mcp
+
+# For other build options (all platforms, testing, etc.)
+./scripts/build-mcp.sh --help
 ```
 
 </div>
@@ -160,11 +165,21 @@ This installs the complete Synaptik application with:
 - **API Documentation**: http://localhost:8060/q/swagger-ui
 - **Docker Services**: Complete containerized backend
 
-#### Step 2: Build MCP Server
+#### Step 2: Get MCP Server Binary
+**Option A: Download pre-built binary** (recommended)
 ```bash
-# Build the MCP server from source (native binaries available in v0.0.6+)
-cd mcp
-./gradlew quarkusBuild
+# Download from GitHub Releases (available for macOS ARM64, Linux x86_64)
+# Visit: https://github.com/dukeroyahl/synaptik/releases/latest
+```
+
+**Option B: Build from source**
+```bash
+# Build MCP server binary for your platform
+./scripts/build-mcp.sh current
+# Binary will be available at: dist/native/synaptik-mcp
+
+# For interactive build options
+./scripts/build-mcp.sh
 ```
 
 #### Step 3: Configure Claude Desktop

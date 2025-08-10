@@ -41,7 +41,7 @@ const StatusFacet: React.FC = () => {
   const active = filterState.status || [];
   const statuses: FacetOption<Task['status']>[] = [
     { value: 'PENDING', label: 'Pending' },
-    { value: 'STARTED', label: 'Started' },
+    { value: 'ACTIVE', label: 'Active' },
     { value: 'COMPLETED', label: 'Completed' },
   ];
   const toggle = (val: Task['status']) => {

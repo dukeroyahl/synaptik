@@ -78,7 +78,7 @@ const TaskActionsComponent: React.FC<TaskActionsProps> = ({
   );
   
   const showStop = useMemo(() => 
-    task.status !== 'COMPLETED' && task.status === 'STARTED' && onStop, 
+    task.status !== 'COMPLETED' && task.status === 'ACTIVE' && onStop, 
     [task.status, onStop]
   );
   

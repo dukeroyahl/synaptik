@@ -107,8 +107,8 @@ export class TaskService {
     return response.data
   }
 
-  async getStartedTasks(): Promise<Task[]> {
-    const response = await apiClient.get<Task[]>(API_ENDPOINTS.TASKS_STARTED)
+  async getActiveTasks(): Promise<Task[]> {
+    const response = await apiClient.get<Task[]>(API_ENDPOINTS.TASKS_ACTIVE)
     return response.data
   }
 

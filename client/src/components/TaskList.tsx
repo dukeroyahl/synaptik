@@ -18,7 +18,7 @@ import { API_BASE_URL } from '../config'
 import { useFilterStore } from '../stores/filterStore'
 
 interface TaskListProps {
-  filter?: 'PENDING' | 'STARTED' | 'overdue' | 'today' | 'COMPLETED' | 'all'
+  filter?: 'PENDING' | 'ACTIVE' | 'overdue' | 'today' | 'COMPLETED' | 'all'
   onTaskUpdate?: (task: Task) => void
   assigneeFilter?: string // legacy (will be ignored if store provides assignees)
   projectFilter?: string  // legacy
@@ -92,7 +92,7 @@ const TaskList: React.FC<TaskListProps> = memo(({
       } else {
         switch (filter.toUpperCase()) {
           case 'PENDING': endpoint = '/api/tasks/pending'; break;
-          case 'STARTED': endpoint = '/api/tasks/started'; break;
+          case 'ACTIVE': endpoint = '/api/tasks/active'; break;
           case 'OVERDUE': endpoint = '/api/tasks/overdue'; break; // legacy direct selection
           case 'COMPLETED': endpoint = '/api/tasks/completed'; break;
           default: endpoint = '/api/tasks';
@@ -134,7 +134,7 @@ const TaskList: React.FC<TaskListProps> = memo(({
         if (dueIsSpecial) {
           switch (filter.toUpperCase()) {
             case 'PENDING': list = list.filter(t => t.status === 'PENDING'); break;
-            case 'STARTED': list = list.filter(t => t.status === 'STARTED'); break;
+            case 'ACTIVE': list = list.filter(t => t.status === 'ACTIVE'); break;
             case 'COMPLETED': list = list.filter(t => t.status === 'COMPLETED'); break;
             default: break; // all or legacy
           }
@@ -144,7 +144,7 @@ const TaskList: React.FC<TaskListProps> = memo(({
         if (needsAllTasks && filter !== 'all') {
           switch (filter.toUpperCase()) {
             case 'PENDING': list = list.filter(t => t.status === 'PENDING'); break;
-            case 'STARTED': list = list.filter(t => t.status === 'STARTED'); break;
+            case 'ACTIVE': list = list.filter(t => t.status === 'ACTIVE'); break;
             case 'COMPLETED': list = list.filter(t => t.status === 'COMPLETED'); break;
             case 'OVERDUE': 
               // Keep existing overdue logic or implement if needed
@@ -156,7 +156,7 @@ const TaskList: React.FC<TaskListProps> = memo(({
         // Apply overview mode filtering when using 'all' endpoint
         if (filter === 'all' && storeFilters.overviewMode) {
           if (storeFilters.overviewMode === 'open') {
-            list = list.filter(t => t.status === 'PENDING' || t.status === 'STARTED');
+            list = list.filter(t => t.status === 'PENDING' || t.status === 'ACTIVE');
           } else if (storeFilters.overviewMode === 'closed') {
             list = list.filter(t => t.status === 'COMPLETED');
           }
@@ -189,7 +189,7 @@ const TaskList: React.FC<TaskListProps> = memo(({
         const patched = { ...targetTask } as any;
         if (action === 'done') patched.status = 'COMPLETED';
         if (action === 'undone') patched.status = 'PENDING';
-        if (action === 'start') patched.status = 'STARTED';
+        if (action === 'start') patched.status = 'ACTIVE';
         if (action === 'pause') patched.status = 'PENDING';
         updatedTasks[idx] = patched;
       }
