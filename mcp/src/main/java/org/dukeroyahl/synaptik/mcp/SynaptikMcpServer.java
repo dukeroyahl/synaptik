@@ -59,6 +59,9 @@ public class SynaptikMcpServer {
 
     @Tool(description = "Get a specific task by ID")
     public Uni<String> getTask(@ToolArg(description = "Task ID") String taskId) {
+        if (!isValidUUID(taskId)) {
+            return Uni.createFrom().item("❌ Invalid task ID format. Please provide a valid UUID.");
+        }
         return apiClient.getTask(taskId)
                 .map(response -> {
                     if (response.getStatus() == 200) {
@@ -120,6 +123,10 @@ public class SynaptikMcpServer {
             @ToolArg(description = "New assignee (optional)") String assignee,
             @ToolArg(description = "New due date in ISO format (optional)") String dueDate) {
         
+        if (!isValidUUID(taskId)) {
+            return Uni.createFrom().item("❌ Invalid task ID format. Please provide a valid UUID.");
+        }
+        
         org.dukeroyahl.synaptik.dto.TaskRequest taskRequest = new org.dukeroyahl.synaptik.dto.TaskRequest();
         if (title != null) taskRequest.title = title;
         if (description != null) taskRequest.description = description;
@@ -148,6 +155,9 @@ public class SynaptikMcpServer {
 
     @Tool(description = "Delete a task")
     public Uni<String> deleteTask(@ToolArg(description = "Task ID") String taskId) {
+        if (!isValidUUID(taskId)) {
+            return Uni.createFrom().item("❌ Invalid task ID format. Please provide a valid UUID.");
+        }
         return apiClient.deleteTask(taskId)
                 .map(response -> {
                     if (response.getStatus() == 204) {
@@ -160,6 +170,9 @@ public class SynaptikMcpServer {
 
     @Tool(description = "Start working on a task")
     public Uni<String> startTask(@ToolArg(description = "Task ID") String taskId) {
+        if (!isValidUUID(taskId)) {
+            return Uni.createFrom().item("❌ Invalid task ID format. Please provide a valid UUID.");
+        }
         return apiClient.startTask(taskId)
                 .map(response -> {
                     if (response.getStatus() == 200) {
@@ -173,6 +186,9 @@ public class SynaptikMcpServer {
 
     @Tool(description = "Stop working on a task")
     public Uni<String> stopTask(@ToolArg(description = "Task ID") String taskId) {
+        if (!isValidUUID(taskId)) {
+            return Uni.createFrom().item("❌ Invalid task ID format. Please provide a valid UUID.");
+        }
         return apiClient.stopTask(taskId)
                 .map(response -> {
                     if (response.getStatus() == 200) {
@@ -186,6 +202,9 @@ public class SynaptikMcpServer {
 
     @Tool(description = "Mark a task as done/completed")
     public Uni<String> markTaskDone(@ToolArg(description = "Task ID") String taskId) {
+        if (!isValidUUID(taskId)) {
+            return Uni.createFrom().item("❌ Invalid task ID format. Please provide a valid UUID.");
+        }
         return apiClient.markTaskDone(taskId)
                 .map(response -> {
                     if (response.getStatus() == 200) {
@@ -245,6 +264,10 @@ public class SynaptikMcpServer {
             @ToolArg(description = "Depth of neighbors to include (default: 1)") String depth,
             @ToolArg(description = "Include placeholder tasks (default: true)") String includePlaceholders) {
         
+        if (!isValidUUID(taskId)) {
+            return Uni.createFrom().item("❌ Invalid task ID format. Please provide a valid UUID.");
+        }
+        
         int depthValue = 1;
         boolean includePlaceholdersValue = true;
         
@@ -292,6 +315,9 @@ public class SynaptikMcpServer {
 
     @Tool(description = "Get a specific project by ID")
     public Uni<String> getProject(@ToolArg(description = "Project ID") String projectId) {
+        if (!isValidUUID(projectId)) {
+            return Uni.createFrom().item("❌ Invalid project ID format. Please provide a valid UUID.");
+        }
         return apiClient.getProject(projectId)
                 .map(response -> {
                     if (response.getStatus() == 200) {
@@ -314,7 +340,15 @@ public class SynaptikMcpServer {
         project.name = name;
         project.description = description;
         project.owner = owner;
-        project.dueDate = dueDate;
+        
+        // Parse dueDate string to LocalDateTime if provided
+        if (dueDate != null && !dueDate.trim().isEmpty()) {
+            try {
+                project.dueDate = java.time.LocalDateTime.parse(dueDate.trim());
+            } catch (Exception e) {
+                return Uni.createFrom().item("❌ Invalid date format. Please use ISO format like: 2024-12-31T23:59:59");
+            }
+        }
         
         return apiClient.createProject(project)
                 .map(response -> {
@@ -341,6 +375,9 @@ public class SynaptikMcpServer {
 
     @Tool(description = "Start a project")
     public Uni<String> activateProject(@ToolArg(description = "Project ID") String projectId) {
+        if (!isValidUUID(projectId)) {
+            return Uni.createFrom().item("❌ Invalid project ID format. Please provide a valid UUID.");
+        }
         return apiClient.startProject(projectId)
                 .map(response -> {
                     if (response.getStatus() == 200) {
@@ -354,6 +391,9 @@ public class SynaptikMcpServer {
 
     @Tool(description = "Complete a project")
     public Uni<String> completeProject(@ToolArg(description = "Project ID") String projectId) {
+        if (!isValidUUID(projectId)) {
+            return Uni.createFrom().item("❌ Invalid project ID format. Please provide a valid UUID.");
+        }
         return apiClient.completeProject(projectId)
                 .map(response -> {
                     if (response.getStatus() == 200) {
@@ -367,6 +407,18 @@ public class SynaptikMcpServer {
 
 
     // ===== HELPER METHODS =====
+
+    private boolean isValidUUID(String uuid) {
+        if (uuid == null || uuid.trim().isEmpty()) {
+            return false;
+        }
+        try {
+            java.util.UUID.fromString(uuid.trim());
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
 
     private String formatTasksResponse(List<Task> tasks, String title) {
         if (tasks == null || tasks.isEmpty()) {
