@@ -9,6 +9,7 @@ import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.Project;
 import org.dukeroyahl.synaptik.domain.TaskPriority;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
+import org.dukeroyahl.synaptik.dto.TaskGraphResponse;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 import io.quarkiverse.mcp.server.Tool;
@@ -79,26 +80,26 @@ public class SynaptikMcpServer {
             @ToolArg(description = "Due date in ISO format (optional)") String dueDate,
             @ToolArg(description = "Tags comma-separated (optional)") String tags) {
         
-        Task task = new Task();
-        task.title = title;
-        task.description = description;
-        task.project = project;
-        task.assignee = assignee;
-        task.dueDate = dueDate;
+        org.dukeroyahl.synaptik.dto.TaskRequest taskRequest = new org.dukeroyahl.synaptik.dto.TaskRequest();
+        taskRequest.title = title;
+        taskRequest.description = description;
+        taskRequest.project = project;
+        taskRequest.assignee = assignee;
+        taskRequest.dueDate = dueDate;
         
         if (priority != null) {
             try {
-                task.priority = TaskPriority.valueOf(priority.toUpperCase());
+                taskRequest.priority = TaskPriority.valueOf(priority.toUpperCase());
             } catch (IllegalArgumentException e) {
-                task.priority = TaskPriority.MEDIUM;
+                taskRequest.priority = TaskPriority.MEDIUM;
             }
         }
         
         if (tags != null && !tags.trim().isEmpty()) {
-            task.tags = Arrays.asList(tags.split(","));
+            taskRequest.tags = Arrays.asList(tags.split(","));
         }
         
-        return apiClient.createTask(task)
+        return apiClient.createTask(taskRequest)
                 .map(response -> {
                     if (response.getStatus() == 201) {
                         Task createdTask = response.readEntity(Task.class);
@@ -119,22 +120,22 @@ public class SynaptikMcpServer {
             @ToolArg(description = "New assignee (optional)") String assignee,
             @ToolArg(description = "New due date in ISO format (optional)") String dueDate) {
         
-        Task updates = new Task();
-        if (title != null) updates.title = title;
-        if (description != null) updates.description = description;
-        if (project != null) updates.project = project;
-        if (assignee != null) updates.assignee = assignee;
-        if (dueDate != null) updates.dueDate = dueDate;
+        org.dukeroyahl.synaptik.dto.TaskRequest taskRequest = new org.dukeroyahl.synaptik.dto.TaskRequest();
+        if (title != null) taskRequest.title = title;
+        if (description != null) taskRequest.description = description;
+        if (project != null) taskRequest.project = project;
+        if (assignee != null) taskRequest.assignee = assignee;
+        if (dueDate != null) taskRequest.dueDate = dueDate;
         
         if (priority != null) {
             try {
-                updates.priority = TaskPriority.valueOf(priority.toUpperCase());
+                taskRequest.priority = TaskPriority.valueOf(priority.toUpperCase());
             } catch (IllegalArgumentException e) {
                 return Uni.createFrom().item("❌ Invalid priority. Use: HIGH, MEDIUM, LOW, NONE");
             }
         }
         
-        return apiClient.updateTask(taskId, updates)
+        return apiClient.updateTask(taskId, taskRequest)
                 .map(response -> {
                     if (response.getStatus() == 200) {
                         Task updatedTask = response.readEntity(Task.class);
@@ -202,10 +203,10 @@ public class SynaptikMcpServer {
                 .map(tasks -> formatTasksResponse(tasks, "Pending tasks"));
     }
 
-    @Tool(description = "Get all started tasks")
-    public Uni<String> getStartedTasks() {
-        return apiClient.getStartedTasks()
-                .map(tasks -> formatTasksResponse(tasks, "Started tasks"));
+    @Tool(description = "Get all active tasks")
+    public Uni<String> getActiveTasks() {
+        return apiClient.getActiveTasks()
+                .map(tasks -> formatTasksResponse(tasks, "Active tasks"));
     }
 
     @Tool(description = "Get all completed tasks")
@@ -216,14 +217,69 @@ public class SynaptikMcpServer {
 
     @Tool(description = "Get all overdue tasks")
     public Uni<String> getOverdueTasks() {
-        return apiClient.getOverdueTasks()
-                .map(tasks -> formatTasksResponse(tasks, "Overdue tasks"));
+        // Get the user's current timezone
+        String userTimezone = java.time.ZoneId.systemDefault().getId();
+        return apiClient.getOverdueTasks(userTimezone)
+                .map(tasks -> formatTasksResponse(tasks, "Overdue tasks (timezone: " + userTimezone + ")"));
     }
 
     @Tool(description = "Get today's tasks")
     public Uni<String> getTodayTasks() {
-        return apiClient.getTodayTasks()
-                .map(tasks -> formatTasksResponse(tasks, "Today's tasks"));
+        // Get the user's current timezone
+        String userTimezone = java.time.ZoneId.systemDefault().getId();
+        return apiClient.getTodayTasks(userTimezone)
+                .map(tasks -> formatTasksResponse(tasks, "Today's tasks (timezone: " + userTimezone + ")"));
+    }
+
+    // ===== TASK GRAPH AND DEPENDENCY TOOLS =====
+
+    @Tool(description = "Get task dependency graph with optional status filtering")
+    public Uni<String> getTaskGraph(@ToolArg(description = "Comma-separated task statuses to filter (optional): PENDING,STARTED,COMPLETED") String statuses) {
+        return apiClient.getTaskGraph(statuses)
+                .map(graph -> formatTaskGraphResponse(graph));
+    }
+
+    @Tool(description = "Get task neighbors (dependencies and dependents) for a specific task")
+    public Uni<String> getTaskNeighbors(
+            @ToolArg(description = "Task ID") String taskId,
+            @ToolArg(description = "Depth of neighbors to include (default: 1)") String depth,
+            @ToolArg(description = "Include placeholder tasks (default: true)") String includePlaceholders) {
+        
+        int depthValue = 1;
+        boolean includePlaceholdersValue = true;
+        
+        try {
+            if (depth != null && !depth.trim().isEmpty()) {
+                depthValue = Integer.parseInt(depth.trim());
+            }
+        } catch (NumberFormatException e) {
+            return Uni.createFrom().item("❌ Invalid depth value. Please provide a valid integer.");
+        }
+        
+        try {
+            if (includePlaceholders != null && !includePlaceholders.trim().isEmpty()) {
+                includePlaceholdersValue = Boolean.parseBoolean(includePlaceholders.trim());
+            }
+        } catch (Exception e) {
+            return Uni.createFrom().item("❌ Invalid includePlaceholders value. Please provide true or false.");
+        }
+        
+        // Make variables effectively final for lambda
+        final int finalDepthValue = depthValue;
+        final boolean finalIncludePlaceholdersValue = includePlaceholdersValue;
+        
+        return apiClient.getTaskNeighbors(taskId, finalDepthValue, finalIncludePlaceholdersValue)
+                .map(response -> {
+                    if (response.getStatus() == 200) {
+                        // The response should contain a TaskGraphResponse
+                        return "✅ Task neighbors retrieved successfully for task: " + taskId + 
+                               "\n📊 Depth: " + finalDepthValue + 
+                               "\n🔗 Include placeholders: " + finalIncludePlaceholdersValue +
+                               "\n\n" + response.readEntity(String.class);
+                    } else {
+                        return "❌ Failed to get task neighbors: " + response.readEntity(String.class);
+                    }
+                });
     }
 
     // ===== PROJECT MANAGEMENT TOOLS =====
@@ -283,15 +339,15 @@ public class SynaptikMcpServer {
                 .map(projects -> formatProjectsResponse(projects, "Overdue projects"));
     }
 
-    @Tool(description = "Activate a project")
+    @Tool(description = "Start a project")
     public Uni<String> activateProject(@ToolArg(description = "Project ID") String projectId) {
-        return apiClient.activateProject(projectId)
+        return apiClient.startProject(projectId)
                 .map(response -> {
                     if (response.getStatus() == 200) {
                         Project project = response.readEntity(Project.class);
-                        return formatSingleProjectResponse(project, "✅ Project activated");
+                        return formatSingleProjectResponse(project, "✅ Project started");
                     } else {
-                        return "❌ Failed to activate project: " + response.getStatusInfo().getReasonPhrase();
+                        return "❌ Failed to start project: " + response.getStatusInfo().getReasonPhrase();
                     }
                 });
     }
@@ -452,7 +508,7 @@ public class SynaptikMcpServer {
         if (status == null) return "❓";
         return switch (status) {
             case PENDING -> "⏳";
-            case STARTED -> "🔄";
+            case ACTIVE -> "🔄";
             case COMPLETED -> "✅";
             case DELETED -> "🗑️";
         };
@@ -466,5 +522,74 @@ public class SynaptikMcpServer {
             case LOW -> "🟢";
             case NONE -> "⚪";
         };
+    }
+
+    private String formatTaskGraphResponse(org.dukeroyahl.synaptik.dto.TaskGraphResponse graph) {
+        if (graph == null) {
+            return "❌ No graph data available";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("🕸️ Task Dependency Graph\n");
+        sb.append("═══════════════════════\n\n");
+        
+        if (graph.centerId() != null) {
+            sb.append("🎯 Center Task: ").append(graph.centerId()).append("\n");
+        }
+        
+        sb.append("📊 Nodes: ").append(graph.nodes() != null ? graph.nodes().size() : 0).append("\n");
+        sb.append("🔗 Edges: ").append(graph.edges() != null ? graph.edges().size() : 0).append("\n");
+        sb.append("🔄 Has Cycles: ").append(graph.hasCycles() ? "Yes ⚠️" : "No ✅").append("\n\n");
+
+        if (graph.nodes() != null && !graph.nodes().isEmpty()) {
+            sb.append("📋 Tasks in Graph:\n");
+            sb.append("─────────────────\n");
+            
+            for (org.dukeroyahl.synaptik.dto.TaskGraphNode node : graph.nodes()) {
+                String statusIcon = getStatusIcon(node.status());
+                String priorityIcon = "⚪"; // default
+                
+                try {
+                    if (node.priority() != null && !node.priority().trim().isEmpty()) {
+                        priorityIcon = getPriorityIcon(org.dukeroyahl.synaptik.domain.TaskPriority.valueOf(node.priority().toUpperCase()));
+                    }
+                } catch (IllegalArgumentException e) {
+                    // Keep default priority icon if parsing fails
+                }
+                
+                sb.append(statusIcon).append(" ");
+                sb.append(priorityIcon).append(" ");
+                sb.append(node.title());
+                
+                if (node.placeholder()) {
+                    sb.append(" 👻 (placeholder)");
+                }
+                
+                if (node.project() != null && !node.project().trim().isEmpty()) {
+                    sb.append(" 📁 ").append(node.project());
+                }
+                
+                if (node.assignee() != null && !node.assignee().trim().isEmpty()) {
+                    sb.append(" 👤 ").append(node.assignee());
+                }
+                
+                if (node.urgency() != null) {
+                    sb.append(" ⚡ ").append(String.format("%.1f", node.urgency()));
+                }
+                
+                sb.append("\n");
+            }
+        }
+
+        if (graph.edges() != null && !graph.edges().isEmpty()) {
+            sb.append("\n🔗 Dependencies:\n");
+            sb.append("───────────────\n");
+            
+            for (org.dukeroyahl.synaptik.dto.TaskGraphEdge edge : graph.edges()) {
+                sb.append("  ").append(edge.from()).append(" → ").append(edge.to()).append("\n");
+            }
+        }
+
+        return sb.toString();
     }
 }

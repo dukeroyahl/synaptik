@@ -38,6 +38,53 @@
 
 ---
 
+## 🔄 How Tasks and Projects Work
+
+### 📝 Task Status Cycle
+Tasks in Synaptik follow a simple 3-step lifecycle:
+
+```
+📋 PENDING → ⚡ ACTIVE → ✅ COMPLETED
+    ↑           ↓
+    ←───────────
+```
+
+**What each status means:**
+- **📋 PENDING** - Task is ready to work on (newly created or paused)
+- **⚡ ACTIVE** - You're currently working on this task  
+- **✅ COMPLETED** - Task is finished and done
+
+**How to change task status:**
+- **Start working**: Click "Start" → Task becomes ACTIVE
+- **Take a break**: Click "Stop" → Task goes back to PENDING (you can resume later)
+- **Finish task**: Click "Done" → Task becomes COMPLETED
+
+### 📁 Project Status Cycle
+Projects automatically update based on their tasks:
+
+```
+📋 PENDING → ⚡ STARTED → ✅ COMPLETED
+```
+
+**What each status means:**
+- **📋 PENDING** - Project has tasks, but none are active yet
+- **⚡ STARTED** - At least one task in the project is active
+- **✅ COMPLETED** - All tasks in the project are completed
+
+**Projects update automatically:**
+- When you start any task → Project becomes STARTED
+- When you complete all tasks → Project becomes COMPLETED
+- Projects show progress (e.g., "3 of 5 tasks completed")
+
+### 💡 Simple Example
+1. Create task "Write report" → Task is PENDING, Project is PENDING
+2. Click "Start" on the task → Task is ACTIVE, Project is STARTED  
+3. Click "Done" when finished → Task is COMPLETED, Project is COMPLETED
+
+**That's it!** Synaptik handles all the status updates automatically so you can focus on getting things done.
+
+---
+
 ## 🚀 Get Started in 2 Minutes
 
 **Step 1: Install Docker** (if you don't have it)
