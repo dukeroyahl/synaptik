@@ -43,39 +43,39 @@ class SynaptikMcpServerProjectToolsTest {
     @Test
     void startProjectSuccess() {
         Project p = new Project();
-        p.id = "123";
+        p.id = "550e8400-e29b-41d4-a716-446655440000";
         p.name = "Test Project";
         p.status = ProjectStatus.STARTED;
         
         Response resp = Response.ok(p).build();
-        when(apiClient.startProject("123")).thenReturn(Uni.createFrom().item(resp));
+        when(apiClient.startProject("550e8400-e29b-41d4-a716-446655440000")).thenReturn(Uni.createFrom().item(resp));
 
-        String result = server.activateProject("123").await().indefinitely();
-        assertTrue(result.contains("started"));
+        String result = server.activateProject("550e8400-e29b-41d4-a716-446655440000").await().indefinitely();
+        assertTrue(result.contains("✅ Project started"));
         assertTrue(result.contains("Test Project"));
     }
 
     @Test
     void startProjectNotFound() {
         Response resp = Response.status(404).build();
-        when(apiClient.startProject("nonexistent")).thenReturn(Uni.createFrom().item(resp));
+        when(apiClient.startProject("550e8400-e29b-41d4-a716-446655440001")).thenReturn(Uni.createFrom().item(resp));
 
-        String result = server.activateProject("nonexistent").await().indefinitely();
-        assertTrue(result.contains("Failed to start project"));
+        String result = server.activateProject("550e8400-e29b-41d4-a716-446655440001").await().indefinitely();
+        assertTrue(result.contains("❌ Failed to start project"));
     }
 
     @Test
     void completeProjectSuccess() {
         Project p = new Project();
-        p.id = "123";
+        p.id = "550e8400-e29b-41d4-a716-446655440002";
         p.name = "Test Project";
         p.status = ProjectStatus.COMPLETED;
         
         Response resp = Response.ok(p).build();
-        when(apiClient.completeProject("123")).thenReturn(Uni.createFrom().item(resp));
+        when(apiClient.completeProject("550e8400-e29b-41d4-a716-446655440002")).thenReturn(Uni.createFrom().item(resp));
 
-        String result = server.completeProject("123").await().indefinitely();
-        assertTrue(result.contains("completed"));
+        String result = server.completeProject("550e8400-e29b-41d4-a716-446655440002").await().indefinitely();
+        assertTrue(result.contains("✅ Project completed"));
         assertTrue(result.contains("Test Project"));
     }
 }

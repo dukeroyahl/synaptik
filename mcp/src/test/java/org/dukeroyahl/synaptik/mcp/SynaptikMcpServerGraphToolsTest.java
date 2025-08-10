@@ -60,19 +60,19 @@ class SynaptikMcpServerGraphToolsTest {
     @Test
     void getTaskNeighborsSuccess() {
         Response resp = Response.ok("graph data").build();
-        when(apiClient.getTaskNeighbors("123", 1, true)).thenReturn(Uni.createFrom().item(resp));
+        when(apiClient.getTaskNeighbors("550e8400-e29b-41d4-a716-446655440000", 1, true)).thenReturn(Uni.createFrom().item(resp));
 
-        String result = server.getTaskNeighbors("123", "1", "true").await().indefinitely();
-        assertTrue(result.contains("Task neighbors retrieved successfully"));
-        assertTrue(result.contains("123"));
-        assertTrue(result.contains("Depth: 1"));
-        assertTrue(result.contains("Include placeholders: true"));
+        String result = server.getTaskNeighbors("550e8400-e29b-41d4-a716-446655440000", "1", "true").await().indefinitely();
+        assertTrue(result.contains("✅ Task neighbors retrieved successfully"));
+        assertTrue(result.contains("550e8400-e29b-41d4-a716-446655440000"));
+        assertTrue(result.contains("📊 Depth: 1"));
+        assertTrue(result.contains("🔗 Include placeholders: true"));
     }
 
     @Test
     void getTaskNeighborsInvalidDepth() {
-        String result = server.getTaskNeighbors("123", "invalid", "true").await().indefinitely();
-        assertTrue(result.contains("Invalid depth value"));
+        String result = server.getTaskNeighbors("550e8400-e29b-41d4-a716-446655440000", "invalid", "true").await().indefinitely();
+        assertTrue(result.contains("❌ Invalid depth value"));
     }
 
     @Test
@@ -80,10 +80,10 @@ class SynaptikMcpServerGraphToolsTest {
         // Boolean.parseBoolean doesn't throw exceptions, it just returns false for invalid values
         // So this test should verify that the method handles the parameter correctly
         Response resp = Response.ok("graph data").build();
-        when(apiClient.getTaskNeighbors("123", 1, false)).thenReturn(Uni.createFrom().item(resp));
+        when(apiClient.getTaskNeighbors("550e8400-e29b-41d4-a716-446655440000", 1, false)).thenReturn(Uni.createFrom().item(resp));
         
-        String result = server.getTaskNeighbors("123", "1", "invalid").await().indefinitely();
-        assertTrue(result.contains("Task neighbors retrieved successfully"));
-        assertTrue(result.contains("Include placeholders: false"));
+        String result = server.getTaskNeighbors("550e8400-e29b-41d4-a716-446655440000", "1", "invalid").await().indefinitely();
+        assertTrue(result.contains("✅ Task neighbors retrieved successfully"));
+        assertTrue(result.contains("🔗 Include placeholders: false"));
     }
 }

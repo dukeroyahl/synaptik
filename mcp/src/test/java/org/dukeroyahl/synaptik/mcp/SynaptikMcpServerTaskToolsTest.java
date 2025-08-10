@@ -45,22 +45,23 @@ class SynaptikMcpServerTaskToolsTest {
     @Test
     void getTaskNotFound() {
         Response resp = Response.status(404).build();
-        when(apiClient.getTask("nope")).thenReturn(Uni.createFrom().item(resp));
-        String result = server.getTask("nope").await().indefinitely();
-        assertTrue(result.contains("not found"));
+        when(apiClient.getTask("550e8400-e29b-41d4-a716-446655440000")).thenReturn(Uni.createFrom().item(resp));
+        String result = server.getTask("550e8400-e29b-41d4-a716-446655440000").await().indefinitely();
+        assertTrue(result.contains("❌ Task not found with ID:"));
     }
 
     @Test
     void getTaskFound() {
         Task t = new Task();
-        t.id = "abc";
-        t.title = "Test";
+        t.id = "550e8400-e29b-41d4-a716-446655440001";
+        t.title = "Test Task";
         t.status = TaskStatus.COMPLETED;
         Response resp = Response.ok(t).build();
-        when(apiClient.getTask("abc")).thenReturn(Uni.createFrom().item(resp));
-        String result = server.getTask("abc").await().indefinitely();
-        assertTrue(result.contains("Test"));
-        assertTrue(result.contains("✅"));
+        when(apiClient.getTask("550e8400-e29b-41d4-a716-446655440001")).thenReturn(Uni.createFrom().item(resp));
+        String result = server.getTask("550e8400-e29b-41d4-a716-446655440001").await().indefinitely();
+        assertTrue(result.contains("Test Task"));
+        assertTrue(result.contains("Task retrieved successfully"));
+        assertTrue(result.contains("✅")); // Status icon for completed task
     }
 
     @Test
