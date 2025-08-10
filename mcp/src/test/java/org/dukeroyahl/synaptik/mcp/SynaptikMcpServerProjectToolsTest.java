@@ -32,7 +32,7 @@ class SynaptikMcpServerProjectToolsTest {
         Project p = new Project();
         p.id = "123";
         p.name = "Test Project";
-        p.status = ProjectStatus.ACTIVE;
+        p.status = ProjectStatus.STARTED;
         when(apiClient.getAllProjects()).thenReturn(Uni.createFrom().item(List.of(p)));
 
         String result = server.getAllProjects().await().indefinitely();
@@ -45,7 +45,7 @@ class SynaptikMcpServerProjectToolsTest {
         Project p = new Project();
         p.id = "123";
         p.name = "Test Project";
-        p.status = ProjectStatus.ACTIVE;
+        p.status = ProjectStatus.STARTED;
         
         Response resp = Response.ok(p).build();
         when(apiClient.startProject("123")).thenReturn(Uni.createFrom().item(resp));
