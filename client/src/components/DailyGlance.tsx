@@ -32,6 +32,7 @@ interface DailyGlanceProps {
   onDueDateChange?: (dueDate: string | null) => void;
   activeDueDate?: string | null; // if undefined we act uncontrolled locally
   fullHeight?: boolean; // when true stretch card to parent container height
+  refreshCounter?: number; // trigger for refreshing stats when tasks change
 }
 
 const DailyGlance: React.FC<DailyGlanceProps> = ({ 
@@ -39,7 +40,8 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
   activeFilter = 'pending',
   onDueDateChange,
   activeDueDate,
-  fullHeight = false
+  fullHeight = false,
+  refreshCounter
 }) => {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
@@ -58,6 +60,13 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
   const effectiveDueDate = activeDueDate !== undefined ? activeDueDate : localDueDate;
 
   useEffect(() => { fetchStats(); }, []);
+  
+  // Refresh stats when tasks change
+  useEffect(() => {
+    if (refreshCounter !== undefined) {
+      fetchStats();
+    }
+  }, [refreshCounter]);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -105,8 +114,7 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
     }
   };
 
-  const openCount = stats.pending + stats.started;
-  const totalTasks = stats.pending + stats.completed;
+  const totalTasks = stats.pending + stats.started + stats.completed;
   const completionPercentage = totalTasks > 0 ? Math.round((stats.completed / totalTasks) * 100) : 0;
 
   const [animatedCompletion, setAnimatedCompletion] = useState(0);
@@ -193,27 +201,30 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
                 mb: 1.25,
                 display: 'grid',
                 gap: 1.5,
-                gridTemplateColumns: 'repeat(2, 1fr)',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gridTemplateRows: 'repeat(2, 1fr)',
               }}>
                 {([
-                  { key: 'pending', label: 'Open', value: openCount, color: theme.palette.warning.main, icon: <PendingIcon fontSize="small" /> },
+                  { key: 'pending', label: 'Pending', value: stats.pending, color: theme.palette.text.secondary, icon: <PendingIcon fontSize="small" /> },
+                  { key: 'active', label: 'Active', value: stats.started, color: '#FFA726', icon: <TimeIcon fontSize="small" /> },
                   { key: 'completed', label: 'Completed', value: stats.completed, color: theme.palette.success.main, icon: <CompletedIcon fontSize="small" /> },
                   { key: 'overdue', label: 'Overdue', value: stats.overdue, color: theme.palette.error.main, icon: <OverdueIcon fontSize="small" /> },
                   { key: 'today', label: 'Today', value: stats.today, color: theme.palette.info.main, icon: <TodayIcon fontSize="small" /> }
                 ]).map(item => {
                   const isToday = item.key === 'today';
                   const isOverdue = item.key === 'overdue';
-                  const isStatus = item.key === 'pending' || item.key === 'completed';
+                  const isStatus = item.key === 'pending' || item.key === 'active' || item.key === 'completed';
                   const isTodayActive = effectiveDueDate === 'today';
                   const isOverdueActive = effectiveDueDate === 'overdue';
 
                   // Active logic: status tiles by status, date tiles by dueDate
                   const active = isToday ? isTodayActive : 
                     isOverdue ? isOverdueActive : 
-                    item.key === 'pending' ? overviewMode === 'open' :
-                    item.key === 'completed' ? overviewMode === 'closed' :
-                    activeFilter === item.key;
-                  const { digits, padCount } = formatValue(item.value);
+                    item.key === 'pending' ? activeFilter === 'pending' :
+                    item.key === 'active' ? activeFilter === 'active' :
+                    item.key === 'completed' ? activeFilter === 'completed' :
+                    false;
+                  // Removed formatValue logic since we're displaying the number directly
 
                   return (
                     <Box
@@ -243,31 +254,25 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
                             onDueDateChange?.(null);
                           }
                           if (activeDueDate === undefined) setLocalDueDate(isOverdueActive ? null : 'overdue');
-                          // When selecting overdue drop status to all (invalid combo with open/completed per spec)
-                          if (activeFilter === 'pending' || activeFilter === 'completed') {
+                          // When selecting overdue drop status to all (invalid combo with pending/active/completed per spec)
+                          if (activeFilter === 'pending' || activeFilter === 'active' || activeFilter === 'completed') {
                             onFilterChange?.('all');
                           }
                         } else if (isStatus) {
                           const current = activeFilter === item.key;
-                          // Open + Completed invalid -> last click wins: selecting one replaces the other
+                          // Status selection logic
                           if (!current) {
-                            if (item.key === 'pending') {
-                              // "Open" button should set overview mode to show both PENDING and STARTED
-                              setOverviewMode('open');
-                            } else if (item.key === 'completed') {
-                              // "Completed" button should set overview mode to show only COMPLETED
-                              setOverviewMode('closed');
-                            } else {
-                              onFilterChange?.(item.key as 'pending' | 'active' | 'completed' | 'overdue');
-                            }
-                            // if selecting Open or Completed while overdue active (invalid), clear overdue (last click wins)
+                            // Select the specific status
+                            onFilterChange?.(item.key as 'pending' | 'active' | 'completed' | 'overdue');
+                            // Clear overview mode when selecting specific status
+                            setOverviewMode(null);
+                            // if selecting any status while overdue active (invalid), clear overdue (last click wins)
                             if (isOverdueActive) {
                               onDueDateChange?.(null);
                               if (activeDueDate === undefined) setLocalDueDate(null);
                             }
                           } else {
-                            // toggling status off -> clear overview mode
-                            setOverviewMode(null);
+                            // toggling status off -> show all
                             onFilterChange?.('all');
                           }
                         }
@@ -295,37 +300,70 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
                         } : {}
                       }}
                     >
-                      <Box sx={{ flex: '0 0 auto', pr: 0.9, display: 'flex', alignItems: 'center' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 0.2 }}>
-                          {digits.map((d, i) => (
-                            <Typography
-                              key={i}
-                              component="span"
-                              sx={{
-                                fontFamily: '"Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
-                                fontSize: { xs: '2.05rem', sm: '2.25rem' },
-                                lineHeight: 1,
-                                fontWeight: 700,
-                                letterSpacing: '-0.05em',
-                                color: i < padCount ? alpha(item.color, 0.18) : item.color,
-                                textShadow: i < padCount ? 'none' : `0 0 3px ${alpha(item.color, 0.3)}`,
-                                transition: 'color 160ms ease, text-shadow 160ms ease'
-                              }}
-                            >
-                              {d}
-                            </Typography>
-                          ))}
-                        </Box>
+                      {/* Icon as stylistic watermark */}
+                      <Box sx={{ 
+                        position: 'absolute',
+                        top: -8,
+                        right: -8,
+                        opacity: active ? 0.15 : 0.08,
+                        transform: 'rotate(15deg)',
+                        transition: 'all 200ms ease',
+                        '& svg': { 
+                          fontSize: { xs: '3.5rem', sm: '4rem' },
+                          color: item.color,
+                          filter: active ? `drop-shadow(0 0 8px ${alpha(item.color, 0.2)})` : 'none'
+                        }
+                      }}>
+                        {item.icon}
                       </Box>
-                      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%' }}>
-                        <Box sx={{ flex: '0 0 50%', display: 'flex', alignItems: 'center', justifyContent: 'center', mt: 0.1, color: active ? item.color : alpha(item.color, 0.65), '& svg': { fontSize: { xs: '1.35rem', sm: '1.45rem' }, filter: active ? `drop-shadow(0 0 4px ${alpha(item.color,0.35)})` : 'none' } }}>
-                            {item.icon}
-                          </Box>
-                        <Box sx={{ flex: '1 1 50%', width: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', pb: 0.4 }}>
-                          <Typography variant="caption" sx={{ fontWeight: 400, color: 'text.secondary', letterSpacing: 0.25 }}>
-                            {item.label}{isToday && isTodayActive ? ' *' : ''}
-                          </Typography>
-                        </Box>
+                      
+                      {/* Number display */}
+                      <Box sx={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        height: '100%',
+                        position: 'relative',
+                        zIndex: 1
+                      }}>
+                        <Typography
+                          sx={{
+                            fontFamily: '"Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
+                            fontSize: { xs: '2.25rem', sm: '2.5rem' },
+                            lineHeight: 1,
+                            fontWeight: 700,
+                            letterSpacing: '-0.05em',
+                            color: item.color,
+                            textShadow: `0 0 3px ${alpha(item.color, 0.3)}`,
+                            transition: 'color 160ms ease, text-shadow 160ms ease',
+                            textAlign: 'center',
+                            mb: 0.5,
+                            minWidth: '3ch',
+                            display: 'block'
+                          }}
+                        >
+                          {item.value.toString().padStart(2, '0')}
+                        </Typography>
+                        
+                        {/* Label below number */}
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            fontWeight: 500, 
+                            color: active ? item.color : 'text.secondary', 
+                            letterSpacing: 0.5,
+                            fontSize: '0.75rem',
+                            textTransform: 'uppercase',
+                            textAlign: 'center',
+                            transition: 'color 160ms ease',
+                            width: '100%', // Take full width of parent
+                            display: 'block' // Ensure it's a block element for centering
+                          }}
+                        >
+                          
+                          {item.label}{isToday && isTodayActive ? ' *' : ''}
+                        </Typography>
                       </Box>
                     </Box>
                   );

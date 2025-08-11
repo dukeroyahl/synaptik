@@ -70,6 +70,11 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
       chip: theme.palette.success.main,
       text: theme.palette.success.contrastText || '#fff'
     },
+    pending: {
+      ring: theme.palette.grey[400],
+      chip: theme.palette.grey[400],
+      text: theme.palette.grey.contrastText || '#000'
+    },
     open: {
       ring: theme.palette.warning.main,
       chip: theme.palette.warning.main,

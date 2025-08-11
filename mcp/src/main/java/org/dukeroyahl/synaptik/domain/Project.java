@@ -3,7 +3,6 @@ package org.dukeroyahl.synaptik.domain;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import com.fasterxml.jackson.annotation.JsonFormat;
 
 /**
  * Project domain class for MCP server - matches server model
@@ -12,11 +11,9 @@ public class Project {
     
     public String id;
     
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
-    public LocalDateTime createdAt;
+    public String createdAt;
     
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
-    public LocalDateTime updatedAt;
+    public String updatedAt;
     
     public String name;
     public String description;
@@ -24,14 +21,11 @@ public class Project {
     public Double progress = 0.0;
     public String owner;
     
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
-    public LocalDateTime dueDate;
+    public String dueDate;
     
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
-    public LocalDateTime startDate;
+    public String startDate;
     
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
-    public LocalDateTime endDate;
+    public String endDate;
     
     public String color;
     
@@ -59,7 +53,12 @@ public class Project {
     }
     
     public boolean isOverdue() {
-        return dueDate != null && LocalDateTime.now().isAfter(dueDate) && 
-               status != ProjectStatus.COMPLETED;
+        if (dueDate == null || dueDate.trim().isEmpty()) return false;
+        try {
+            LocalDateTime due = LocalDateTime.parse(dueDate.trim());
+            return LocalDateTime.now().isAfter(due) && status != ProjectStatus.COMPLETED;
+        } catch (Exception e) {
+            return false; // Invalid date format, not overdue
+        }
     }
 }

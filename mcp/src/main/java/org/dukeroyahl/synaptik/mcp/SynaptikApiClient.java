@@ -58,6 +58,20 @@ public interface SynaptikApiClient {
     @Path("/api/tasks")
     Uni<Response> deleteAllTasks();
     
+    // ===== RESTORED STATUS-BASED ENDPOINTS =====
+    
+    @GET
+    @Path("/api/tasks/pending")
+    Uni<List<Task>> getPendingTasks();
+    
+    @GET
+    @Path("/api/tasks/active")
+    Uni<List<Task>> getActiveTasks();
+    
+    @GET
+    @Path("/api/tasks/completed")
+    Uni<List<Task>> getCompletedTasks();
+    
     // ===== TASK STATUS MANAGEMENT =====
     
     @PUT
@@ -69,7 +83,7 @@ public interface SynaptikApiClient {
     Uni<List<Task>> getOverdueTasks(@QueryParam("tz") String timezone);
     
     @GET
-    @Path("/api/tasks/due-today")
+    @Path("/api/tasks/today")
     Uni<List<Task>> getTodayTasks(@QueryParam("tz") String timezone);
     
     @GET

@@ -219,19 +219,19 @@ public class SynaptikMcpServer {
 
     @Tool(description = "Get all pending tasks")
     public Uni<String> getPendingTasks() {
-        return apiClient.searchTasks(null, null, null, null, Arrays.asList("PENDING"), null, null)
+        return apiClient.getPendingTasks()
                 .map(tasks -> formatTasksResponseWithEmoji(tasks, "Pending tasks", "⏳"));
     }
 
     @Tool(description = "Get all active tasks")
     public Uni<String> getActiveTasks() {
-        return apiClient.searchTasks(null, null, null, null, Arrays.asList("ACTIVE"), null, null)
+        return apiClient.getActiveTasks()
                 .map(tasks -> formatTasksResponseWithEmoji(tasks, "Active tasks", "🔄"));
     }
 
     @Tool(description = "Get all completed tasks")
     public Uni<String> getCompletedTasks() {
-        return apiClient.searchTasks(null, null, null, null, Arrays.asList("COMPLETED"), null, null)
+        return apiClient.getCompletedTasks()
                 .map(tasks -> formatTasksResponseWithEmoji(tasks, "Completed tasks", "✅"));
     }
 
@@ -399,7 +399,9 @@ public class SynaptikMcpServer {
         // Parse dueDate string to LocalDateTime if provided
         if (dueDate != null && !dueDate.trim().isEmpty()) {
             try {
-                project.dueDate = java.time.LocalDateTime.parse(dueDate.trim());
+                // Validate the date format but store as string
+                java.time.LocalDateTime.parse(dueDate.trim());
+                project.dueDate = dueDate.trim();
             } catch (Exception e) {
                 return Uni.createFrom().item("❌ Invalid date format. Please use ISO format like: 2024-12-31T23:59:59");
             }

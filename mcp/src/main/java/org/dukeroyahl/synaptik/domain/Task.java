@@ -12,8 +12,8 @@ import java.util.List;
 public class Task {
     
     public String id;
-    public LocalDateTime createdAt;
-    public LocalDateTime updatedAt;
+    public String createdAt;
+    public String updatedAt;
     
     public String title;
     public String description;

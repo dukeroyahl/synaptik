@@ -26,14 +26,6 @@ import {
 import { useFilterStore } from '../stores/filterStore';
 
 // Common filter data
-const statusOptions = [
-  { key: 'pending', label: 'Pending' },
-  { key: 'started', label: 'Started' },
-  { key: 'overdue', label: 'Overdue' },
-  { key: 'completed', label: 'Completed' },
-  { key: 'all', label: 'All' }
-];
-
 const priorityOptions = [
   { key: 'HIGH', label: 'High' },
   { key: 'MEDIUM', label: 'Medium' },
@@ -85,8 +77,6 @@ const UnifiedFilter: React.FC<UnifiedFilterProps> = ({
 }) => {
   const theme = useTheme();
   const {
-    status,
-    setStatus,
     priorities,
     togglePriority,
     assignees: selectedAssignees,
@@ -186,9 +176,6 @@ const UnifiedFilter: React.FC<UnifiedFilterProps> = ({
     // Build chip representations for active filters
     const chips: { key: string; label: string; onDelete: () => void }[] = [];
 
-    if (status && !['pending','all'].includes(status)) {
-      chips.push({ key: `status:${status}`, label: `Status: ${status}`, onDelete: () => setStatus('pending') });
-    }
     priorities.forEach(p => {
       chips.push({ key: `priority:${p}`, label: `Priority: ${p.toLowerCase()}`, onDelete: () => togglePriority(p) });
     });
@@ -290,14 +277,6 @@ const UnifiedFilter: React.FC<UnifiedFilterProps> = ({
           Reset All Filters ({activeCount})
         </Button>
       )}
-
-      <FilterChips
-        title="Status"
-        options={statusOptions}
-        value={status}
-        onChange={(key) => setStatus(key as any)}
-        color="primary"
-      />
 
       <FilterChips
         title="Priority"

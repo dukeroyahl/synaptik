@@ -79,13 +79,10 @@ class McpTestUtilities {
      */
     static void mockEmptyCollections(SynaptikApiClient apiClient) {
         when(apiClient.getAllTasks()).thenReturn(Uni.createFrom().item(java.util.List.of()));
-        // Mock search-based task retrieval methods (replacing old status-specific endpoints)
-        when(apiClient.searchTasks(eq(null), eq(null), eq(null), eq(null), eq(Arrays.asList("PENDING")), eq(null), eq(null)))
-                .thenReturn(Uni.createFrom().item(java.util.List.of()));
-        when(apiClient.searchTasks(eq(null), eq(null), eq(null), eq(null), eq(Arrays.asList("ACTIVE")), eq(null), eq(null)))
-                .thenReturn(Uni.createFrom().item(java.util.List.of()));
-        when(apiClient.searchTasks(eq(null), eq(null), eq(null), eq(null), eq(Arrays.asList("COMPLETED")), eq(null), eq(null)))
-                .thenReturn(Uni.createFrom().item(java.util.List.of()));
+        // Mock restored status-based endpoints (replacing search-based workarounds)
+        when(apiClient.getPendingTasks()).thenReturn(Uni.createFrom().item(java.util.List.of()));
+        when(apiClient.getActiveTasks()).thenReturn(Uni.createFrom().item(java.util.List.of()));
+        when(apiClient.getCompletedTasks()).thenReturn(Uni.createFrom().item(java.util.List.of()));
         
         // Mock restored endpoints
         when(apiClient.getOverdueTasks(anyString())).thenReturn(Uni.createFrom().item(java.util.List.of()));

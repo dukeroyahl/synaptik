@@ -103,7 +103,7 @@ class SynaptikMcpServerTaskToolsTest {
         t.id = "123";
         t.title = "Active Task";
         t.status = TaskStatus.ACTIVE;
-        when(apiClient.searchTasks(eq(null), eq(null), eq(null), eq(null), eq(Arrays.asList("ACTIVE")), eq(null), eq(null)))
+        when(apiClient.getActiveTasks())
                 .thenReturn(Uni.createFrom().item(List.of(t)));
 
         String result = server.getActiveTasks().await().indefinitely();

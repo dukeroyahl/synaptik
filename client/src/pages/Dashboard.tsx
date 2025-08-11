@@ -117,6 +117,7 @@ const Dashboard = memo(() => {
           onDueDateChange={(d) => setDueDate(d ?? undefined)}
           activeDueDate={dueDate || null}
           fullHeight
+          refreshCounter={refreshCounter}
         />
       </Box>
 
