@@ -2,7 +2,6 @@ import { Task } from '../types'
 import { getTimeRemaining } from '../utils/dateUtils'
 import { isTaskOverdue } from '../utils/taskUtils'
 
-export type UrgencyLevel = 'critical' | 'high' | 'medium' | 'low' | 'none'
 export type EisenhowerQuadrant = 'urgent-important' | 'not-urgent-important' | 'urgent-not-important' | 'not-urgent-not-important'
 
 export interface TaskDisplayProperties {
@@ -11,7 +10,6 @@ export interface TaskDisplayProperties {
   isDueTomorrow: boolean
   daysUntilDue: number | null
   timeRemaining: string
-  urgencyLevel: UrgencyLevel
   quadrant: EisenhowerQuadrant
   canStart: boolean
   canStop: boolean
@@ -44,26 +42,12 @@ export class TaskBusinessLogic {
       isDueTomorrow,
       daysUntilDue,
       timeRemaining,
-      urgencyLevel: this.getUrgencyLevel(task.urgency ?? undefined),
       quadrant: this.getEisenhowerQuadrant(task),
       canStart: this.canPerformAction(task, 'start'),
       canStop: this.canPerformAction(task, 'stop'),
       canComplete: this.canPerformAction(task, 'complete'),
       canDelete: this.canPerformAction(task, 'delete'),
     }
-  }
-
-  /**
-   * Get urgency level based on urgency score
-   */
-  static getUrgencyLevel(urgency?: number): UrgencyLevel {
-    if (!urgency) return 'none'
-    
-    if (urgency >= 15) return 'critical'
-    if (urgency >= 10) return 'high'
-    if (urgency >= 6) return 'medium'
-    if (urgency >= 3) return 'low'
-    return 'none'
   }
 
   /**
@@ -218,13 +202,14 @@ export class TaskBusinessLogic {
   }
 
   /**
-   * Sort tasks by urgency and due date
+   * Sort tasks by priority and due date
    */
   static sortTasksByPriority(tasks: Task[]): Task[] {
     return [...tasks].sort((a, b) => {
-      // First sort by urgency (higher urgency first)
-      const urgencyDiff = (b.urgency || 0) - (a.urgency || 0)
-      if (urgencyDiff !== 0) return urgencyDiff
+      // First sort by priority (HIGH > MEDIUM > LOW > NONE)
+      const priorityOrder = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1, 'NONE': 0 }
+      const priorityDiff = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0)
+      if (priorityDiff !== 0) return priorityDiff
       
       // Then by due date (earlier due date first)
       const aDate = a.dueDate

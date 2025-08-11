@@ -154,7 +154,6 @@ export class TaskService {
       description: dto.description || null,
       status: dto.status,
       priority: dto.priority,
-      urgency: null, // Deprecated field
       project: dto.projectName || null,
       assignee: dto.assignee || null,
       dueDate: dto.dueDate || null,

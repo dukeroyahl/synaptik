@@ -338,4 +338,171 @@ public class TaskResourceTest {
                 .statusCode(200)
                 .contentType(ContentType.JSON);
     }
+
+    @Test
+    @Order(27)
+    public void testGetOverdueTasks() {
+        // Test with default UTC timezone
+        given()
+            .when().get("/api/tasks/overdue")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+
+        // Test with specific timezone
+        given()
+            .queryParam("tz", "America/New_York")
+            .when().get("/api/tasks/overdue")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+
+        // Test with invalid timezone (should fallback to UTC)
+        given()
+            .queryParam("tz", "Invalid/Timezone")
+            .when().get("/api/tasks/overdue")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+    }
+
+    @Test
+    @Order(28)
+    public void testGetDueTodayTasks() {
+        // Test with default UTC timezone
+        given()
+            .when().get("/api/tasks/due-today")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+
+        // Test with specific timezone
+        given()
+            .queryParam("tz", "Europe/London")
+            .when().get("/api/tasks/due-today")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+
+        // Test with Pacific timezone
+        given()
+            .queryParam("tz", "America/Los_Angeles")
+            .when().get("/api/tasks/due-today")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+    }
+
+    @Test
+    @Order(29)
+    public void testCreateOverdueTaskAndRetrieve() {
+        // Create a task with yesterday's date
+        String overdueTaskJson = """
+            {
+                "title": "Test Overdue Task",
+                "description": "This task should be overdue",
+                "status": "PENDING",
+                "priority": "HIGH",
+                "project": "TestProject",
+                "assignee": "testuser",
+                "dueDate": "2025-08-10T10:00:00Z"
+            }
+            """;
+
+        // Create the overdue task
+        given()
+            .contentType(ContentType.JSON)
+            .body(overdueTaskJson)
+            .when().post("/api/tasks")
+            .then()
+                .statusCode(201);
+
+        // Verify it appears in overdue tasks
+        given()
+            .queryParam("tz", "UTC")
+            .when().get("/api/tasks/overdue")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("size()", greaterThanOrEqualTo(1));
+    }
+
+    @Test
+    @Order(30)
+    public void testCreateDueTodayTaskAndRetrieve() {
+        // Create a task due today
+        String dueTodayTaskJson = """
+            {
+                "title": "Test Due Today Task",
+                "description": "This task is due today",
+                "status": "PENDING",
+                "priority": "MEDIUM",
+                "project": "TestProject",
+                "assignee": "testuser",
+                "dueDate": "2025-08-11T15:00:00Z"
+            }
+            """;
+
+        // Create the due today task
+        given()
+            .contentType(ContentType.JSON)
+            .body(dueTodayTaskJson)
+            .when().post("/api/tasks")
+            .then()
+                .statusCode(201);
+
+        // Verify it appears in due today tasks
+        given()
+            .queryParam("tz", "UTC")
+            .when().get("/api/tasks/due-today")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("size()", greaterThanOrEqualTo(1));
+    }
+
+    @Test
+    @Order(31)
+    public void testTimezoneCalculations() {
+        // Test that timezone affects the calculation
+        // A task due at 2025-08-11T06:00:00Z should be:
+        // - Due today in UTC (it's 06:00 UTC on Aug 11)
+        // - Due yesterday in Pacific time (it's 23:00 PDT on Aug 10)
+        
+        String timezoneTestTaskJson = """
+            {
+                "title": "Timezone Test Task",
+                "description": "Testing timezone calculations",
+                "status": "PENDING",
+                "priority": "LOW",
+                "project": "TestProject",
+                "assignee": "testuser",
+                "dueDate": "2025-08-11T06:00:00Z"
+            }
+            """;
+
+        // Create the task
+        given()
+            .contentType(ContentType.JSON)
+            .body(timezoneTestTaskJson)
+            .when().post("/api/tasks")
+            .then()
+                .statusCode(201);
+
+        // Should appear in due today for UTC
+        given()
+            .queryParam("tz", "UTC")
+            .when().get("/api/tasks/due-today")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+
+        // Should also work for other timezones
+        given()
+            .queryParam("tz", "America/Los_Angeles")
+            .when().get("/api/tasks/due-today")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+    }
 }

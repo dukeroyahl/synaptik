@@ -8,7 +8,6 @@ import {
   Button,
   Checkbox,
   FormControlLabel,
-  Slider,
   Divider,
   Drawer,
   IconButton,

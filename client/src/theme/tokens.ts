@@ -47,13 +47,6 @@ export const semantic = {
     pending: { light: '#0969da', dark: '#60a5fa' },
     completed: { light: '#1a7f37', dark: '#4ade80' },
     overdue: { light: '#cf222e', dark: '#f87171' }
-  },
-  urgency: {
-    critical: { light: '#d32f2f', dark: '#f87171' },
-    high: { light: '#f57c00', dark: '#fb923c' },
-    medium: { light: '#fbc02d', dark: '#facc15' },
-    low: { light: '#388e3c', dark: '#4ade80' },
-    none: { light: '#666666', dark: '#94a3b8' }
   }
 };
 

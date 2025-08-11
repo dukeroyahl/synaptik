@@ -5,7 +5,6 @@ export interface Task {
   description?: string | null
   status: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'DELETED'
   priority: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE'
-  urgency?: number | null // Deprecated - will be removed
   project?: string | null
   assignee?: string | null
   dueDate?: string | null
@@ -70,7 +69,6 @@ export interface TaskGraphNode {
   projectId?: string
   assignee?: string
   priority?: string
-  urgency?: number
   placeholder?: boolean
 }
 

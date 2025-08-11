@@ -269,6 +269,78 @@ public class TaskService {
      * @param timezone  Timezone for date range filtering (default: UTC)
      * @return List of tasks matching the search criteria
      */
+    /**
+     * Get tasks that are overdue based on user's timezone.
+     * A task is overdue if its due date is before the current date/time in the user's timezone.
+     * 
+     * @param timezone User's timezone (e.g., "America/New_York", "UTC")
+     * @return List of overdue tasks as DTOs
+     */
+    public Uni<List<TaskDTO>> getOverdueTasks(String timezone) {
+        logger.infof("Getting overdue tasks for timezone: %s", timezone);
+        
+        ZoneId zone = resolveZone(timezone);
+        ZonedDateTime now = ZonedDateTime.now(zone);
+        String currentIsoString = now.toInstant().toString();
+        
+        // MongoDB query for tasks with dueDate < now
+        Document query = new Document("dueDate", new Document("$lt", currentIsoString))
+            .append("dueDate", new Document("$ne", null)) // Exclude tasks without due dates
+            .append("status", new Document("$ne", TaskStatus.COMPLETED.name())); // Exclude completed tasks
+        
+        return Task.<Task>find(query).list()
+            .onItem().transformToUni(this::enrichTaskListWithProjects);
+    }
+    
+    /**
+     * Get tasks that are due today based on user's timezone.
+     * A task is due today if its due date falls within today's date range in the user's timezone.
+     * 
+     * @param timezone User's timezone (e.g., "America/New_York", "UTC")
+     * @return List of tasks due today as DTOs
+     */
+    public Uni<List<TaskDTO>> getDueTodayTasks(String timezone) {
+        logger.infof("Getting tasks due today for timezone: %s", timezone);
+        
+        ZoneId zone = resolveZone(timezone);
+        ZonedDateTime now = ZonedDateTime.now(zone);
+        
+        // Start of today in user's timezone
+        ZonedDateTime startOfToday = now.withHour(0).withMinute(0).withSecond(0).withNano(0);
+        
+        // End of today in user's timezone
+        ZonedDateTime endOfToday = now.withHour(23).withMinute(59).withSecond(59).withNano(999_000_000);
+        
+        // Convert to ISO strings for MongoDB comparison
+        String startIsoString = startOfToday.toInstant().toString();
+        String endIsoString = endOfToday.toInstant().toString();
+        
+        // MongoDB query for tasks with dueDate within today's range
+        Document query = new Document("dueDate", new Document("$gte", startIsoString).append("$lte", endIsoString))
+            .append("dueDate", new Document("$ne", null)) // Exclude tasks without due dates
+            .append("status", new Document("$ne", TaskStatus.COMPLETED.name())); // Exclude completed tasks
+        
+        return Task.<Task>find(query).list()
+            .onItem().transformToUni(this::enrichTaskListWithProjects);
+    }
+    
+    /**
+     * Resolve timezone string to ZoneId with fallback to UTC.
+     * Kept as utility method for date operations.
+     */
+    private ZoneId resolveZone(String timezone) {
+        if (timezone == null || timezone.trim().isEmpty()) {
+            return ZoneId.of("UTC");
+        }
+        
+        try {
+            return ZoneId.of(timezone.trim());
+        } catch (Exception e) {
+            logger.warnf("Invalid timezone: %s, falling back to UTC", timezone);
+            return ZoneId.of("UTC");
+        }
+    }
+
     public Uni<List<Task>> searchTasks(List<TaskStatus> statuses, String title, String assignee,
                                        String projectId, String dateFrom, String dateTo, String timezone) {
         logger.infof("Searching tasks with database-level filters - statuses: %s, title: %s, assignee: %s, projectId: %s, dateFrom: %s, dateTo: %s, timezone: %s",

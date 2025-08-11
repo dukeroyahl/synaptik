@@ -461,7 +461,7 @@ const EisenhowerMatrix: React.FC = () => {
         }}
       >
         <Typography variant="body2" color="text.secondary">
-          Drag tasks between quadrants to change their priority and urgency. Tasks are automatically 
+          Drag tasks between quadrants to change their priority. Tasks are automatically 
           categorized based on their due date and priority.
         </Typography>
       </Paper>

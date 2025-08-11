@@ -132,33 +132,6 @@ export const buildTheme = (mode: 'light' | 'dark'): Theme => {
         border: `${isDark ? tokens.semantic.status.overdue.dark : tokens.semantic.status.overdue.light}40`,
         color: isDark ? tokens.semantic.status.overdue.dark : tokens.semantic.status.overdue.light
       }
-    },
-    urgency: {
-      CRITICAL: {
-        gradient: mode === 'dark' ? `linear-gradient(135deg, ${tokens.semantic.urgency.critical.dark}33 0%, ${tokens.semantic.urgency.critical.dark}1A 100%)` : `linear-gradient(135deg, ${tokens.semantic.urgency.critical.light}22 0%, ${tokens.semantic.urgency.critical.light}0F 100%)`,
-        border: `${mode === 'dark' ? tokens.semantic.urgency.critical.dark : tokens.semantic.urgency.critical.light}40`,
-        color: mode === 'dark' ? tokens.semantic.urgency.critical.dark : tokens.semantic.urgency.critical.light
-      },
-      HIGH: {
-        gradient: mode === 'dark' ? `linear-gradient(135deg, ${tokens.semantic.urgency.high.dark}33 0%, ${tokens.semantic.urgency.high.dark}1A 100%)` : `linear-gradient(135deg, ${tokens.semantic.urgency.high.light}22 0%, ${tokens.semantic.urgency.high.light}0F 100%)`,
-        border: `${mode === 'dark' ? tokens.semantic.urgency.high.dark : tokens.semantic.urgency.high.light}40`,
-        color: mode === 'dark' ? tokens.semantic.urgency.high.dark : tokens.semantic.urgency.high.light
-      },
-      MEDIUM: {
-        gradient: mode === 'dark' ? `linear-gradient(135deg, ${tokens.semantic.urgency.medium.dark}33 0%, ${tokens.semantic.urgency.medium.dark}1A 100%)` : `linear-gradient(135deg, ${tokens.semantic.urgency.medium.light}22 0%, ${tokens.semantic.urgency.medium.light}0F 100%)`,
-        border: `${mode === 'dark' ? tokens.semantic.urgency.medium.dark : tokens.semantic.urgency.medium.light}40`,
-        color: mode === 'dark' ? tokens.semantic.urgency.medium.dark : tokens.semantic.urgency.medium.light
-      },
-      LOW: {
-        gradient: mode === 'dark' ? `linear-gradient(135deg, ${tokens.semantic.urgency.low.dark}33 0%, ${tokens.semantic.urgency.low.dark}1A 100%)` : `linear-gradient(135deg, ${tokens.semantic.urgency.low.light}22 0%, ${tokens.semantic.urgency.low.light}0F 100%)`,
-        border: `${mode === 'dark' ? tokens.semantic.urgency.low.dark : tokens.semantic.urgency.low.light}40`,
-        color: mode === 'dark' ? tokens.semantic.urgency.low.dark : tokens.semantic.urgency.low.light
-      },
-      NONE: {
-        gradient: mode === 'dark' ? `linear-gradient(135deg, ${tokens.semantic.urgency.none.dark}22 0%, ${tokens.semantic.urgency.none.dark}0F 100%)` : `linear-gradient(135deg, ${tokens.semantic.urgency.none.light}11 0%, ${tokens.semantic.urgency.none.light}05 100%)`,
-        border: `${mode === 'dark' ? tokens.semantic.urgency.none.dark : tokens.semantic.urgency.none.light}30`,
-        color: mode === 'dark' ? tokens.semantic.urgency.none.dark : tokens.semantic.urgency.none.light
-      }
     }
   };
 

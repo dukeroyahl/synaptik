@@ -155,6 +155,26 @@ public class TaskResource {
     }
 
     @GET
+    @Path("/overdue")
+    @Operation(summary = "Get overdue tasks", 
+               description = "Retrieve tasks that are past their due date in the specified timezone")
+    public Uni<List<TaskDTO>> getOverdueTasks(
+            @QueryParam("tz") @DefaultValue("UTC") String timezone) {
+        
+        return taskService.getOverdueTasks(timezone);
+    }
+
+    @GET
+    @Path("/due-today")
+    @Operation(summary = "Get tasks due today", 
+               description = "Retrieve tasks that are due today in the specified timezone")
+    public Uni<List<TaskDTO>> getDueTodayTasks(
+            @QueryParam("tz") @DefaultValue("UTC") String timezone) {
+        
+        return taskService.getDueTodayTasks(timezone);
+    }
+
+    @GET
     @Path("/graph")
     @Operation(summary = "Get task dependency graph", description = "Retrieve task dependency graph with optional status filtering")
     public Uni<TaskGraphResponse> getTaskGraph(@QueryParam("statuses") String statuses) {
