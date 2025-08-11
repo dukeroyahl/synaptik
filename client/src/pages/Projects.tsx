@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Box, 
   Typography, 
@@ -49,12 +49,7 @@ const Projects: React.FC = () => {
     fetchProjects(); // Refresh projects to update status
   });
 
-  useEffect(() => {
-    fetchProjects();
-    fetchTasks();
-  }, []);
-
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
       const projects = await projectService.getProjects();
@@ -64,7 +59,23 @@ const Projects: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Separate function to refresh selected project
+  const refreshSelectedProject = useCallback(async () => {
+    if (!selectedProject) return;
+    
+    try {
+      const projects = await projectService.getProjects();
+      const updatedSelectedProject = projects?.find(p => p.id === selectedProject.id);
+      if (updatedSelectedProject) {
+        setSelectedProject(updatedSelectedProject);
+        setProjects(projects || []);
+      }
+    } catch (error) {
+      console.error('Error refreshing selected project:', error);
+    }
+  }, [selectedProject]);
 
   const fetchTasks = async () => {
     try {
@@ -74,6 +85,11 @@ const Projects: React.FC = () => {
       console.error('Error fetching tasks:', error);
     }
   };
+
+  useEffect(() => {
+    fetchProjects();
+    fetchTasks();
+  }, [fetchProjects]);
 
   // Simplified task action handlers using the new hook
   const handleMarkDone = markDone;
@@ -182,6 +198,7 @@ const Projects: React.FC = () => {
             await fetchTasks();
             await fetchProjects(); // Update project status after adding task
           }}
+          onProjectUpdated={refreshSelectedProject}
         />
         
         {editingTask && (

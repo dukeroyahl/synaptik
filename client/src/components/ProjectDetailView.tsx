@@ -25,14 +25,16 @@ import { TaskDTO, Project } from '../types';
 import { TaskActionCallbacks } from '../types/common';
 import TaskCard from './TaskCard';
 import TaskCapture from './TaskCapture';
-import { parseBackendDate } from '../utils/dateUtils';
 import { isTaskOverdue } from '../utils/taskUtils';
+import InlineEditField from './InlineEditField';
+import { projectService } from '../services/projectService';
 
 interface ProjectDetailViewProps extends TaskActionCallbacks {
   project: Project;
   tasks: TaskDTO[];
   onStop?: (task: TaskDTO) => void;
   onTaskAdded?: () => void;
+  onProjectUpdated?: () => void;
 }
 
 const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
@@ -47,6 +49,7 @@ const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
   onStart,
   onLinkTask,
   onTaskAdded,
+  onProjectUpdated,
 }) => {
   const theme = useTheme();
 
@@ -73,14 +76,28 @@ const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
     }
   };
 
-  // Format due date
-  const formatDueDate = (dueDate: string | null | undefined) => {
-    if (!dueDate) return 'No due date';
+
+  // Handle project name update
+  const handleProjectNameUpdate = async (newName: string) => {
     try {
-      const date = parseBackendDate(dueDate);
-      return date.toLocaleDateString();
-    } catch {
-      return 'Invalid date';
+      await projectService.updateProject(project.id, { name: newName });
+      onProjectUpdated?.();
+    } catch (error) {
+      console.error('Failed to update project name:', error);
+      throw error; // Re-throw to trigger error handling in InlineEditField
+    }
+  };
+
+  // Handle project due date update
+  const handleDueDateUpdate = async (newDueDate: string) => {
+    try {
+      // Convert date string to ISO format if needed
+      const isoDate = newDueDate ? new Date(newDueDate).toISOString() : undefined;
+      await projectService.updateProject(project.id, { dueDate: isoDate });
+      onProjectUpdated?.();
+    } catch (error) {
+      console.error('Failed to update project due date:', error);
+      throw error; // Re-throw to trigger error handling in InlineEditField
     }
   };
 
@@ -98,9 +115,18 @@ const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
               }} 
             />
             <Box sx={{ flex: 1 }}>
-              <Typography variant="h4" gutterBottom>
-                {project.name}
-              </Typography>
+              <InlineEditField
+                value={project.name}
+                onSave={handleProjectNameUpdate}
+                typography="h4"
+                placeholder="Project name"
+                sx={{ 
+                  mb: 1,
+                  minHeight: 'auto', // Override default minHeight for h4
+                  width: 'fit-content',
+                  maxWidth: '100%'
+                }}
+              />
               
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
                 <Chip
@@ -122,9 +148,21 @@ const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                 )}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   <ScheduleIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                  <Typography variant="body2" color="text.secondary">
-                    Due: {formatDueDate(project.dueDate)}
+                  <Typography variant="body2" color="text.secondary" sx={{ mr: 0.5 }}>
+                    Due:
                   </Typography>
+                  <InlineEditField
+                    value={project.dueDate || ''}
+                    onSave={handleDueDateUpdate}
+                    variant="date"
+                    typography="body2"
+                    placeholder="No due date"
+                    sx={{ 
+                      color: 'text.secondary',
+                      minHeight: 'auto', // Override default minHeight for body2
+                      width: 'fit-content'
+                    }}
+                  />
                 </Box>
                 {/* Progress inline with metadata */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 200 }}>
