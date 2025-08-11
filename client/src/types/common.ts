@@ -1,17 +1,17 @@
 // Common interface patterns to ensure consistency across components
 
-import { Task, Project } from './index';
+import { TaskDTO, Project } from './index';
 
 // Standardized action callback types
 export interface TaskActionCallbacks {
-  onEdit?: (task: Task) => void;
-  onDelete?: (task: Task) => void;
-  onMarkDone?: (task: Task) => void;
-  onUnmarkDone?: (task: Task) => void;
-  onStart?: (task: Task) => void;
-  onStop?: (task: Task) => void;
-  onViewDependencies?: (task: Task) => void;
-  onLinkTask?: (task: Task) => void;
+  onEdit?: (task: TaskDTO) => void;
+  onDelete?: (task: TaskDTO) => void;
+  onMarkDone?: (task: TaskDTO) => void;
+  onUnmarkDone?: (task: TaskDTO) => void;
+  onStart?: (task: TaskDTO) => void;
+  onStop?: (task: TaskDTO) => void;
+  onViewDependencies?: (task: TaskDTO) => void;
+  onLinkTask?: (task: TaskDTO) => void;
 }
 
 export interface ProjectActionCallbacks {
@@ -30,7 +30,7 @@ export interface BaseComponentProps {
 
 export interface SelectableProps {
   selected?: boolean;
-  onSelect?: (item: Task | Project) => void;
+  onSelect?: (item: TaskDTO | Project) => void;
 }
 
 export interface CompactModeProps {

@@ -1,4 +1,4 @@
-import { Task } from '../types'
+import { TaskDTO } from '../types'
 import { parseBackendDate, formatDateFromBackend } from './dateUtils';
 import { getQuadrant } from './eisenhowerUtils';
 
@@ -14,7 +14,7 @@ export function toSentenceCase(text: string): string {
  * Generate a short, readable task ID from MongoDB ObjectId or externalId
  * Format: SYN-XXXX (e.g., SYN-1A2B)
  */
-export function generateTaskId(task: Task): string {
+export function generateTaskId(task: TaskDTO): string {
   if (!task || !task.id) {
     if (import.meta.env.DEV) {
       console.warn('Task or task.id is missing, using default ID');
@@ -41,7 +41,7 @@ export function generateTaskId(task: Task): string {
 /**
  * Get CSS class for task card based on priority, status, and Eisenhower quadrant
  */
-export function getTaskCardClass(task: Task): string {
+export function getTaskCardClass(task: TaskDTO): string {
   if (!task) {
     if (import.meta.env.DEV) {
       console.warn('Task is null/undefined in getTaskCardClass');
@@ -197,7 +197,7 @@ export function isTaskDueToday(dueDate?: string): boolean {
  * - completed
  * - open (default: pending/started)
  */
-export function getTaskColorCategory(task: import('../types').Task): 'overdue' | 'dueToday' | 'completed' | 'open' {
+export function getTaskColorCategory(task: TaskDTO): 'overdue' | 'dueToday' | 'completed' | 'open' {
   if (task.status === 'COMPLETED') return 'completed';
   if (task.dueDate) {
     if (isTaskOverdue(task.dueDate)) return 'overdue';

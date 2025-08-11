@@ -27,7 +27,7 @@ import {
   Task as TaskIcon,
   Person as PersonIcon
 } from '@mui/icons-material';
-import { Task } from '../types';
+import { TaskDTO } from '../types';
 import TaskEditDialog from './TaskEditDialog';
 import UnifiedTaskGraph from './UnifiedTaskGraph';
 import { formatTaskDate, toSentenceCase } from '../utils/taskUtils';
@@ -38,12 +38,12 @@ interface UnifiedDependencyViewProps {
 }
 
 const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onClose }) => {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [newTaskDialogOpen, setNewTaskDialogOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editingTask, setEditingTask] = useState<TaskDTO | null>(null);
   const [showGraph, setShowGraph] = useState(false);
 
   useEffect(() => {
@@ -74,7 +74,7 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
     }
   };
 
-  const handleTaskUpdate = (updatedTask: Task) => {
+  const handleTaskUpdate = (updatedTask: TaskDTO) => {
     setTasks(prevTasks => 
       prevTasks.map(task => 
         task.id === updatedTask.id ? updatedTask : task
@@ -82,7 +82,7 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
     );
   };
 
-  const handleNewTask = (newTask: Task) => {
+  const handleNewTask = (newTask: TaskDTO) => {
     setTasks(prevTasks => [newTask, ...prevTasks]);
   };
 
@@ -98,7 +98,7 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
     });
   };
 
-  const getTaskById = (taskId: string): Task | undefined => {
+  const getTaskById = (taskId: string): TaskDTO | undefined => {
     return tasks.find(task => task.id === taskId);
   };
 
@@ -110,7 +110,7 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
     return tasks.filter(task => task.depends && task.depends.includes(taskId));
   };
 
-  const renderTaskCard = (task: Task, isDependent = false) => (
+  const renderTaskCard = (task: TaskDTO, isDependent = false) => (
     <Card 
       key={task.id} 
       variant="outlined" 
@@ -296,7 +296,7 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
                           <Typography variant="subtitle2" sx={{ fontWeight: 'medium', mt: 1, mb: 1, display: 'block' }}>
                             Depends on:
                           </Typography>
-                          {task.depends?.map((depId) => {
+                          {task.depends?.map((depId: string) => {
                             const depTask = getTaskById(depId);
                             return depTask ? renderTaskCard(depTask, true) : (
                               <Alert key={depId} severity="warning" sx={{ mb: 1 }}>

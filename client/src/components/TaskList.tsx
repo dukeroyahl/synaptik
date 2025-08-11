@@ -13,6 +13,7 @@ import LinkTaskDialog from './LinkTaskDialog'
 import { parseBackendDate } from '../utils/dateUtils'
 import { API_BASE_URL } from '../config'
 import { useFilterStore } from '../stores/filterStore'
+import { TaskService } from '../services/taskService'
 
 interface TaskListProps {
   filter?: 'PENDING' | 'ACTIVE' | 'overdue' | 'today' | 'COMPLETED' | 'all'
@@ -31,6 +32,7 @@ const TaskList: React.FC<TaskListProps> = memo(({
 }) => {
   const navigate = useNavigate();
   const theme = useTheme();
+  const taskService = new TaskService();
   const [tasks, setTasks] = useState<TaskDTO[]>([])
   const [loading, setLoading] = useState(true)
   const [editingTask, setEditingTask] = useState<TaskDTO | null>(null)
@@ -163,8 +165,10 @@ const TaskList: React.FC<TaskListProps> = memo(({
   }, [filter, querySignature, effectiveDueDate])
 
   const handleTaskAction = useCallback(async (taskId: string, action: 'done' | 'delete' | 'start' | 'pause' | 'undone') => {
+    // Store original tasks for error recovery
+    const originalTasks = [...tasks];
+    
     try {
-      const originalTasks = tasks;
       const targetTask = tasks.find(t => t.id === taskId) || null;
       // Optimistic local mutation snapshot
       let updatedTasks = [...tasks];
@@ -185,41 +189,36 @@ const TaskList: React.FC<TaskListProps> = memo(({
       }
       setTasks(updatedTasks);
 
-      let endpoint = `/api/tasks/${taskId}`
-      let method = 'POST'
+      // Make API call using TaskService
+      let updatedTask: TaskDTO | null = null;
+      
       if (action === 'delete') {
-        endpoint = `/api/tasks/${taskId}`
-        method = 'DELETE'
-      } else {
-        // Map client actions to backend action endpoints
-        const apiAction = action === 'pause' ? 'stop' : action;
-        endpoint = `/api/tasks/${taskId}/${apiAction}`;
+        await taskService.deleteTask(taskId);
+      } else if (action === 'done') {
+        updatedTask = await taskService.completeTask(taskId);
+      } else if (action === 'undone') {
+        updatedTask = await taskService.updateTaskStatus(taskId, 'PENDING');
+      } else if (action === 'start') {
+        updatedTask = await taskService.startTask(taskId);
+      } else if (action === 'pause') {
+        updatedTask = await taskService.stopTask(taskId);
       }
-      const fullUrl = `${API_BASE_URL}${endpoint}`;
-      const response = await fetch(fullUrl, { method, headers: { 'Content-Type': 'application/json' } })
-      if (!response.ok) {
-        // Revert on failure
-        setTasks(originalTasks);
-        // Rebuild counts from original
-        useFilterStore.getState().setCountsFromTasks(originalTasks);
-        throw new Error(`HTTP ${response.status}`)
-      }
+
       // On success reconcile with server if mutated (non-delete)
-      if (action !== 'delete') {
-        const data = await response.json();
-        if (data) {
-          // Merge updated task
-            setTasks(prev => prev.map(t => t.id === taskId ? { ...(data.data || data) } : t));
-            useFilterStore.getState().setCountsFromTasks(useFilterStore.getState().assigneeCounts ? updatedTasks : updatedTasks);
-        }
+      if (action !== 'delete' && updatedTask) {
+        // Merge updated task from server response
+        setTasks(prev => prev.map(t => t.id === taskId ? updatedTask! : t));
       }
       // Refresh counts after final state
       useFilterStore.getState().setCountsFromTasks(updatedTasks);
       if (onTaskUpdate) onTaskUpdate({ id: taskId } as Task);
     } catch (error) {
-      if (import.meta.env.DEV) console.error(`Failed to ${action} task:`, error)
+      if (import.meta.env.DEV) console.error(`Failed to ${action} task:`, error);
+      // Revert optimistic update on error
+      setTasks(originalTasks);
+      useFilterStore.getState().setCountsFromTasks(originalTasks);
     }
-  }, [tasks, onTaskUpdate])
+  }, [tasks, onTaskUpdate, taskService])
 
   useEffect(() => { fetchTasks() }, [fetchTasks])
 

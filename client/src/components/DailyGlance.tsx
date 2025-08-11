@@ -16,6 +16,7 @@ import {
   Today as TodayIcon
 } from '@mui/icons-material';
 import { useFilterStore } from '../stores/filterStore';
+import { API_BASE_URL } from '../config';
 
 interface TaskStats {
   pending: number; // raw pending from endpoint
@@ -61,16 +62,34 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
   const fetchStats = async () => {
     setLoading(true);
     try {
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      
       const [pendingRes, startedRes, completedRes, overdueRes, todayRes] = await Promise.all([
-        fetch('/api/tasks/pending'),
-        fetch('/api/tasks/active'),
-        fetch('/api/tasks/completed'),
-        fetch('/api/tasks/overdue'),
-        fetch('/api/tasks/today')
+        fetch(`${API_BASE_URL}/api/tasks/search?status=PENDING`),
+        fetch(`${API_BASE_URL}/api/tasks/search?status=ACTIVE`),
+        fetch(`${API_BASE_URL}/api/tasks/search?status=COMPLETED`),
+        fetch(`${API_BASE_URL}/api/tasks/search?status=PENDING&status=ACTIVE&dateTo=${yesterday}&tz=${tz}`),
+        fetch(`${API_BASE_URL}/api/tasks/search?status=PENDING&status=ACTIVE&dateFrom=${today}&dateTo=${today}&tz=${tz}`)
       ]);
       const [pendingArr, startedArr, completedArr, overdueArr, todayArr] = await Promise.all([
         pendingRes.json(), startedRes.json(), completedRes.json(), overdueRes.json(), todayRes.json()
       ]);
+      
+      // Debug logging
+      if (import.meta.env.DEV) {
+        console.log('DailyGlance API responses:', {
+          pending: pendingArr,
+          started: startedArr,
+          completed: completedArr,
+          overdue: overdueArr,
+          today: todayArr
+        });
+        console.log('Today query URL:', `${API_BASE_URL}/api/tasks/search?status=PENDING&status=ACTIVE&dateFrom=${today}&dateTo=${today}&tz=${tz}`);
+        console.log('Date format used:', { today, tz });
+      }
+      
       const safeLen = (v: any) => Array.isArray(v) ? v.length : 0;
       setStats({
         pending: safeLen(pendingArr),

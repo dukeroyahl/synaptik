@@ -12,7 +12,7 @@ import {
   Delete as DeleteIcon,
   Edit as EditIcon,
 } from '@mui/icons-material';
-import { Task } from '../types';
+import { TaskDTO } from '../types';
 import { TaskActionCallbacks, BaseComponentProps, SelectableProps, CompactModeProps } from '../types/common';
 import { 
   isTaskOverdue,
@@ -22,9 +22,9 @@ import {
 import { parseBackendDate, getTimeRemaining } from '../utils/dateUtils';
 
 interface TaskCardProps extends TaskActionCallbacks, BaseComponentProps, SelectableProps, CompactModeProps {
-  task: Task;
-  onPause?: (task: Task) => void;
-  onStop?: (task: Task) => void;
+  task: TaskDTO;
+  onPause?: (task: TaskDTO) => void;
+  onStop?: (task: TaskDTO) => void;
   draggable?: boolean;
 }
 
@@ -306,7 +306,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
         {/* Second Row: Project, Assignee and Status Badge */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', minWidth: 0 }}>
-            {task.project && (
+            {task.projectName && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <ProjectIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
                 <Typography 
@@ -317,7 +317,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
                     fontWeight: 'medium'
                   }}
                 >
-                  {task.project}
+                  {task.projectName}
                 </Typography>
               </Box>
             )}

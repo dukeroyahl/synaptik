@@ -21,7 +21,7 @@ import {
   Pending as PendingIcon,
   Warning as OverdueIcon
 } from '@mui/icons-material';
-import { Task, Project } from '../types';
+import { TaskDTO, Project } from '../types';
 import { TaskActionCallbacks } from '../types/common';
 import TaskCard from './TaskCard';
 import TaskCapture from './TaskCapture';
@@ -30,8 +30,8 @@ import { isTaskOverdue } from '../utils/taskUtils';
 
 interface ProjectDetailViewProps extends TaskActionCallbacks {
   project: Project;
-  tasks: Task[];
-  onStop?: (task: Task) => void;
+  tasks: TaskDTO[];
+  onStop?: (task: TaskDTO) => void;
   onTaskAdded?: () => void;
 }
 
@@ -235,7 +235,7 @@ const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
         {/* Quick Task Add */}
         <Box sx={{ mb: 3 }}>
           <TaskCapture 
-            project={project.name}
+            projectName={project.name}
             onTaskCaptured={onTaskAdded}
           />
         </Box>

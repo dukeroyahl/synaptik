@@ -10,12 +10,12 @@ import {
   Link as LinkIcon,
   MoreVert as MoreVertIcon
 } from '@mui/icons-material';
-import { Task } from '../types';
+import { TaskDTO } from '../types';
 import { TaskActionCallbacks, CompactModeProps } from '../types/common';
 
 interface TaskActionsProps extends TaskActionCallbacks, CompactModeProps {
-  task: Task;
-  onStop?: (task: Task) => void;
+  task: TaskDTO;
+  onStop?: (task: TaskDTO) => void;
 }
 
 const TaskActionsComponent: React.FC<TaskActionsProps> = ({
@@ -38,7 +38,7 @@ const TaskActionsComponent: React.FC<TaskActionsProps> = ({
 
   // Memoize action handler to prevent recreation on every render
   const handleAction = useCallback((
-    callback?: (task: Task) => void,
+    callback?: (task: TaskDTO) => void,
     event?: React.MouseEvent
   ) => {
     if (event) {

@@ -33,9 +33,9 @@ public class Task extends BaseEntity {
     
     public String assignee;
     
-    // Store as string to avoid MongoDB serialization issues
-    public String dueDate;
-    public String waitUntil;
+    // Store as ISO 8601 string with timezone information embedded
+    public String dueDate;       // ISO 8601 with timezone: "2025-12-31T23:59:59-05:00" or "2025-12-31T23:59:59Z"
+    public String waitUntil;     // ISO 8601 with timezone: "2025-11-30T10:00:00+01:00" or "2025-11-30T10:00:00Z"
     
     public List<String> tags = new ArrayList<>();
     public List<TaskAnnotation> annotations = new ArrayList<>();
@@ -101,9 +101,15 @@ public class Task extends BaseEntity {
             }
         }
         
-        if (createdAt != null) {
-            long ageInDays = java.time.temporal.ChronoUnit.DAYS.between(createdAt, LocalDateTime.now());
-            urgency += ageInDays * 0.01;
+        if (createdAt != null && !createdAt.trim().isEmpty()) {
+            try {
+                ZonedDateTime created = ZonedDateTime.parse(createdAt);
+                ZonedDateTime now = ZonedDateTime.now();
+                long ageInDays = java.time.temporal.ChronoUnit.DAYS.between(created.toLocalDate(), now.toLocalDate());
+                urgency += ageInDays * 0.01;
+            } catch (Exception e) {
+                // Invalid date format, skip age-based urgency calculation
+            }
         }
         
         if (status == TaskStatus.ACTIVE) urgency += 4;

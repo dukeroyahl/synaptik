@@ -18,7 +18,7 @@ import {
   Search as SearchIcon,
   Link as LinkIcon
 } from '@mui/icons-material';
-import { Task } from '../types';
+import { TaskDTO } from '../types';
 import { generateTaskId } from '../utils/taskUtils';
 
 interface TaskDependencySelectorProps {
@@ -32,7 +32,7 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
   dependencies,
   onChange
 }) => {
-  const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
+  const [availableTasks, setAvailableTasks] = useState<TaskDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,7 +65,7 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
       }
 
       // Filter out the current task and any completed just in case
-      const filteredTasks = list.filter((task: Task) =>
+      const filteredTasks = list.filter((task: TaskDTO) =>
         task && task.id !== taskId && task.status !== 'COMPLETED'
       );
       setAvailableTasks(filteredTasks);
@@ -92,7 +92,7 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
     return (
       task.title.toLowerCase().includes(searchLower) ||
       (task.description && task.description.toLowerCase().includes(searchLower)) ||
-      (task.project && task.project.toLowerCase().includes(searchLower))
+      (task.projectName && task.projectName.toLowerCase().includes(searchLower))
     );
   });
 
@@ -168,9 +168,9 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
                     primaryTypographyProps={{ component: 'div' }}
                     secondary={
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
-                        {task.project && (
+                        {task.projectName && (
                           <Typography variant="caption" color="text.secondary">
-                            Project: {task.project.toUpperCase()}
+                            Project: {task.projectName.toUpperCase()}
                           </Typography>
                         )}
                         {task.priority && (

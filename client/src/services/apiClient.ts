@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '../config'
+import { getTimezoneHeaders } from '../utils/dateUtils'
 
 export class ApiError extends Error {
   constructor(
@@ -30,24 +31,35 @@ export class ApiClient {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`
+    console.log('ApiClient making request to:', url, 'with options:', options);
     
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
+        ...getTimezoneHeaders(), // Include timezone in all requests
         ...options.headers,
       },
       ...options,
     }
 
     try {
+      console.log('Making fetch request with config:', config);
       const response = await fetch(url, config)
+      console.log('Fetch response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
       
       if (!response.ok) {
         const errorData = await response.text()
+        console.log('Response not ok, error data:', errorData);
         throw new ApiError(response.status, errorData || response.statusText)
       }
 
       const data = await response.json()
+      console.log('Parsed JSON data:', data);
       
       // Handle both wrapped and direct API responses
       // If the response is already wrapped in ApiResponse format, return it
@@ -58,6 +70,7 @@ export class ApiClient {
         return { data }
       }
     } catch (error) {
+      console.error('ApiClient request error:', error);
       if (error instanceof ApiError) {
         throw error
       }

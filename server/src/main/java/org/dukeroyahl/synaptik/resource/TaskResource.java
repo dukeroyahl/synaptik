@@ -120,20 +120,17 @@ public class TaskResource {
 
     @PUT
     @Path("/{id}/status")
+    @Consumes(MediaType.APPLICATION_JSON)
     @Operation(summary = "Update task status", description = "Update the status of a specific task")
-    public Uni<Response> updateTaskStatus(@PathParam("id") String id, TaskStatus status) {
+    public Uni<Boolean> updateTaskStatus(@PathParam("id") String id, TaskStatus status) {
         try {
             UUID taskId = UUID.fromString(id);
             return taskService.updateTaskStatus(taskId, status)
                 .onItem().transform(success -> {
-                    if (success) {
-                        return Response.ok().build();
-                    } else {
-                        return Response.status(Response.Status.NOT_FOUND).build();
-                    }
+                    return success;
                 });
         } catch (IllegalArgumentException e) {
-            return Uni.createFrom().item(Response.status(Response.Status.BAD_REQUEST).build());
+            return Uni.createFrom().item(false);
         }
     }
     
@@ -150,8 +147,7 @@ public class TaskResource {
             @QueryParam("dateTo") String dateTo,
             @QueryParam("tz") @DefaultValue("UTC") String timezone) {
         
-        return taskService.searchTasks(statuses, title, assignee, projectId, dateFrom, dateTo, timezone)
-            .onItem().transform(taskMapper::toDTOList);
+        return taskService.searchTasks(statuses, title, assignee, projectId, dateFrom, dateTo, timezone);
     }
 
     @GET
@@ -165,13 +161,35 @@ public class TaskResource {
     }
 
     @GET
-    @Path("/due-today")
+    @Path("/today")
     @Operation(summary = "Get tasks due today", 
                description = "Retrieve tasks that are due today in the specified timezone")
     public Uni<List<TaskDTO>> getDueTodayTasks(
             @QueryParam("tz") @DefaultValue("UTC") String timezone) {
         
         return taskService.getDueTodayTasks(timezone);
+    }
+
+    @GET
+    @Path("/pending")
+    @Operation(summary = "Get pending tasks", 
+               description = "Retrieve all tasks with PENDING status")
+    public Uni<List<TaskDTO>> getPendingTasks() {
+        return taskService.searchTasks(List.of(TaskStatus.PENDING), null, null, null, null, null, "UTC");
+    }
+    @GET
+    @Path("/completed")
+    @Operation(summary = "Get completed tasks", 
+               description = "Retrieve all tasks with COMPLETED status")
+    public Uni<List<TaskDTO>> getCompletedTasks() {
+        return taskService.searchTasks(List.of(TaskStatus.COMPLETED), null, null, null, null, null, "UTC");
+    }
+    @GET
+    @Path("/active")
+    @Operation(summary = "Get active tasks", 
+               description = "Retrieve all tasks with ACTIVE status")
+    public Uni<List<TaskDTO>> getActiveTasks() {
+        return taskService.searchTasks(List.of(TaskStatus.ACTIVE), null, null, null, null, null, "UTC");
     }
 
     @GET

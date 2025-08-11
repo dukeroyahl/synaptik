@@ -6,6 +6,7 @@ import {
   getTaskStatusEndpoint,
   getTaskNeighborsEndpoint
 } from '../constants/api'
+import { getUserTimezone, getCurrentDateOnly } from '../utils/dateUtils'
 
 export class TaskService {
   private basePath = API_ENDPOINTS.TASKS
@@ -59,13 +60,39 @@ export class TaskService {
   }
 
   async updateTaskStatus(id: string, status: TaskDTO['status']): Promise<TaskDTO> {
-    const response = await apiClient.put<TaskDTO>(getTaskStatusEndpoint(id), status)
-    return response.data
+    console.log('TaskService.updateTaskStatus called with:', { id, status });
+    const endpoint = getTaskStatusEndpoint(id);
+    console.log('Using endpoint:', endpoint);
+    try {
+      const response = await apiClient.put<boolean>(endpoint, status);
+      console.log('TaskService.updateTaskStatus response:', response);
+      
+      // The API now returns a boolean, so we need to fetch the updated task
+      if (response.data === true) {
+        console.log('Status update successful, fetching updated task');
+        const updatedTask = await this.getTaskById(id);
+        console.log('Fetched updated task:', updatedTask);
+        return updatedTask;
+      } else {
+        throw new Error('Task status update failed');
+      }
+    } catch (error) {
+      console.error('TaskService.updateTaskStatus error:', error);
+      throw error;
+    }
   }
 
   // Convenience methods for common status updates
   async startTask(id: string): Promise<TaskDTO> {
-    return this.updateTaskStatus(id, 'ACTIVE')
+    console.log('TaskService.startTask called with id:', id);
+    try {
+      const result = await this.updateTaskStatus(id, 'ACTIVE');
+      console.log('TaskService.startTask success:', result);
+      return result;
+    } catch (error) {
+      console.error('TaskService.startTask error:', error);
+      throw error;
+    }
   }
 
   async stopTask(id: string): Promise<TaskDTO> {
@@ -106,20 +133,22 @@ export class TaskService {
   }
 
   async getOverdueTasks(tz?: string): Promise<TaskDTO[]> {
-    const today = new Date().toISOString().split('T')[0]
+    const timezone = tz || getUserTimezone()
+    const today = getCurrentDateOnly(timezone)
     return this.getTasks({ 
       dateTo: today,
       status: ['PENDING', 'ACTIVE'],
-      tz: tz || 'UTC'
+      tz: timezone
     })
   }
 
   async getTodayTasks(tz?: string): Promise<TaskDTO[]> {
-    const today = new Date().toISOString().split('T')[0]
+    const timezone = tz || getUserTimezone()
+    const today = getCurrentDateOnly(timezone)
     return this.getTasks({ 
       dateFrom: today,
       dateTo: today,
-      tz: tz || 'UTC'
+      tz: timezone
     })
   }
 

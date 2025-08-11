@@ -1,21 +1,21 @@
 import { create } from 'zustand';
-import { Task } from '../types';
+import { TaskDTO } from '../types';
 
 interface FilterStoreState {
-  statuses: Set<Task['status']>;
+  statuses: Set<TaskDTO['status']>;
   status: 'pending' | 'active' | 'completed' | 'overdue' | 'all';
   overviewMode?: 'open' | 'closed' | 'today' | 'overdue' | null; // exclusive overview selection
-  priorities: Set<Task['priority']>;
+  priorities: Set<TaskDTO['priority']>;
   assignees: Set<string>;
   projects: Set<string>;
   search: string;
   dueDate?: string;
   assigneeCounts: Map<string, number>;
   projectCounts: Map<string, number>;
-  toggleStatus: (s: Task['status']) => void;
+  toggleStatus: (s: TaskDTO['status']) => void;
   setStatus: (s: FilterStoreState['status']) => void;
   setOverviewMode: (m: FilterStoreState['overviewMode']) => void;
-  togglePriority: (p: Task['priority']) => void;
+  togglePriority: (p: TaskDTO['priority']) => void;
   toggleAssignee: (a: string) => void;
   toggleProject: (p: string) => void;
   setSearch: (q: string) => void;
@@ -23,16 +23,16 @@ interface FilterStoreState {
   clearAll: () => void;
   getQueryParams: () => Record<string, any>;
   getActiveCount: () => number;
-  setCountsFromTasks: (tasks: Task[]) => void;
-  decrementCountsForTask: (task: Task) => void;
-  incrementCountsForTask: (task: Task) => void;
+  setCountsFromTasks: (tasks: TaskDTO[]) => void;
+  decrementCountsForTask: (task: TaskDTO) => void;
+  incrementCountsForTask: (task: TaskDTO) => void;
 }
 
 export const useFilterStore = create<FilterStoreState>((set, get) => ({
-  statuses: new Set<Task['status']>(),
+  statuses: new Set<TaskDTO['status']>(),
   status: 'all',
   overviewMode: null, // No default overview mode - let user select
-  priorities: new Set<Task['priority']>(),
+  priorities: new Set<TaskDTO['priority']>(),
   assignees: new Set<string>(),
   projects: new Set<string>(),
   search: '',
@@ -125,8 +125,8 @@ export const useFilterStore = create<FilterStoreState>((set, get) => ({
         noAssigneeCount++;
       }
       
-      if (t.project) {
-        pCounts.set(t.project, (pCounts.get(t.project) || 0) + 1);
+      if (t.projectName) {
+        pCounts.set(t.projectName, (pCounts.get(t.projectName) || 0) + 1);
       } else {
         noProjectCount++;
       }
@@ -154,10 +154,10 @@ export const useFilterStore = create<FilterStoreState>((set, get) => ({
       next === 0 ? aCounts.delete('(No Assignee)') : aCounts.set('(No Assignee)', next);
     }
     
-    if (task.project && pCounts.has(task.project)) {
-      const next = Math.max(0, (pCounts.get(task.project) || 0) - 1);
-      next === 0 ? pCounts.delete(task.project) : pCounts.set(task.project, next);
-    } else if (!task.project && pCounts.has('(No Project)')) {
+    if (task.projectName && pCounts.has(task.projectName)) {
+      const next = Math.max(0, (pCounts.get(task.projectName) || 0) - 1);
+      next === 0 ? pCounts.delete(task.projectName) : pCounts.set(task.projectName, next);
+    } else if (!task.projectName && pCounts.has('(No Project)')) {
       const next = Math.max(0, (pCounts.get('(No Project)') || 0) - 1);
       next === 0 ? pCounts.delete('(No Project)') : pCounts.set('(No Project)', next);
     }
@@ -174,8 +174,8 @@ export const useFilterStore = create<FilterStoreState>((set, get) => ({
       aCounts.set('(No Assignee)', (aCounts.get('(No Assignee)') || 0) + 1);
     }
     
-    if (task.project) {
-      pCounts.set(task.project, (pCounts.get(task.project) || 0) + 1);
+    if (task.projectName) {
+      pCounts.set(task.projectName, (pCounts.get(task.projectName) || 0) + 1);
     } else {
       pCounts.set('(No Project)', (pCounts.get('(No Project)') || 0) + 1);
     }

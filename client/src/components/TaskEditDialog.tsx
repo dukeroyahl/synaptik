@@ -14,11 +14,11 @@ import {
   Tabs,
   Tab,
   Grid,
-  Typography,
 } from '@mui/material';
 import { TaskDTO } from '../types';
 import { formatTag } from '../utils/taskUtils';
 import TaskDependencySelector from './TaskDependencySelector';
+import DateTimeInput from './DateTimeInput';
 
 interface TaskEditDialogProps {
   task: TaskDTO | null;
@@ -39,7 +39,8 @@ const TaskEditDialog: React.FC<TaskEditDialogProps> = ({
     description: '',
     priority: 'NONE' as 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE',
     assignee: '',
-    dueDate: '',
+    dueDate: '', // Keep as ISO 8601 string
+    waitUntil: '', // Add waitUntil support
     projectName: '',
     tags: [] as string[],
     depends: [] as string[],
@@ -52,7 +53,8 @@ const TaskEditDialog: React.FC<TaskEditDialogProps> = ({
         description: task.description || '',
         priority: task.priority || 'NONE',
         assignee: task.assignee || '',
-        dueDate: task.dueDate ? task.dueDate.split('T')[0] : '', // Convert to YYYY-MM-DD format
+        dueDate: task.dueDate || '', // Keep as ISO 8601 string
+        waitUntil: task.waitUntil || '', // Keep as ISO 8601 string
         projectName: task.projectName || '',
         tags: task.tags || [],
         depends: task.depends || [],
@@ -74,14 +76,15 @@ const TaskEditDialog: React.FC<TaskEditDialogProps> = ({
   const handleSave = () => {
     if (!task) return;
 
-    const updatedTask: Task = {
+    const updatedTask: TaskDTO = {
       ...task,
       title: formData.title,
-      description: formData.description?.trim() || null,
+      description: formData.description?.trim() || undefined,
       priority: formData.priority,
-      assignee: formData.assignee?.trim() || null,
-      dueDate: formData.dueDate && formData.dueDate.trim() !== '' ? formData.dueDate : null,
-      projectName: formData.projectName?.trim() || null,
+      assignee: formData.assignee?.trim() || undefined,
+      dueDate: formData.dueDate || undefined, // Already in ISO 8601 format
+      waitUntil: formData.waitUntil || undefined, // Already in ISO 8601 format
+      projectName: formData.projectName?.trim() || undefined,
       tags: formData.tags,
       depends: formData.depends,
     };
@@ -124,25 +127,7 @@ const TaskEditDialog: React.FC<TaskEditDialogProps> = ({
               required
             />
             
-            {/* Show original input if available and different from title */}
-            {task?.originalInput && task.originalInput !== task.title && (
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  fontSize: '0.8rem',
-                  color: 'text.secondary',
-                  opacity: 0.8,
-                  fontStyle: 'italic',
-                  backgroundColor: 'action.hover',
-                  padding: '4px 8px',
-                  borderRadius: 1,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                }}
-              >
-                Original input: "{task.originalInput}"
-              </Typography>
-            )}
+            {/* Original input field removed as it's not part of TaskDTO */}
             
             <TextField
               label="Description"
@@ -191,18 +176,24 @@ const TaskEditDialog: React.FC<TaskEditDialogProps> = ({
                 />
               </Grid>
               <Grid item xs={6}>
-                <TextField
+                <DateTimeInput
                   label="Due Date"
-                  type="date"
                   value={formData.dueDate}
-                  onChange={(e) => handleChange('dueDate', e.target.value)}
-                  fullWidth
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
+                  onChange={(isoString) => handleChange('dueDate', isoString)}
+                  type="datetime"
+                  showTimezone={true}
                 />
               </Grid>
             </Grid>
+            
+            {/* Wait Until field */}
+            <DateTimeInput
+              label="Wait Until"
+              value={formData.waitUntil}
+              onChange={(isoString) => handleChange('waitUntil', isoString)}
+              type="datetime"
+              helperText="Task will not be available until this date/time"
+            />
             
             <TextField
               label="Tags"

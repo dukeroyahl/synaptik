@@ -386,7 +386,7 @@ const EisenhowerMatrix: React.FC = () => {
       const updateData = {
         ...mergedData,
         description: mergedData.description || undefined,
-        project: mergedData.project || undefined,
+        projectName: mergedData.projectName || undefined,
         assignee: mergedData.assignee || undefined,
         dueDate: mergedData.dueDate || undefined,
         waitUntil: mergedData.waitUntil || undefined,

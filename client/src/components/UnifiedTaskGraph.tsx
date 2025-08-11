@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { Box, Typography, Paper } from '@mui/material';
 import * as d3 from 'd3';
-import { Task } from '../types';
+import { TaskDTO } from '../types';
 
 interface UnifiedTaskGraphProps {
-  tasks: Task[];
+  tasks: TaskDTO[];
 }
 
 interface GraphNode {

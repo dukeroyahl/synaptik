@@ -371,7 +371,7 @@ public class TaskResourceTest {
     public void testGetDueTodayTasks() {
         // Test with default UTC timezone
         given()
-            .when().get("/api/tasks/due-today")
+            .when().get("/api/tasks/today")
             .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON);
@@ -379,7 +379,7 @@ public class TaskResourceTest {
         // Test with specific timezone
         given()
             .queryParam("tz", "Europe/London")
-            .when().get("/api/tasks/due-today")
+            .when().get("/api/tasks/today")
             .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON);
@@ -387,7 +387,7 @@ public class TaskResourceTest {
         // Test with Pacific timezone
         given()
             .queryParam("tz", "America/Los_Angeles")
-            .when().get("/api/tasks/due-today")
+            .when().get("/api/tasks/today")
             .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON);
@@ -454,7 +454,7 @@ public class TaskResourceTest {
         // Verify it appears in due today tasks
         given()
             .queryParam("tz", "UTC")
-            .when().get("/api/tasks/due-today")
+            .when().get("/api/tasks/today")
             .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
@@ -492,7 +492,7 @@ public class TaskResourceTest {
         // Should appear in due today for UTC
         given()
             .queryParam("tz", "UTC")
-            .when().get("/api/tasks/due-today")
+            .when().get("/api/tasks/today")
             .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON);
@@ -500,7 +500,7 @@ public class TaskResourceTest {
         // Should also work for other timezones
         given()
             .queryParam("tz", "America/Los_Angeles")
-            .when().get("/api/tasks/due-today")
+            .when().get("/api/tasks/today")
             .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON);

@@ -7,9 +7,11 @@ import org.dukeroyahl.synaptik.domain.Project;
 import org.dukeroyahl.synaptik.dto.TaskRequest;
 import org.dukeroyahl.synaptik.helper.TaskSearchQueryBuilder;
 import org.dukeroyahl.synaptik.mapper.TaskMapper;
+import org.dukeroyahl.synaptik.util.DateTimeHelper;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import io.quarkus.logging.Log;
 import io.smallrye.mutiny.Uni;
 import org.jboss.logging.Logger;
 import org.bson.Document;
@@ -80,6 +82,14 @@ public class TaskService {
     public Uni<TaskDTO> createTask(TaskRequest taskRequest) {
         return enrichTaskRequestWithProject(taskRequest)
                 .flatMap(tr -> {
+                    // Normalize dates to ISO 8601 format
+                    if (tr.dueDate != null) {
+                        tr.dueDate = DateTimeHelper.normalizeToIso8601(tr.dueDate, "UTC");
+                    }
+                    if (tr.waitUntil != null) {
+                        tr.waitUntil = DateTimeHelper.normalizeToIso8601(tr.waitUntil, "UTC");
+                    }
+                    
                     Task task = taskMapper.toEntity(tr);
                     task.urgency = task.calculateUrgency();
                     return task.persist()
@@ -125,6 +135,7 @@ public class TaskService {
                     return taskDTOs;
                 });
     }
+    
     private Uni<TaskRequest> enrichTaskRequestWithProject(TaskRequest taskRequest) {
         return Uni.createFrom().item(taskRequest)
                 .flatMap(tr -> {
@@ -142,11 +153,18 @@ public class TaskService {
                 });
     }
 
-
     public Uni<TaskDTO> updateTask(TaskRequest updates) {
         return enrichTaskRequestWithProject(updates)
-                .flatMap(tr ->
-                        Task.find("_id", tr.id)
+                .flatMap(tr -> {
+                    // Normalize dates to ISO 8601 format
+                    if (tr.dueDate != null) {
+                        tr.dueDate = DateTimeHelper.normalizeToIso8601(tr.dueDate, "UTC");
+                    }
+                    if (tr.waitUntil != null) {
+                        tr.waitUntil = DateTimeHelper.normalizeToIso8601(tr.waitUntil, "UTC");
+                    }
+                    
+                    return Task.find("_id", tr.id)
                         .firstResult()
                         .onItem().ifNotNull().transform(t -> {
                             return taskMapper.updateEntityFromRequest(updates, (Task) t);
@@ -163,33 +181,9 @@ public class TaskService {
                         .onItem().ifNotNull().transform(t -> {
                             t.projectName = tr.projectName;
                             return t;
-                        })
-                );
+                        });
+                });
     }
-
-//    /**
-//     * Update a task with project name (for API use).
-//     * This method handles project auto-creation based on project name.
-//     */
-//    public Uni<Task> updateTaskWithProject(UUID id, Task updates, String projectName) {
-//
-//
-//        return Task.<Task>find("_id", id).firstResult()
-//                .onItem().ifNotNull().transformToUni(task -> {
-//                    // Handle project update if project name is provided
-//                    if (projectName != null && !projectName.trim().isEmpty()) {
-//                        return projectService.findOrCreateProject(projectName.trim())
-//                                .onItem().transformToUni(project -> {
-//                                    if (project != null) {
-//                                        task.projectId = project.id;
-//                                    }
-//                                    return updateTask(updates);
-//                                });
-//                    } else {
-//                        return updateTask(updates);
-//                    }
-//                });
-//    }
 
     public Uni<Boolean> deleteTask(UUID id) {
         return Task.<Task>find("_id", id).firstResult()
@@ -216,6 +210,7 @@ public class TaskService {
     }
 
     public Uni<Boolean> updateTaskStatus(UUID id, TaskStatus newStatus) {
+        Log.infof("Settings Status of Task %s to %s", id , newStatus);
         return Task.<Task>find("_id", id).firstResult()
                 .onItem().ifNotNull().transformToUni(task -> {
                     TaskStatus oldStatus = task.status;
@@ -241,7 +236,6 @@ public class TaskService {
                 .onItem().ifNull().continueWith(false);
     }
 
-
     // Helper method to enrich TaskDTO with project name
     private Uni<TaskDTO> enrichTaskDTOWithProjectName(TaskDTO taskDTO) {
         if (taskDTO == null || taskDTO.projectId == null) {
@@ -255,20 +249,6 @@ public class TaskService {
                 });
     }
 
-
-    /**
-     * Search tasks with database-level filtering using project UUID only.
-     * Uses TaskSearchQueryBuilder helper class for clean separation of concerns.
-     *
-     * @param statuses  List of task statuses to filter by (optional)
-     * @param title     Partial title search (optional, case-insensitive)
-     * @param assignee  Partial assignee search (optional, case-insensitive)
-     * @param projectId Project UUID for exact matching (optional)
-     * @param dateFrom  Start date for due date range filter (optional, ISO format)
-     * @param dateTo    End date for due date range filter (optional, ISO format)
-     * @param timezone  Timezone for date range filtering (default: UTC)
-     * @return List of tasks matching the search criteria
-     */
     /**
      * Get tasks that are overdue based on user's timezone.
      * A task is overdue if its due date is before the current date/time in the user's timezone.
@@ -279,16 +259,24 @@ public class TaskService {
     public Uni<List<TaskDTO>> getOverdueTasks(String timezone) {
         logger.infof("Getting overdue tasks for timezone: %s", timezone);
         
-        ZoneId zone = resolveZone(timezone);
-        ZonedDateTime now = ZonedDateTime.now(zone);
-        String currentIsoString = now.toInstant().toString();
+        String currentTime = DateTimeHelper.nowInTimezone(timezone);
         
-        // MongoDB query for tasks with dueDate < now
-        Document query = new Document("dueDate", new Document("$lt", currentIsoString))
-            .append("dueDate", new Document("$ne", null)) // Exclude tasks without due dates
-            .append("status", new Document("$ne", TaskStatus.COMPLETED.name())); // Exclude completed tasks
+        // Get all tasks with due dates and filter server-side
+        Document query = new Document("dueDate", new Document("$ne", null))
+            .append("status", new Document("$ne", TaskStatus.COMPLETED.name()));
         
         return Task.<Task>find(query).list()
+            .onItem().transform(tasks -> {
+                List<Task> overdueTasks = new ArrayList<>();
+                
+                for (Task task : tasks) {
+                    if (DateTimeHelper.isBefore(task.dueDate, currentTime)) {
+                        overdueTasks.add(task);
+                    }
+                }
+                
+                return overdueTasks;
+            })
             .onItem().transformToUni(this::enrichTaskListWithProjects);
     }
     
@@ -302,46 +290,29 @@ public class TaskService {
     public Uni<List<TaskDTO>> getDueTodayTasks(String timezone) {
         logger.infof("Getting tasks due today for timezone: %s", timezone);
         
-        ZoneId zone = resolveZone(timezone);
-        ZonedDateTime now = ZonedDateTime.now(zone);
+        ZonedDateTime startOfToday = DateTimeHelper.startOfDayInTimezone(timezone);
+        ZonedDateTime endOfToday = DateTimeHelper.endOfDayInTimezone(timezone);
         
-        // Start of today in user's timezone
-        ZonedDateTime startOfToday = now.withHour(0).withMinute(0).withSecond(0).withNano(0);
-        
-        // End of today in user's timezone
-        ZonedDateTime endOfToday = now.withHour(23).withMinute(59).withSecond(59).withNano(999_000_000);
-        
-        // Convert to ISO strings for MongoDB comparison
-        String startIsoString = startOfToday.toInstant().toString();
-        String endIsoString = endOfToday.toInstant().toString();
-        
-        // MongoDB query for tasks with dueDate within today's range
-        Document query = new Document("dueDate", new Document("$gte", startIsoString).append("$lte", endIsoString))
-            .append("dueDate", new Document("$ne", null)) // Exclude tasks without due dates
-            .append("status", new Document("$ne", TaskStatus.COMPLETED.name())); // Exclude completed tasks
+        // Get all tasks with due dates and filter server-side
+        Document query = new Document("dueDate", new Document("$ne", null))
+            .append("status", new Document("$ne", TaskStatus.COMPLETED.name()));
         
         return Task.<Task>find(query).list()
+            .onItem().transform(tasks -> {
+                List<Task> dueTodayTasks = new ArrayList<>();
+                
+                for (Task task : tasks) {
+                    if (DateTimeHelper.isWithinRange(task.dueDate, startOfToday, endOfToday)) {
+                        dueTodayTasks.add(task);
+                    }
+                }
+                
+                return dueTodayTasks;
+            })
             .onItem().transformToUni(this::enrichTaskListWithProjects);
     }
-    
-    /**
-     * Resolve timezone string to ZoneId with fallback to UTC.
-     * Kept as utility method for date operations.
-     */
-    private ZoneId resolveZone(String timezone) {
-        if (timezone == null || timezone.trim().isEmpty()) {
-            return ZoneId.of("UTC");
-        }
-        
-        try {
-            return ZoneId.of(timezone.trim());
-        } catch (Exception e) {
-            logger.warnf("Invalid timezone: %s, falling back to UTC", timezone);
-            return ZoneId.of("UTC");
-        }
-    }
 
-    public Uni<List<Task>> searchTasks(List<TaskStatus> statuses, String title, String assignee,
+    public Uni<List<TaskDTO>> searchTasks(List<TaskStatus> statuses, String title, String assignee,
                                        String projectId, String dateFrom, String dateTo, String timezone) {
         logger.infof("Searching tasks with database-level filters - statuses: %s, title: %s, assignee: %s, projectId: %s, dateFrom: %s, dateTo: %s, timezone: %s",
                 statuses, title, assignee, projectId, dateFrom, dateTo, timezone);
@@ -349,7 +320,8 @@ public class TaskService {
         // Use helper class to build MongoDB query
         Document query = queryBuilder.buildSearchQuery(statuses, title, assignee, projectId, dateFrom, dateTo, timezone);
 
-        // Execute database query with filters applied at DB level
-        return Task.<Task>find(query).list();
+        // Execute database query with filters applied at DB level and enrich with projects
+        return Task.<Task>find(query).list()
+            .onItem().transformToUni(this::enrichTaskListWithProjects);
     }
 }

@@ -31,7 +31,7 @@ public class TaskRequest {
     public UUID projectId;
     
     public String assignee;
-    public String dueDate;
-    public String waitUntil;
+    public String dueDate;       // ISO 8601 with timezone: "2025-12-31T23:59:59-05:00" or "2025-12-31T23:59:59Z"
+    public String waitUntil;     // ISO 8601 with timezone: "2025-11-30T10:00:00+01:00" or "2025-11-30T10:00:00Z"
     public List<String> tags;
 }
