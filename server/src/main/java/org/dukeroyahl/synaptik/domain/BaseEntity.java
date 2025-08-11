@@ -4,6 +4,7 @@ import io.quarkus.mongodb.panache.reactive.ReactivePanacheMongoEntityBase;
 import org.bson.codecs.pojo.annotations.BsonId;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import io.smallrye.mutiny.Uni;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -30,5 +31,19 @@ public abstract class BaseEntity extends ReactivePanacheMongoEntityBase {
             createdAt = now;
         }
         updatedAt = now;
+    }
+    
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T extends ReactivePanacheMongoEntityBase> Uni<T> persist() {
+        prePersist();
+        return (Uni<T>) super.persist();
+    }
+    
+    @Override
+    @SuppressWarnings("unchecked") 
+    public <T extends ReactivePanacheMongoEntityBase> Uni<T> persistOrUpdate() {
+        prePersist();
+        return (Uni<T>) super.persistOrUpdate();
     }
 }

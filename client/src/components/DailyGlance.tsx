@@ -181,7 +181,7 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
                   { key: 'completed', label: 'Completed', value: stats.completed, color: theme.palette.success.main, icon: <CompletedIcon fontSize="small" /> },
                   { key: 'overdue', label: 'Overdue', value: stats.overdue, color: theme.palette.error.main, icon: <OverdueIcon fontSize="small" /> },
                   { key: 'today', label: 'Today', value: stats.today, color: theme.palette.info.main, icon: <TodayIcon fontSize="small" /> }
-                ] as const).map(item => {
+                ]).map(item => {
                   const isToday = item.key === 'today';
                   const isOverdue = item.key === 'overdue';
                   const isStatus = item.key === 'pending' || item.key === 'completed';
@@ -193,7 +193,7 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
                     isOverdue ? isOverdueActive : 
                     item.key === 'pending' ? overviewMode === 'open' :
                     item.key === 'completed' ? overviewMode === 'closed' :
-                    activeFilter === (item.key as any);
+                    activeFilter === item.key;
                   const { digits, padCount } = formatValue(item.value);
 
                   return (
@@ -239,7 +239,7 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
                               // "Completed" button should set overview mode to show only COMPLETED
                               setOverviewMode('closed');
                             } else {
-                              onFilterChange?.(item.key as any);
+                              onFilterChange?.(item.key as 'pending' | 'active' | 'completed' | 'overdue');
                             }
                             // if selecting Open or Completed while overdue active (invalid), clear overdue (last click wins)
                             if (isOverdueActive) {

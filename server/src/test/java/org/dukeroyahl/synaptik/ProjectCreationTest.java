@@ -33,7 +33,7 @@ public class ProjectCreationTest {
                 "title": "Test Task",
                 "description": "Test Description",
                 "priority": "MEDIUM",
-                "project": "Auto Created Project"
+                "projectName": "Auto Created Project"
             }
             """;
 
@@ -45,9 +45,7 @@ public class ProjectCreationTest {
             .then()
             .statusCode(201)
             .body("title", equalTo("Test Task"))
-            .body("project", equalTo("Auto Created Project"))
-            .body("projectDetails.name", equalTo("Auto Created Project"))
-            .body("projectDetails.status", equalTo("PENDING"))
+            .body("projectName", equalTo("Auto Created Project"))
             .body("projectId", notNullValue())
             .body("projectId", matchesPattern("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"));
 
@@ -105,7 +103,7 @@ public class ProjectCreationTest {
                 "title": "Test Task",
                 "description": "Test Description",
                 "priority": "MEDIUM",
-                "project": "Existing Project"
+                "projectName": "Existing Project"
             }
             """;
 
@@ -116,8 +114,7 @@ public class ProjectCreationTest {
             .then()
             .statusCode(201)
             .body("title", equalTo("Test Task"))
-            .body("project", equalTo("Existing Project"))
-            .body("projectDetails.name", equalTo("Existing Project"));
+            .body("projectName", equalTo("Existing Project"));
 
         // Verify only one project exists (no duplicate created)
         given()
@@ -145,9 +142,10 @@ public class ProjectCreationTest {
             .then()
             .statusCode(201)
             .body("title", equalTo("Standalone Task"))
-            .body("project", nullValue())
+            .body("projectName", nullValue())
             .body("projectId", nullValue())
-            .body("projectDetails", nullValue());
+            .body("projectId", nullValue())
+            .body("projectName", nullValue());
 
         // Verify no projects were created
         given()
@@ -164,7 +162,7 @@ public class ProjectCreationTest {
                 "title": "Enrichment Test Task",
                 "description": "Test task enrichment",
                 "priority": "HIGH",
-                "project": "Enrichment Test Project"
+                "projectName": "Enrichment Test Project"
             }
             """;
 
@@ -182,9 +180,7 @@ public class ProjectCreationTest {
             .then()
             .statusCode(200)
             .body("title", equalTo("Enrichment Test Task"))
-            .body("project", equalTo("Enrichment Test Project"))
-            .body("projectDetails.name", equalTo("Enrichment Test Project"))
-            .body("projectDetails.status", equalTo("PENDING"))
+            .body("projectName", equalTo("Enrichment Test Project"))
             .body("projectId", notNullValue());
     }
 
@@ -195,7 +191,7 @@ public class ProjectCreationTest {
                 "title": "Collection Test Task",
                 "description": "Test separate collection storage",
                 "priority": "MEDIUM",
-                "project": "Collection Test Project"
+                "projectName": "Collection Test Project"
             }
             """;
 
@@ -221,7 +217,7 @@ public class ProjectCreationTest {
             .then()
             .statusCode(200)
             .body("projectId", notNullValue())
-            .body("projectDetails.name", equalTo("Collection Test Project"));
+            .body("projectName", equalTo("Collection Test Project"));
     }
 
     @Test
@@ -231,7 +227,7 @@ public class ProjectCreationTest {
                 "title": "UUID Test Task",
                 "description": "Test UUID formats",
                 "priority": "HIGH",
-                "project": "UUID Test Project"
+                "projectName": "UUID Test Project"
             }
             """;
 
@@ -259,7 +255,7 @@ public class ProjectCreationTest {
                 "title": "Task 1",
                 "description": "First task",
                 "priority": "HIGH",
-                "project": "Shared Project"
+                "projectName": "Shared Project"
             }
             """;
 
@@ -268,7 +264,7 @@ public class ProjectCreationTest {
                 "title": "Task 2",
                 "description": "Second task",
                 "priority": "MEDIUM",
-                "project": "Shared Project"
+                "projectName": "Shared Project"
             }
             """;
 
@@ -279,7 +275,7 @@ public class ProjectCreationTest {
             .when().post("/api/tasks")
             .then()
             .statusCode(201)
-            .body("project", equalTo("Shared Project"));
+            .body("projectName", equalTo("Shared Project"));
 
         // Create second task with same project
         given()
@@ -288,7 +284,7 @@ public class ProjectCreationTest {
             .when().post("/api/tasks")
             .then()
             .statusCode(201)
-            .body("project", equalTo("Shared Project"));
+            .body("projectName", equalTo("Shared Project"));
 
         // Verify only one project was created
         given()
@@ -304,8 +300,8 @@ public class ProjectCreationTest {
             .then()
             .statusCode(200)
             .body("size()", equalTo(2))
-            .body("[0].project", equalTo("Shared Project"))
-            .body("[1].project", equalTo("Shared Project"));
+            .body("[0].projectName", equalTo("Shared Project"))
+            .body("[1].projectName", equalTo("Shared Project"));
     }
 
     @Test
@@ -315,7 +311,7 @@ public class ProjectCreationTest {
                 "title": "Task 1",
                 "description": "First task",
                 "priority": "HIGH",
-                "project": "Auto Complete Project"
+                "projectName": "Auto Complete Project"
             }
             """;
 
@@ -324,7 +320,7 @@ public class ProjectCreationTest {
                 "title": "Task 2",
                 "description": "Second task",
                 "priority": "MEDIUM",
-                "project": "Auto Complete Project"
+                "projectName": "Auto Complete Project"
             }
             """;
 
@@ -347,7 +343,9 @@ public class ProjectCreationTest {
 
         // Complete first task
         given()
-            .when().post("/api/tasks/" + task1Id + "/done")
+            .contentType(ContentType.JSON)
+            .body("\"COMPLETED\"")
+            .when().put("/api/tasks/" + task1Id + "/status")
             .then()
             .statusCode(200);
 
@@ -361,7 +359,9 @@ public class ProjectCreationTest {
 
         // Complete second task
         given()
-            .when().post("/api/tasks/" + task2Id + "/done")
+            .contentType(ContentType.JSON)
+            .body("\"COMPLETED\"")
+            .when().put("/api/tasks/" + task2Id + "/status")
             .then()
             .statusCode(200);
 
@@ -381,7 +381,7 @@ public class ProjectCreationTest {
                 "title": "Auto Start Task",
                 "description": "Task that will auto-start project",
                 "priority": "HIGH",
-                "project": "Auto Start Project"
+                "projectName": "Auto Start Project"
             }
             """;
 
@@ -403,7 +403,9 @@ public class ProjectCreationTest {
 
         // Start the task
         given()
-            .when().post("/api/tasks/" + taskId + "/start")
+            .contentType(ContentType.JSON)
+            .body("\"ACTIVE\"")
+            .when().put("/api/tasks/" + taskId + "/status")
             .then()
             .statusCode(200);
 
@@ -422,7 +424,7 @@ public class ProjectCreationTest {
                 "title": "Task 1",
                 "description": "First task",
                 "priority": "HIGH",
-                "project": "Test Project"
+                "projectName": "Test Project"
             }
             """;
 
@@ -431,7 +433,7 @@ public class ProjectCreationTest {
                 "title": "Task 2",
                 "description": "Second task",
                 "priority": "MEDIUM",
-                "project": "test project"
+                "projectName": "test project"
             }
             """;
 
@@ -463,7 +465,7 @@ public class ProjectCreationTest {
         String taskJson = """
             {
                 "title": "Minimal Task",
-                "project": "Minimal Project"
+                "projectName": "Minimal Project"
             }
             """;
 
@@ -474,7 +476,7 @@ public class ProjectCreationTest {
             .then()
             .statusCode(201)
             .body("title", equalTo("Minimal Task"))
-            .body("project", equalTo("Minimal Project"))
+            .body("projectName", equalTo("Minimal Project"))
             .body("priority", equalTo("NONE")) // Default priority
             .body("status", equalTo("PENDING")); // Default status
 

@@ -10,7 +10,6 @@ interface FilterStoreState {
   projects: Set<string>;
   search: string;
   dueDate?: string;
-  urgencyRange?: [number, number];
   assigneeCounts: Map<string, number>;
   projectCounts: Map<string, number>;
   toggleStatus: (s: Task['status']) => void;
@@ -21,7 +20,6 @@ interface FilterStoreState {
   toggleProject: (p: string) => void;
   setSearch: (q: string) => void;
   setDueDate: (d?: string) => void;
-  setUrgencyRange: (r?: [number, number]) => void;
   clearAll: () => void;
   getQueryParams: () => Record<string, any>;
   getActiveCount: () => number;
@@ -32,14 +30,13 @@ interface FilterStoreState {
 
 export const useFilterStore = create<FilterStoreState>((set, get) => ({
   statuses: new Set<Task['status']>(),
-  status: 'pending',
-  overviewMode: 'open', // Default to 'open' overview mode
+  status: 'all',
+  overviewMode: null, // No default overview mode - let user select
   priorities: new Set<Task['priority']>(),
   assignees: new Set<string>(),
   projects: new Set<string>(),
   search: '',
-  dueDate: 'today', // Default to today's tasks
-  urgencyRange: undefined,
+  dueDate: undefined, // No default date filter - show all tasks
   assigneeCounts: new Map<string, number>(),
   projectCounts: new Map<string, number>(),
   toggleStatus: (s) => set(state => {
@@ -66,7 +63,6 @@ export const useFilterStore = create<FilterStoreState>((set, get) => ({
   }),
   setSearch: (q) => set({ search: q, overviewMode: null }),
   setDueDate: (d) => set({ dueDate: d || undefined, overviewMode: null }),
-  setUrgencyRange: (r) => set({ urgencyRange: r, overviewMode: null }),
   clearAll: () => set({ 
     statuses: new Set(), 
     status: 'pending', 
@@ -75,11 +71,10 @@ export const useFilterStore = create<FilterStoreState>((set, get) => ({
     projects: new Set(), 
     search: '', 
     dueDate: undefined, 
-    urgencyRange: undefined,
     overviewMode: null
   }),
   getQueryParams: () => {
-    const { overviewMode, statuses, status, priorities, assignees, projects, urgencyRange, search, dueDate } = get();
+    const { overviewMode, statuses, status, priorities, assignees, projects, search, dueDate } = get();
     const statusMap: Record<string, string | undefined> = {
       pending: 'PENDING',
       active: 'ACTIVE',
@@ -100,14 +95,12 @@ export const useFilterStore = create<FilterStoreState>((set, get) => ({
       priority: priorities.size ? Array.from(priorities) : undefined,
       assignee: assignees.size ? Array.from(assignees) : undefined,
       project: projects.size ? Array.from(projects) : undefined,
-      urgencyMin: urgencyRange ? urgencyRange[0] : undefined,
-      urgencyMax: urgencyRange ? urgencyRange[1] : undefined,
       dueDate: dueDate,
       search: search || undefined
     };
   },
   getActiveCount: () => {
-    const { overviewMode, statuses, status, priorities, assignees, projects, search, dueDate, urgencyRange } = get();
+    const { overviewMode, statuses, status, priorities, assignees, projects, search, dueDate } = get();
     if (overviewMode) return 1; // single chip active
     let count = 0;
     if (statuses.size) count += statuses.size;
@@ -117,7 +110,6 @@ export const useFilterStore = create<FilterStoreState>((set, get) => ({
     if (projects.size) count += projects.size;
     if (search) count += 1;
     if (dueDate) count += 1;
-    if (urgencyRange) count += 1;
     return count;
   },
   setCountsFromTasks: (tasks) => set(() => {

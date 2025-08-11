@@ -19,8 +19,9 @@ public class Task {
     public String description;
     public TaskStatus status = TaskStatus.PENDING;
     public TaskPriority priority = TaskPriority.NONE;
-    public Double urgency;
-    public String project;
+    public Integer urgency;  // Changed from Double to Integer to match new API
+    public String projectId;  // UUID of the project
+    public String projectName; // Project name (new field in API)
     public String assignee;
     
     public String dueDate;

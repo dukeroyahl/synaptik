@@ -41,7 +41,6 @@ import { useTaskActionsWithConfirm } from '../hooks/useTaskActions';
 
 function isUrgent(task: Task): boolean {
   if (!task.dueDate) {
-    console.log(`isUrgent: Task "${task.title}" has no due date, returning false`);
     return false;
   }
   
@@ -49,13 +48,11 @@ function isUrgent(task: Task): boolean {
   const due = parseBackendDate(task.dueDate);
   const diff = (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
   const urgent = diff <= 30; // due within 30 days (including today) or overdue
-  console.log(`isUrgent: Task "${task.title}" - due: ${task.dueDate}, diff: ${diff.toFixed(1)} days, urgent: ${urgent}`);
   return urgent;
 }
 
 function isImportant(task: Task): boolean {
   const important = task.priority === 'HIGH' || task.priority === 'MEDIUM';
-  console.log(`isImportant: Task "${task.title}" - priority: ${task.priority}, important: ${important}`);
   return important;
 }
 
@@ -261,7 +258,6 @@ const EisenhowerMatrix: React.FC = () => {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   
   // Debug state changes
-  console.log('EisenhowerMatrix: Component render - tasks.length:', tasks.length, 'loading:', loading);
   const theme = useTheme();
 
   const sensors = useSensors(
@@ -275,15 +271,10 @@ const EisenhowerMatrix: React.FC = () => {
   const fetchTasks = useCallback(async () => {
     setLoading(true);
     try {
-      console.log('EisenhowerMatrix: Fetching tasks...');
       const tasks = await taskService.getTasks();
-      console.log('EisenhowerMatrix: Received tasks:', tasks);
-      console.log('EisenhowerMatrix: Task count:', tasks?.length || 0);
       if (tasks && tasks.length > 0) {
-        console.log('EisenhowerMatrix: First task:', tasks[0]);
       }
       setTasks(tasks || []);
-      console.log('EisenhowerMatrix: setTasks called with:', tasks?.length || 0, 'tasks');
     } catch (e) {
       console.error('Failed to fetch tasks:', e);
     } finally {
@@ -301,49 +292,32 @@ const EisenhowerMatrix: React.FC = () => {
   // Quadrants: 0 = urgent+important, 1 = not urgent+important, 2 = urgent+not important, 3 = not urgent+not important
   const quadrants = useMemo(() => {
     const result: Task[][] = [[], [], [], []];
-    console.log('EisenhowerMatrix: Processing tasks for quadrants, total tasks:', tasks.length);
-    console.log('EisenhowerMatrix: showCompleted:', showCompleted);
-    console.log('EisenhowerMatrix: tasks array:', tasks);
     
     if (tasks.length === 0) {
-      console.log('EisenhowerMatrix: No tasks to process');
       return result;
     }
     
-    tasks.forEach((task, index) => {
-      console.log(`EisenhowerMatrix: Processing task ${index}:`, {
-        title: task.title,
-        status: task.status,
-        priority: task.priority,
-        dueDate: task.dueDate
-      });
+    tasks.forEach((task) => {
       
       // Skip completed tasks if showCompleted is false
       if (!showCompleted && task.status === 'COMPLETED') {
-        console.log(`EisenhowerMatrix: Skipping completed task: ${task.title}`);
         return;
       }
       
       const urgent = isUrgent(task);
       const important = isImportant(task);
-      console.log(`EisenhowerMatrix: Task "${task.title}" - urgent: ${urgent}, important: ${important}`);
       
       if (urgent && important) {
-        console.log(`EisenhowerMatrix: Adding "${task.title}" to quadrant 0 (urgent & important)`);
         result[0].push(task);
       } else if (!urgent && important) {
-        console.log(`EisenhowerMatrix: Adding "${task.title}" to quadrant 1 (not urgent & important)`);
         result[1].push(task);
       } else if (urgent && !important) {
-        console.log(`EisenhowerMatrix: Adding "${task.title}" to quadrant 2 (urgent & not important)`);
         result[2].push(task);
       } else {
-        console.log(`EisenhowerMatrix: Adding "${task.title}" to quadrant 3 (not urgent & not important)`);
         result[3].push(task);
       }
     });
     
-    console.log('EisenhowerMatrix: Final quadrant counts:', result.map((q, i) => ({ quadrant: i, count: q.length })));
     return result;
   }, [tasks, showCompleted]);
 
@@ -395,11 +369,30 @@ const EisenhowerMatrix: React.FC = () => {
     // Update task fields for new quadrant
     const updatedFields = getTaskFieldsForQuadrant(targetQuadrant, activeTask);
     try {
-      await taskService.updateTask(activeTask.id, {
-        ...activeTask,
-        ...updatedFields,
-        status: activeTask.status
-      });
+      // Merge task data with updated fields then convert nulls to undefined
+      const mergedData = {
+        title: activeTask.title,
+        description: activeTask.description,
+        project: activeTask.project,
+        assignee: activeTask.assignee,
+        dueDate: activeTask.dueDate,
+        waitUntil: activeTask.waitUntil,
+        priority: activeTask.priority,
+        status: activeTask.status,
+        ...updatedFields
+      };
+      
+      // Convert null values to undefined for API compatibility
+      const updateData = {
+        ...mergedData,
+        description: mergedData.description || undefined,
+        project: mergedData.project || undefined,
+        assignee: mergedData.assignee || undefined,
+        dueDate: mergedData.dueDate || undefined,
+        waitUntil: mergedData.waitUntil || undefined,
+      };
+      
+      await taskService.updateTask(activeTask.id, updateData);
       fetchTasks();
     } catch (e) {
       console.error('Error updating task:', e);
@@ -415,9 +408,8 @@ const EisenhowerMatrix: React.FC = () => {
   const handleMarkDone = markDone;
   const handleUnmarkDone = unmarkDone;
   
-  const handleLinkTask = (task: Task) => {
+  const handleLinkTask = (_task: Task) => {
     // Implement task linking functionality
-    console.log('Link task:', task.id);
     // You could open a dialog to select which task to link to
   };
   

@@ -54,7 +54,7 @@ public class TaskProjectIntegrationTest {
                 "title": "Task with existing project",
                 "description": "Test task",
                 "priority": "HIGH",
-                "project": "Existing Project",
+                "projectName": "Existing Project",
                 "assignee": "John Doe",
                 "dueDate": "2025-12-31T23:59:59Z",
                 "tags": ["test", "integration"]
@@ -70,8 +70,7 @@ public class TaskProjectIntegrationTest {
             .body("id", matchesPattern("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))
             .body("title", equalTo("Task with existing project"))
             .body("projectId", equalTo(projectId))
-            .body("projectDetails.id", equalTo(projectId))
-            .body("projectDetails.name", equalTo("Existing Project"));
+            .body("projectName", equalTo("Existing Project"));
     }
 
     @Test
@@ -83,7 +82,7 @@ public class TaskProjectIntegrationTest {
                 "title": "Task with new project",
                 "description": "Test task that creates project",
                 "priority": "MEDIUM",
-                "project": "Auto Created Project",
+                "projectName": "Auto Created Project",
                 "assignee": "Jane Doe",
                 "dueDate": "2025-11-30T23:59:59Z",
                 "tags": ["auto", "create"]
@@ -99,7 +98,7 @@ public class TaskProjectIntegrationTest {
             .body("id", matchesPattern("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))
             .body("title", equalTo("Task with new project"))
             .body("projectId", matchesPattern("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))
-            .body("projectDetails.name", equalTo("Auto Created Project"))
+            .body("projectName", equalTo("Auto Created Project"))
             .extract().asString();
 
         // Verify the project was actually created
@@ -135,7 +134,8 @@ public class TaskProjectIntegrationTest {
             .body("id", matchesPattern("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))
             .body("title", equalTo("Task without project"))
             .body("projectId", nullValue())
-            .body("projectDetails", nullValue());
+            .body("projectId", nullValue())
+            .body("projectName", nullValue());
     }
 
     @Test
@@ -164,7 +164,7 @@ public class TaskProjectIntegrationTest {
                 "title": "Task for enrichment test",
                 "description": "Test task",
                 "priority": "HIGH",
-                "project": "Enrichment Project",
+                "projectName": "Enrichment Project",
                 "assignee": "Task Assignee",
                 "dueDate": "2025-12-25T23:59:59Z",
                 "tags": ["enrichment", "test"]
@@ -187,10 +187,7 @@ public class TaskProjectIntegrationTest {
             .body("id", equalTo(taskId))
             .body("title", equalTo("Task for enrichment test"))
             .body("projectId", equalTo(projectId))
-            .body("projectDetails.id", equalTo(projectId))
-            .body("projectDetails.name", equalTo("Enrichment Project"))
-            .body("projectDetails.description", equalTo("Project for testing enrichment"))
-            .body("projectDetails.owner", equalTo("Project Owner"));
+            .body("projectName", equalTo("Enrichment Project"));
     }
 
     @Test
@@ -229,7 +226,7 @@ public class TaskProjectIntegrationTest {
                 "title": "Task Alpha",
                 "description": "Task in Project Alpha",
                 "priority": "HIGH",
-                "project": "Project Alpha",
+                "projectName": "Project Alpha",
                 "assignee": "Alpha User",
                 "dueDate": "2025-12-31T23:59:59Z",
                 "tags": ["alpha"]
@@ -241,7 +238,7 @@ public class TaskProjectIntegrationTest {
                 "title": "Task Beta",
                 "description": "Task in Project Beta",
                 "priority": "MEDIUM",
-                "project": "Project Beta",
+                "projectName": "Project Beta",
                 "assignee": "Beta User",
                 "dueDate": "2025-11-30T23:59:59Z",
                 "tags": ["beta"]
@@ -286,9 +283,9 @@ public class TaskProjectIntegrationTest {
             .then()
             .statusCode(200)
             .body("size()", equalTo(3))
-            .body("findAll { it.title == 'Task Alpha' }[0].projectDetails.name", equalTo("Project Alpha"))
-            .body("findAll { it.title == 'Task Beta' }[0].projectDetails.name", equalTo("Project Beta"))
-            .body("findAll { it.title == 'Task Without Project' }[0].projectDetails", nullValue());
+            .body("findAll { it.title == 'Task Alpha' }[0].projectName", equalTo("Project Alpha"))
+            .body("findAll { it.title == 'Task Beta' }[0].projectName", equalTo("Project Beta"))
+            .body("findAll { it.title == 'Task Without Project' }[0].projectName", nullValue());
     }
 
     @Test
@@ -301,7 +298,7 @@ public class TaskProjectIntegrationTest {
                 "title": "Task 1",
                 "description": "First task",
                 "priority": "HIGH",
-                "project": "Shared Project",
+                "projectName": "Shared Project",
                 "assignee": "User 1",
                 "dueDate": "2025-12-31T23:59:59Z",
                 "tags": ["shared"]
@@ -313,7 +310,7 @@ public class TaskProjectIntegrationTest {
                 "title": "Task 2",
                 "description": "Second task",
                 "priority": "MEDIUM",
-                "project": "Shared Project",
+                "projectName": "Shared Project",
                 "assignee": "User 2",
                 "dueDate": "2025-11-30T23:59:59Z",
                 "tags": ["shared"]
@@ -358,7 +355,7 @@ public class TaskProjectIntegrationTest {
                 "title": "Storage Test Task",
                 "description": "Test task storage",
                 "priority": "HIGH",
-                "project": "Storage Test Project",
+                "projectName": "Storage Test Project",
                 "assignee": "Test User",
                 "dueDate": "2025-12-31T23:59:59Z",
                 "tags": ["storage"]
@@ -380,7 +377,7 @@ public class TaskProjectIntegrationTest {
             .then()
             .statusCode(200)
             .body("projectId", notNullValue())
-            .body("project", equalTo("Storage Test Project")) // Now populated for backward compatibility
-            .body("projectDetails.name", equalTo("Storage Test Project"));
+            .body("projectName", equalTo("Storage Test Project")) // Now populated for backward compatibility
+            .body("projectName", equalTo("Storage Test Project"));
     }
 }

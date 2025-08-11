@@ -42,7 +42,7 @@ public class TaskResourceTest {
                 "description": "This is a test task",
                 "status": "PENDING",
                 "priority": "HIGH",
-                "project": "TestProject",
+                "projectName": "TestProject",
                 "assignee": "testuser",
                 "tags": ["test", "important"]
             }
@@ -59,7 +59,7 @@ public class TaskResourceTest {
                 .body("description", is("This is a test task"))
                 .body("status", is("PENDING"))
                 .body("priority", is("HIGH"))
-                .body("project", is("TestProject"))
+                .body("projectName", is("TestProject"))
                 .body("assignee", is("testuser"))
                 .body("id", notNullValue())
                 .body("createdAt", notNullValue())
@@ -103,91 +103,16 @@ public class TaskResourceTest {
                 .body("priority", is("MEDIUM"));
     }
 
+
+
+
+
+
+
+
+
     @Test
     @Order(5)
-    public void testStartTask() {
-        given()
-            .when().post("/api/tasks/" + createdTaskId + "/start")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("status", is("ACTIVE"));
-    }
-
-    @Test
-    @Order(6)
-    public void testStopTask() {
-        given()
-            .when().post("/api/tasks/" + createdTaskId + "/stop")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("status", is("PENDING"));
-    }
-
-    @Test
-    @Order(7)
-    public void testMarkTaskDone() {
-        given()
-            .when().post("/api/tasks/" + createdTaskId + "/done")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("status", is("COMPLETED"));
-    }
-
-    @Test
-    @Order(8)
-    public void testGetPendingTasks() {
-        given()
-            .when().get("/api/tasks/pending")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
-
-    @Test
-    @Order(9)
-    public void testGetActiveTasks() {
-        given()
-            .when().get("/api/tasks/active")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
-
-    @Test
-    @Order(10)
-    public void testGetCompletedTasks() {
-        given()
-            .when().get("/api/tasks/completed")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
-
-    @Test
-    @Order(11)
-    public void testGetOverdueTasks() {
-        given()
-            .when().get("/api/tasks/overdue")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
-
-    @Test
-    @Order(12)
-    public void testGetTodayTasks() {
-        given()
-            .when().get("/api/tasks/today")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
-
-    @Test
-    @Order(13)
     public void testDeleteTask() {
         given()
             .when().delete("/api/tasks/" + createdTaskId)
@@ -196,7 +121,7 @@ public class TaskResourceTest {
     }
 
     @Test
-    @Order(14)
+    @Order(6)
     public void testGetNonExistentTask() {
         given()
             .when().get("/api/tasks/550e8400-e29b-41d4-a716-446655440000")
@@ -205,7 +130,7 @@ public class TaskResourceTest {
     }
 
     @Test
-    @Order(15)
+    @Order(7)
     public void testUpdateNonExistentTask() {
         String updateJson = """
             {
@@ -222,7 +147,7 @@ public class TaskResourceTest {
     }
 
     @Test
-    @Order(16)
+    @Order(8)
     public void testDeleteNonExistentTask() {
         given()
             .when().delete("/api/tasks/550e8400-e29b-41d4-a716-446655440000")
@@ -231,7 +156,7 @@ public class TaskResourceTest {
     }
 
     @Test
-    @Order(17)
+    @Order(9)
     public void testCreateInvalidTask() {
         String invalidTaskJson = """
             {
@@ -248,7 +173,7 @@ public class TaskResourceTest {
     }
 
     @Test
-    @Order(18)
+    @Order(10)
     public void testSearchByStatus() {
         // Search for PENDING tasks
         given()
@@ -269,7 +194,7 @@ public class TaskResourceTest {
     }
 
     @Test
-    @Order(19)
+    @Order(11)
     public void testSearchByTitle() {
         // Search for tasks with "Test" in title
         given()
@@ -289,7 +214,7 @@ public class TaskResourceTest {
     }
 
     @Test
-    @Order(20)
+    @Order(12)
     public void testSearchByAssignee() {
         // Search for tasks assigned to "testuser"
         given()
@@ -309,7 +234,7 @@ public class TaskResourceTest {
     }
 
     @Test
-    @Order(21)
+    @Order(13)
     public void testSearchByProjectId() {
         // First get a project ID
         String projectId = given()
@@ -337,7 +262,7 @@ public class TaskResourceTest {
     }
 
     @Test
-    @Order(22)
+    @Order(14)
     public void testSearchWithDateRange() {
         // Search with date range
         given()
@@ -360,7 +285,7 @@ public class TaskResourceTest {
     }
 
     @Test
-    @Order(23)
+    @Order(15)
     public void testSearchWithMultipleFilters() {
         // Complex search with multiple filters
         given()
@@ -374,7 +299,7 @@ public class TaskResourceTest {
     }
 
     @Test
-    @Order(24)
+    @Order(16)
     public void testSearchWithInvalidStatus() {
         // Invalid status should return 404 (handled by ParamConverter)
         given()
@@ -385,7 +310,7 @@ public class TaskResourceTest {
     }
 
     @Test
-    @Order(25)
+    @Order(17)
     public void testSearchWithNoFilters() {
         // Search with no filters should return all tasks
         given()
@@ -396,7 +321,7 @@ public class TaskResourceTest {
     }
 
     @Test
-    @Order(26)
+    @Order(18)
     public void testSearchCaseInsensitiveStatus() {
         // Test case-insensitive status handling
         given()

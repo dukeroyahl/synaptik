@@ -174,7 +174,7 @@ public class SynaptikMcpServer {
         if (!isValidUUID(taskId)) {
             return Uni.createFrom().item("❌ Invalid task ID format. Please provide a valid UUID.");
         }
-        return apiClient.startTask(taskId)
+        return apiClient.updateTaskStatus(taskId, TaskStatus.ACTIVE)
                 .map(response -> {
                     if (response.getStatus() == 200) {
                         Task task = response.readEntity(Task.class);
@@ -190,7 +190,7 @@ public class SynaptikMcpServer {
         if (!isValidUUID(taskId)) {
             return Uni.createFrom().item("❌ Invalid task ID format. Please provide a valid UUID.");
         }
-        return apiClient.stopTask(taskId)
+        return apiClient.updateTaskStatus(taskId, TaskStatus.PENDING)
                 .map(response -> {
                     if (response.getStatus() == 200) {
                         Task task = response.readEntity(Task.class);
@@ -206,7 +206,7 @@ public class SynaptikMcpServer {
         if (!isValidUUID(taskId)) {
             return Uni.createFrom().item("❌ Invalid task ID format. Please provide a valid UUID.");
         }
-        return apiClient.markTaskDone(taskId)
+        return apiClient.updateTaskStatus(taskId, TaskStatus.COMPLETED)
                 .map(response -> {
                     if (response.getStatus() == 200) {
                         Task task = response.readEntity(Task.class);
@@ -219,37 +219,39 @@ public class SynaptikMcpServer {
 
     @Tool(description = "Get all pending tasks")
     public Uni<String> getPendingTasks() {
-        return apiClient.getPendingTasks()
+        return apiClient.searchTasks(null, null, null, null, Arrays.asList("PENDING"), null, null)
                 .map(tasks -> formatTasksResponseWithEmoji(tasks, "Pending tasks", "⏳"));
     }
 
     @Tool(description = "Get all active tasks")
     public Uni<String> getActiveTasks() {
-        return apiClient.getActiveTasks()
+        return apiClient.searchTasks(null, null, null, null, Arrays.asList("ACTIVE"), null, null)
                 .map(tasks -> formatTasksResponseWithEmoji(tasks, "Active tasks", "🔄"));
     }
 
     @Tool(description = "Get all completed tasks")
     public Uni<String> getCompletedTasks() {
-        return apiClient.getCompletedTasks()
+        return apiClient.searchTasks(null, null, null, null, Arrays.asList("COMPLETED"), null, null)
                 .map(tasks -> formatTasksResponseWithEmoji(tasks, "Completed tasks", "✅"));
     }
 
-    @Tool(description = "Get all overdue tasks")
-    public Uni<String> getOverdueTasks() {
-        // Get the user's current timezone
-        String userTimezone = java.time.ZoneId.systemDefault().getId();
-        return apiClient.getOverdueTasks(userTimezone)
-                .map(tasks -> formatTasksResponse(tasks, "Overdue tasks (timezone: " + userTimezone + ")"));
-    }
+    // TODO: Overdue tasks endpoint removed from API - need to implement client-side filtering
+    // @Tool(description = "Get all overdue tasks")
+    // public Uni<String> getOverdueTasks() {
+    //     // Get the user's current timezone
+    //     String userTimezone = java.time.ZoneId.systemDefault().getId();
+    //     return apiClient.getOverdueTasks(userTimezone)
+    //             .map(tasks -> formatTasksResponse(tasks, "Overdue tasks (timezone: " + userTimezone + ")"));
+    // }
 
-    @Tool(description = "Get today's tasks")
-    public Uni<String> getTodayTasks() {
-        // Get the user's current timezone
-        String userTimezone = java.time.ZoneId.systemDefault().getId();
-        return apiClient.getTodayTasks(userTimezone)
-                .map(tasks -> formatTasksResponse(tasks, "Today's tasks (timezone: " + userTimezone + ")"));
-    }
+    // TODO: Today's tasks endpoint removed from API - need to implement client-side filtering
+    // @Tool(description = "Get today's tasks")
+    // public Uni<String> getTodayTasks() {
+    //     // Get the user's current timezone
+    //     String userTimezone = java.time.ZoneId.systemDefault().getId();
+    //     return apiClient.getTodayTasks(userTimezone)
+    //             .map(tasks -> formatTasksResponse(tasks, "Today's tasks (timezone: " + userTimezone + ")"));
+    // }
 
     @Tool(description = "Search tasks with multiple filters")
     public Uni<String> searchTasks(
@@ -512,8 +514,10 @@ public class SynaptikMcpServer {
         sb.append(statusIcon).append(" ").append(priorityIcon).append(" ");
         sb.append(task.title);
         
-        if (task.project != null) {
-            sb.append(" [").append(task.project).append("]");
+        if (task.projectName != null) {
+            sb.append(" [").append(task.projectName).append("]");
+        } else if (task.projectId != null) {
+            sb.append(" [Project: ").append(task.projectId).append("]");
         }
         
         if (task.dueDate != null) {
@@ -536,8 +540,10 @@ public class SynaptikMcpServer {
         if (task.description != null) {
             sb.append("  Description: ").append(task.description).append("\n");
         }
-        if (task.project != null) {
-            sb.append("  Project: ").append(task.project).append("\n");
+        if (task.projectName != null) {
+            sb.append("  Project: ").append(task.projectName).append("\n");
+        } else if (task.projectId != null) {
+            sb.append("  Project ID: ").append(task.projectId).append("\n");
         }
         if (task.assignee != null) {
             sb.append("  Assignee: ").append(task.assignee).append("\n");

@@ -38,7 +38,7 @@ public class TaskGraphService {
     public Uni<TaskGraphResponse> buildTaskGraph(List<TaskStatus> statuses) {
         logger.infof("Building task graph for statuses: %s", statuses);
         
-        return taskService.getTasksByStatuses(statuses)
+        return taskService.getRawTasksByStatuses(statuses)
             .onItem().transform(tasks -> {
                 List<TaskGraphNode> nodes = new ArrayList<>();
                 List<TaskGraphEdge> edges = new ArrayList<>();
@@ -83,9 +83,9 @@ public class TaskGraphService {
     public Uni<TaskGraphResponse> buildNeighborsGraph(UUID taskId, int depth, boolean includePlaceholders) {
         logger.infof("Building neighbors graph for task %s with depth %d", taskId, depth);
         
-        return taskService.getTaskById(taskId)
+        return taskService.getRawTaskById(taskId)
             .onItem().ifNotNull().transformToUni(centerTask -> {
-                return taskService.getAllTasks()
+                return taskService.getAllRawTasks()
                     .onItem().transform(allTasks -> {
                         List<TaskGraphNode> nodes = new ArrayList<>();
                         List<TaskGraphEdge> edges = new ArrayList<>();
@@ -126,12 +126,12 @@ public class TaskGraphService {
      * @return TaskGraphNode representation
      */
     private TaskGraphNode createTaskGraphNode(Task task, boolean placeholder) {
-        String projectName = task.projectDetails != null ? task.projectDetails.name : null;
+        UUID projectId = task.projectId != null ? task.projectId : null;
         return new TaskGraphNode(
             task.id.toString(),
             task.title,
             task.status,
-            projectName,
+                projectId,
             task.assignee,
             task.priority.toString(),
             task.urgency,

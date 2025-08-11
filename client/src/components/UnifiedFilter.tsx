@@ -98,16 +98,11 @@ const UnifiedFilter: React.FC<UnifiedFilterProps> = ({
     setSearch,
     dueDate,
     setDueDate,
-    urgencyRange,
-    setUrgencyRange,
     clearAll,
     getActiveCount
   } = useFilterStore();
 
   const [projectFilter, setProjectFilter] = React.useState('');
-  const urgencyMarks = React.useMemo(() => 
-    Array.from({ length: 11 }, (_, i) => ({ value: i, label: String(i) })), []
-  );
   const activeCount = getActiveCount();
 
   const filteredProjects = React.useMemo(() => {
@@ -210,9 +205,6 @@ const UnifiedFilter: React.FC<UnifiedFilterProps> = ({
     }
     if (search) {
       chips.push({ key: `search`, label: `Search: "${search}"`, onDelete: () => setSearch('') });
-    }
-    if (urgencyRange) {
-      chips.push({ key: 'urgency', label: `Urgency: ${urgencyRange[0]}–${urgencyRange[1]}` , onDelete: () => setUrgencyRange(undefined) });
     }
 
     return (
@@ -324,47 +316,6 @@ const UnifiedFilter: React.FC<UnifiedFilterProps> = ({
         color="info"
       />
 
-      {/* Urgency Range */}
-      <Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography sx={sectionTitleSx}>Urgency</Typography>
-          {urgencyRange && (
-            <Typography
-              variant="caption"
-              onClick={() => setUrgencyRange(undefined)}
-              sx={{
-                cursor: 'pointer',
-                textDecoration: 'underline',
-                fontSize: '0.65rem',
-                opacity: 0.7,
-                '&:hover': { opacity: 1 }
-              }}
-            >
-              Clear
-            </Typography>
-          )}
-        </Box>
-        <Typography variant="caption" sx={{ opacity: 0.7, display: 'block', mb: 0.5 }}>
-          {(urgencyRange || [0,10])[0]} – {(urgencyRange || [0,10])[1]}
-        </Typography>
-        <Slider
-          size="small"
-          value={urgencyRange || [0, 10]}
-          min={0}
-          max={10}
-          marks={urgencyMarks}
-          step={1}
-          onChange={(_, val) => setUrgencyRange(val as [number, number])}
-          valueLabelDisplay="off"
-          sx={{
-            '& .MuiSlider-markLabel': {
-              fontSize: '0.6rem',
-              fontWeight: 500,
-              color: 'text.secondary'
-            }
-          }}
-        />
-      </Box>
 
       {/* Projects */}
       {projects.length > 0 && (
@@ -428,9 +379,6 @@ const UnifiedFilter: React.FC<UnifiedFilterProps> = ({
       )}
 
       <Divider />
-      <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', opacity: 0.7 }}>
-        Changes apply instantly
-      </Typography>
     </Box>
   );
 

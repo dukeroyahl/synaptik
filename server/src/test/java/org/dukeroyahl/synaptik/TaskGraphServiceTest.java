@@ -4,13 +4,16 @@ import io.quarkus.test.junit.QuarkusTest;
 import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
 import org.dukeroyahl.synaptik.domain.TaskPriority;
+import org.dukeroyahl.synaptik.dto.TaskDTO;
 import org.dukeroyahl.synaptik.dto.TaskGraphResponse;
+import org.dukeroyahl.synaptik.dto.TaskRequest;
 import org.dukeroyahl.synaptik.service.TaskGraphService;
 import org.dukeroyahl.synaptik.service.TaskService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import jakarta.inject.Inject;
+import java.util.UUID;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -46,12 +49,12 @@ public class TaskGraphServiceTest {
     @Test
     void testBuildTaskGraphWithSingleTask() {
         // Create a single task
-        Task task = new Task();
-        task.title = "Test Task";
-        task.priority = TaskPriority.HIGH;
-        task.status = TaskStatus.PENDING;
+        TaskRequest taskRequest = new TaskRequest();
+        taskRequest.title = "Test Task";
+        taskRequest.priority = TaskPriority.HIGH;
+        taskRequest.status = TaskStatus.PENDING;
         
-        Task createdTask = taskService.createTask(task).await().indefinitely();
+        TaskDTO createdTask = taskService.createTask(taskRequest).await().indefinitely();
         
         // Build graph
         TaskGraphResponse response = taskGraphService.buildTaskGraph(List.of(TaskStatus.PENDING))
@@ -86,14 +89,14 @@ public class TaskGraphServiceTest {
     @Test
     void testBuildNeighborsGraphWithSingleTask() {
         // Create a single task
-        Task task = new Task();
-        task.title = "Center Task";
-        task.priority = TaskPriority.MEDIUM;
-        task.status = TaskStatus.PENDING;
+        TaskRequest taskRequest = new TaskRequest();
+        taskRequest.title = "Center Task";
+        taskRequest.priority = TaskPriority.MEDIUM;
+        taskRequest.status = TaskStatus.PENDING;
         
-        Task createdTask = taskService.createTask(task).await().indefinitely();
+        TaskDTO createdTask = taskService.createTask(taskRequest).await().indefinitely();
         
-        // Build neighbors graph
+        // Build neighbors graph  
         TaskGraphResponse response = taskGraphService.buildNeighborsGraph(createdTask.id, 2, true)
             .await().indefinitely();
         

@@ -5,6 +5,7 @@ import java.util.List;
 import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.Project;
 import org.dukeroyahl.synaptik.domain.ProjectStatus;
+import org.dukeroyahl.synaptik.domain.TaskStatus;
 import org.dukeroyahl.synaptik.dto.TaskGraphResponse;
 import org.dukeroyahl.synaptik.dto.UpdateProject;
 import org.dukeroyahl.synaptik.dto.TaskRequest;
@@ -57,37 +58,11 @@ public interface SynaptikApiClient {
     @Path("/api/tasks")
     Uni<Response> deleteAllTasks();
     
-    @POST
-    @Path("/api/tasks/{id}/start")
-    Uni<Response> startTask(@PathParam("id") String id);
+    // ===== TASK STATUS MANAGEMENT =====
     
-    @POST
-    @Path("/api/tasks/{id}/stop")
-    Uni<Response> stopTask(@PathParam("id") String id);
-    
-    @POST
-    @Path("/api/tasks/{id}/done")
-    Uni<Response> markTaskDone(@PathParam("id") String id);
-    
-    @GET
-    @Path("/api/tasks/pending")
-    Uni<List<Task>> getPendingTasks();
-    
-    @GET
-    @Path("/api/tasks/active")
-    Uni<List<Task>> getActiveTasks();
-    
-    @GET
-    @Path("/api/tasks/completed")
-    Uni<List<Task>> getCompletedTasks();
-    
-    @GET
-    @Path("/api/tasks/overdue")
-    Uni<List<Task>> getOverdueTasks(@QueryParam("tz") String timezone);
-    
-    @GET
-    @Path("/api/tasks/today")
-    Uni<List<Task>> getTodayTasks(@QueryParam("tz") String timezone);
+    @PUT
+    @Path("/api/tasks/{id}/status")
+    Uni<Response> updateTaskStatus(@PathParam("id") String id, TaskStatus status);
     
     @GET
     @Path("/api/tasks/search")

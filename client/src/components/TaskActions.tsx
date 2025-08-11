@@ -11,17 +11,11 @@ import {
   MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import { Task } from '../types';
+import { TaskActionCallbacks, CompactModeProps } from '../types/common';
 
-interface TaskActionsProps {
+interface TaskActionsProps extends TaskActionCallbacks, CompactModeProps {
   task: Task;
-  onEdit?: (task: Task) => void;
-  onMarkDone?: (task: Task) => void;
-  onUnmarkDone?: (task: Task) => void;
-  onDelete?: (task: Task) => void;
-  onViewDependencies?: (task: Task) => void;
   onStop?: (task: Task) => void;
-  onLinkTask?: (task: Task) => void;
-  compact?: boolean;
 }
 
 const TaskActionsComponent: React.FC<TaskActionsProps> = ({
@@ -32,9 +26,12 @@ const TaskActionsComponent: React.FC<TaskActionsProps> = ({
   onDelete,
   onViewDependencies,
   onStop,
+  onStart,
   onLinkTask,
   compact = false
 }) => {
+  // Suppress unused variable warning for optional prop
+  void onStart;
   // Memoize button sizes to prevent recalculation
   const buttonSize = useMemo(() => compact ? "small" : "medium", [compact]);
   const iconSize = useMemo(() => compact ? { fontSize: 14 } : { fontSize: 18 }, [compact]);

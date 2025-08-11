@@ -19,17 +19,14 @@ const Calendar: React.FC<CalendarProps> = ({ onTaskSelect }) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('Calendar useEffect triggered');
     fetchTasks();
   }, []);
 
   const fetchTasks = async () => {
-    console.log('fetchTasks called');
     try {
       setLoading(true);
       setError(null);
       const tasks = await taskService.getTasks();
-      console.log('Tasks received:', tasks?.length || 0, tasks);
       
       if (!tasks) {
         console.warn('No tasks returned from service');
@@ -44,7 +41,6 @@ const Calendar: React.FC<CalendarProps> = ({ onTaskSelect }) => {
       setTasks([]); // Clear tasks on error
     } finally {
       setLoading(false);
-      console.log('fetchTasks completed, loading set to false');
     }
   };
     // Get CSS class based on task priority and status
@@ -94,7 +90,6 @@ const Calendar: React.FC<CalendarProps> = ({ onTaskSelect }) => {
   const handleEventClick = (info: any) => {
     try {
       if (onTaskSelect && info.event && info.event.id) {
-        console.log('Calendar event clicked:', info.event.id, info.event.title);
         onTaskSelect(info.event.id);
       }
     } catch (error) {
@@ -102,7 +97,6 @@ const Calendar: React.FC<CalendarProps> = ({ onTaskSelect }) => {
     }
   };
 
-  console.log('Calendar render - loading:', loading, 'error:', error, 'tasks:', tasks.length, 'events:', events.length);
 
   return (
       <Card elevation={theme.palette.mode === 'dark' ? 2 : 1} className="custom-card">

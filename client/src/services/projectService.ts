@@ -1,20 +1,16 @@
 import { apiClient } from './apiClient'
-import { Project } from '../types'
-import { API_ENDPOINTS } from '../constants/api'
+import { Project, UpdateProject } from '../types'
+import { 
+  API_ENDPOINTS, 
+  getProjectEndpoint,
+  getProjectActionEndpoint,
+  getProjectsByStatusEndpoint,
+  getProjectsByOwnerEndpoint,
+  getProjectsByTagEndpoint
+} from '../constants/api'
 
-export interface CreateProjectRequest {
-  name: string
-  description?: string
-  owner?: string
-  dueDate?: string
-  tags?: string[]
-  color?: string
-}
-
-export interface UpdateProjectRequest extends Partial<CreateProjectRequest> {
-  status?: Project['status']
-  progress?: number
-}
+// For creating projects - uses Project interface directly
+export type CreateProjectRequest = Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'overdue' | 'daysUntilDue'>
 
 class ProjectService {
   async getProjects(): Promise<Project[]> {
@@ -23,7 +19,7 @@ class ProjectService {
   }
 
   async getProject(id: string): Promise<Project> {
-    const response = await apiClient.get<Project>(`${API_ENDPOINTS.PROJECTS}/${id}`)
+    const response = await apiClient.get<Project>(getProjectEndpoint(id))
     return response.data
   }
 
@@ -32,29 +28,61 @@ class ProjectService {
     return response.data
   }
 
-  async updateProject(id: string, updates: UpdateProjectRequest): Promise<Project> {
-    const response = await apiClient.put<Project>(`${API_ENDPOINTS.PROJECTS}/${id}`, updates)
+  async updateProject(id: string, updates: UpdateProject): Promise<Project> {
+    const response = await apiClient.put<Project>(getProjectEndpoint(id), updates)
     return response.data
   }
 
   async deleteProject(id: string): Promise<void> {
-    await apiClient.delete(`${API_ENDPOINTS.PROJECTS}/${id}`)
+    await apiClient.delete(getProjectEndpoint(id))
   }
 
   async deleteAllProjects(): Promise<void> {
     await apiClient.delete(API_ENDPOINTS.PROJECTS)
   }
 
-  // Note: Project status is automatically managed by the server based on task states
-  // startProject and completeProject methods are not needed
+  // New action methods from the updated API
+  async startProject(id: string): Promise<Project> {
+    const response = await apiClient.put<Project>(getProjectActionEndpoint(id, 'start'))
+    return response.data
+  }
+
+  async completeProject(id: string): Promise<Project> {
+    const response = await apiClient.put<Project>(getProjectActionEndpoint(id, 'complete'))
+    return response.data
+  }
 
   async updateProjectProgress(id: string, progress: number): Promise<Project> {
-    const response = await apiClient.put<Project>(`${API_ENDPOINTS.PROJECTS}/${id}/progress`, { progress })
+    const params = new URLSearchParams()
+    params.set('progress', progress.toString())
+    const url = `${getProjectActionEndpoint(id, 'progress')}?${params.toString()}`
+    const response = await apiClient.put<Project>(url)
+    return response.data
+  }
+
+  // Filtered queries
+  async getActiveProjects(): Promise<Project[]> {
+    const response = await apiClient.get<Project[]>(API_ENDPOINTS.PROJECTS_ACTIVE)
+    return response.data
+  }
+
+  async getOverdueProjects(): Promise<Project[]> {
+    const response = await apiClient.get<Project[]>(API_ENDPOINTS.PROJECTS_OVERDUE)
     return response.data
   }
 
   async getProjectsByStatus(status: Project['status']): Promise<Project[]> {
-    const response = await apiClient.get<Project[]>(`${API_ENDPOINTS.PROJECTS}/status/${status}`)
+    const response = await apiClient.get<Project[]>(getProjectsByStatusEndpoint(status))
+    return response.data
+  }
+
+  async getProjectsByOwner(owner: string): Promise<Project[]> {
+    const response = await apiClient.get<Project[]>(getProjectsByOwnerEndpoint(owner))
+    return response.data
+  }
+
+  async getProjectsByTag(tag: string): Promise<Project[]> {
+    const response = await apiClient.get<Project[]>(getProjectsByTagEndpoint(tag))
     return response.data
   }
 }

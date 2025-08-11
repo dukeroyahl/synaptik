@@ -2,7 +2,7 @@ package org.dukeroyahl.synaptik.domain;
 
 import io.quarkus.mongodb.panache.common.MongoEntity;
 import jakarta.validation.constraints.*;
-import org.bson.codecs.pojo.annotations.BsonIgnore;
+import lombok.ToString;
 
 import java.time.ZonedDateTime;
 import java.time.LocalDateTime;
@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.UUID;
 
 @MongoEntity(collection = "tasks")
+@ToString
 public class Task extends BaseEntity {
     
     @NotBlank
@@ -30,9 +31,6 @@ public class Task extends BaseEntity {
     @DecimalMax("100.0")
     public Double urgency;
     
-    // Store project ID as UUID instead of project name
-    public UUID projectId;
-    
     public String assignee;
     
     // Store as string to avoid MongoDB serialization issues
@@ -46,9 +44,8 @@ public class Task extends BaseEntity {
     // Store the original user input for reference
     public String originalInput;
     
-    // This field is populated during retrieval and not stored in DB
-    @BsonIgnore
-    public Project projectDetails;
+    // Store project ID as UUID instead of project name
+    public UUID projectId;
     
     public void start() {
         this.status = TaskStatus.ACTIVE;
@@ -74,18 +71,6 @@ public class Task extends BaseEntity {
     
     public void addAnnotation(String description) {
         annotations.add(new TaskAnnotation(LocalDateTime.now(), description));
-    }
-    
-    /**
-     * Get the project name from projectDetails for JSON serialization.
-     * This maintains backward compatibility by providing project name in API responses.
-     */
-    @com.fasterxml.jackson.annotation.JsonProperty("project")
-    public String getProject() {
-        if (projectDetails != null) {
-            return projectDetails.name;
-        }
-        return null;
     }
     
     public double calculateUrgency() {
@@ -123,8 +108,8 @@ public class Task extends BaseEntity {
         
         if (status == TaskStatus.ACTIVE) urgency += 4;
         
-        if (tags.contains("urgent")) urgency += 5;
-        if (tags.contains("important")) urgency += 3;
+        if (tags != null && tags.contains("urgent")) urgency += 5;
+        if (tags != null && tags.contains("important")) urgency += 3;
         
         return Math.min(100.0, Math.max(0.0, urgency));
     }

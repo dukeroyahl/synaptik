@@ -20,17 +20,12 @@ import {
   PlayArrow as ActiveIcon
 } from '@mui/icons-material';
 import { Task } from '../types';
+import { TaskActionCallbacks } from '../types/common';
 import TaskCard from './TaskCard';
 
-interface ProjectViewProps {
+interface ProjectViewProps extends TaskActionCallbacks {
   tasks: Task[];
-  onViewDependencies?: (task: Task) => void;
-  onMarkDone?: (task: Task) => void;
-  onUnmarkDone?: (task: Task) => void;
-  onEdit?: (task: Task) => void;
-  onDelete?: (task: Task) => void;
   onStop?: (task: Task) => void;
-  onLinkTask?: (task: Task) => void;
 }
 
 interface ProjectGroup {
@@ -53,8 +48,11 @@ const ProjectView: React.FC<ProjectViewProps> = ({
   onEdit,
   onDelete,
   onStop,
+  onStart,
   onLinkTask
 }) => {
+  // Suppress unused variable warning for optional prop
+  void onStart;
   const theme = useTheme();
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -86,9 +84,12 @@ const ProjectView: React.FC<ProjectViewProps> = ({
       return {
         name,
         tasks: projectTasks.sort((a, b) => {
-          // Sort by urgency, then by due date
-          if (a.urgency !== b.urgency) {
-            return (b.urgency || 0) - (a.urgency || 0);
+          // Sort by priority, then by due date
+          const priorityOrder = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1, 'NONE': 0 };
+          const aPriority = priorityOrder[a.priority || 'NONE'];
+          const bPriority = priorityOrder[b.priority || 'NONE'];
+          if (aPriority !== bPriority) {
+            return bPriority - aPriority;
           }
           if (a.dueDate && b.dueDate) {
             return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();

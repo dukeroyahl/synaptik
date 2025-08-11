@@ -46,7 +46,6 @@ const TaskList: React.FC<TaskListProps> = memo(({
     projects: s.projects,
     search: s.search,
     dueDate: s.dueDate,
-    urgencyRange: s.urgencyRange,
     overviewMode: s.overviewMode,
   }));
 
@@ -63,9 +62,8 @@ const TaskList: React.FC<TaskListProps> = memo(({
       Array.from(effectiveProjects).join(','),
       storeFilters.search,
       effectiveDueDate,
-      storeFilters.urgencyRange ? storeFilters.urgencyRange.join('-') : ''
     ].join('|')
-  ), [filter, storeFilters.priorities, effectiveAssignees, effectiveProjects, storeFilters.search, effectiveDueDate, storeFilters.urgencyRange]);
+  ), [filter, storeFilters.priorities, effectiveAssignees, effectiveProjects, storeFilters.search, effectiveDueDate]);
 
   const fetchTasks = useCallback(async () => {
     setLoading(true)
@@ -117,10 +115,6 @@ const TaskList: React.FC<TaskListProps> = memo(({
         }
       }
       if (!dueIsSpecial && effectiveDueDate && !['overdue','today'].includes(effectiveDueDate)) params.set('dueDate', effectiveDueDate);
-      if (storeFilters.urgencyRange) {
-        params.set('urgencyMin', String(storeFilters.urgencyRange[0]));
-        params.set('urgencyMax', String(storeFilters.urgencyRange[1]));
-      }
       const fullUrl = `${API_BASE_URL}${endpoint}${params.toString() ? `?${params.toString()}` : ''}`;
       const response = await fetch(fullUrl);
       const result = await response.json();
@@ -239,6 +233,9 @@ const TaskList: React.FC<TaskListProps> = memo(({
     setEditingTask(task)
     setEditDialogOpen(true)
   }, [])
+  
+  // Suppress unused variable warning - keeping for future use
+  void handleEditDate;
 
   const handleViewDependencies = useCallback((task: Task) => {
     navigate(`/dependencies?task=${task.id}`);
@@ -348,10 +345,6 @@ const TaskList: React.FC<TaskListProps> = memo(({
               task.description?.toLowerCase().includes(q) || 
               task.assignee?.toLowerCase().includes(q))) return false;
       }
-      if (storeFilters.urgencyRange && typeof (task as any).urgency === 'number') {
-        const [minU, maxU] = storeFilters.urgencyRange;
-        if ((task as any).urgency < minU || (task as any).urgency > maxU) return false;
-      }
       // Due date (reuse existing logic)
       if (effectiveDueDate) {
         const today = new Date(); today.setHours(0,0,0,0);
@@ -375,7 +368,7 @@ const TaskList: React.FC<TaskListProps> = memo(({
       }
       return true;
     });
-  }, [tasks, effectiveProjects, effectiveAssignees, storeFilters.priorities, storeFilters.search, storeFilters.urgencyRange, effectiveDueDate]);
+  }, [tasks, effectiveProjects, effectiveAssignees, storeFilters.priorities, storeFilters.search, effectiveDueDate]);
 
   // Memoize individual task action handlers to prevent unnecessary re-renders
   const memoizedTaskHandlers = useMemo(() => ({

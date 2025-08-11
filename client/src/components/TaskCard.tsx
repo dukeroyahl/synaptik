@@ -2,11 +2,9 @@ import React, { memo, useMemo, useCallback } from 'react';
 import { useTheme, Box, Card, CardContent, Typography, IconButton, Tooltip } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
-  Flag as PriorityIcon,
   AccountTree as DependencyIcon,
   Folder as ProjectIcon,
   Person as PersonIcon,
-  Speed as UrgencyIcon,
   PlayArrow as StartIcon,
   Pause as PauseIcon,
   CheckCircle as CompleteIcon,
@@ -15,6 +13,7 @@ import {
   Edit as EditIcon,
 } from '@mui/icons-material';
 import { Task } from '../types';
+import { TaskActionCallbacks, BaseComponentProps, SelectableProps, CompactModeProps } from '../types/common';
 import { 
   isTaskOverdue,
   toSentenceCase,
@@ -22,20 +21,10 @@ import {
 } from '../utils/taskUtils';
 import { parseBackendDate, getTimeRemaining } from '../utils/dateUtils';
 
-interface TaskCardProps {
+interface TaskCardProps extends TaskActionCallbacks, BaseComponentProps, SelectableProps, CompactModeProps {
   task: Task;
-  selected?: boolean;
-  onSelect?: (task: Task) => void;
-  onMarkDone?: (task: Task) => void;
-  onUnmarkDone?: (task: Task) => void;
-  onEdit?: (task: Task) => void;
-  onDelete?: (task: Task) => void;
   onPause?: (task: Task) => void;
-  onStart?: (task: Task) => void;
   onStop?: (task: Task) => void;
-  onLinkTask?: (task: Task) => void;
-  onViewDependencies?: (task: Task) => void;
-  compact?: boolean;
   draggable?: boolean;
 }
 
@@ -49,8 +38,17 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
   onDelete,
   onPause,
   onStart,
-  onLinkTask
+  onStop,
+  onLinkTask,
+  onViewDependencies,
+  compact = false,
+  className,
+  'data-testid': dataTestId
 }) => {
+  // Suppress unused variable warnings for optional props
+  void onStop;
+  void onViewDependencies;
+  void compact;
   const theme = useTheme();
   const semantic = (theme as any).semanticStyles;
   const colorCategory = getTaskColorCategory(task);
@@ -108,12 +106,9 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
   // Memoize event handlers
   const handleEdit = useCallback((e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    console.log('Edit button clicked for task:', task.title);
     if (onEdit) {
-      console.log('Calling onEdit with task:', task);
       onEdit(task);
     } else {
-      console.log('onEdit prop is not provided');
     }
   }, [onEdit, task]);
 
@@ -146,17 +141,72 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
     if (e) e.stopPropagation();
     if (onStart) onStart(task);
   }, [onStart, task]);
+
+  // Keyboard navigation handler
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // Don't interfere with typing in nested inputs
+    if ((e.target as HTMLElement).tagName === 'INPUT') return;
+    
+    switch (e.key) {
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        if (onSelect) onSelect(task);
+        break;
+      case 'e':
+      case 'E':
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          if (onEdit) onEdit(task);
+        }
+        break;
+      case 'd':
+      case 'D':
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          if (onDelete) onDelete(task);
+        }
+        break;
+      case 'c':
+      case 'C':
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          if (task.status === 'COMPLETED' && onUnmarkDone) {
+            onUnmarkDone(task);
+          } else if (onMarkDone) {
+            onMarkDone(task);
+          }
+        }
+        break;
+      case 's':
+      case 'S':
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          if (task.status === 'ACTIVE' && onPause) {
+            onPause(task);
+          } else if (onStart) {
+            onStart(task);
+          }
+        }
+        break;
+      default:
+        break;
+    }
+  }, [task, onSelect, onEdit, onDelete, onMarkDone, onUnmarkDone, onPause, onStart]);
   
   return (
     <Tooltip 
-      title={onEdit ? "Double-click to edit task or use the edit button" : ""} 
+      title={onEdit ? "Keyboard shortcuts: Enter/Space=Select, E=Edit, C=Complete, S=Start/Pause, D=Delete" : "Press Enter or Space to select"} 
       placement="top"
       arrow
     >
       <Card
         onClick={() => onSelect && onSelect(task)}
         onDoubleClick={() => onEdit && onEdit(task)}
+        onKeyDown={handleKeyDown}
         tabIndex={0}
+        className={className}
+        data-testid={dataTestId}
         sx={{
         mb: 1,
         p: 0,
@@ -181,92 +231,84 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
       }}
     >
       <CardContent sx={{ py: 1, px: 2, '&:last-child': { pb: 1 } }}>
-        {/* First Row: Task Title and Status + Days Remaining */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-          <Typography 
-            variant="h6" 
-            sx={{ 
-              fontWeight: task.status === 'ACTIVE' ? 700 : 600,
-              textDecoration: task.status === 'COMPLETED' ? 'line-through' : 'none',
-              fontSize: '1.1rem',
-              color: task.status === 'COMPLETED' ? 'text.secondary' : 'text.primary',
-              flex: 1,
-            }}
-          >
-            {task.title}
-          </Typography>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        {/* First Row: Task Title and Key Status */}
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1 }}>
+          <Box sx={{ flex: 1, minWidth: 0, mr: 1 }}>
             <Typography 
-              variant="caption" 
+              variant="h6" 
               sx={{ 
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: cat.chip,
-                backgroundColor: cat.chip + '20',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                textTransform: 'uppercase',
-                letterSpacing: 0.5,
+                fontWeight: task.status === 'ACTIVE' ? 700 : 600,
+                textDecoration: task.status === 'COMPLETED' ? 'line-through' : 'none',
+                fontSize: { xs: '1rem', sm: '1.1rem' },
+                color: task.status === 'COMPLETED' ? 'text.secondary' : 'text.primary',
+                lineHeight: 1.3,
+                wordBreak: 'break-word'
               }}
             >
-              {toSentenceCase(task.status)}
+              {task.title}
             </Typography>
+            
+            {/* Description - only show if compact mode is off */}
+            {!compact && task.description && (
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                sx={{ 
+                  fontSize: '0.85rem',
+                  lineHeight: 1.4,
+                  mt: 0.5,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden'
+                }}
+              >
+                {task.description}
+              </Typography>
+            )}
+          </Box>
+          
+          {/* Priority visual indicator and time remaining */}
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flexShrink: 0 }}>
+            {/* High priority indicator */}
+            {task.priority === 'HIGH' && (
+              <Box sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                backgroundColor: 'error.main',
+                mt: 0.75
+              }} />
+            )}
             
             {timeRemaining && (
               <Typography 
-                variant="h6" 
+                variant="caption" 
                 color={isOverdue ? 'error.main' : 'text.secondary'}
                 sx={{ 
-                  fontWeight: 500,
-                  fontSize: '1.1rem',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  textAlign: 'right',
+                  lineHeight: 1.2
                 }}
               >
                 {timeRemaining}
+                {actualDate && (
+                  <Box component="span" sx={{ display: 'block', fontSize: '0.7rem', opacity: 0.8 }}>
+                    {actualDate}
+                  </Box>
+                )}
               </Typography>
             )}
           </Box>
         </Box>
 
-        {/* Second Row: Description and Date */}
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1 }}>
-          {task.description && (
-            <Typography 
-              variant="body2" 
-              color="text.secondary" 
-              sx={{ 
-                fontSize: '0.85rem', 
-                lineHeight: 1.4,
-                flex: 1,
-                mr: 1
-              }}
-            >
-              {task.description}
-            </Typography>
-          )}
-          
-          {actualDate && (
-            <Typography 
-              variant="caption" 
-              color={isOverdue ? 'error.main' : 'text.secondary'}
-              sx={{ 
-                fontWeight: 500,
-                fontSize: '0.75rem',
-                flexShrink: 0
-              }}
-            >
-              {actualDate}
-            </Typography>
-          )}
-        </Box>
-
-        {/* Third Row: Project, Assignee, Priority, Urgency and Action Buttons */}
+        {/* Second Row: Project, Assignee and Status Badge */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-          {/* Left side: Info items */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', minWidth: 0 }}>
             {task.project && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <ProjectIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                <ProjectIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
                 <Typography 
                   variant="caption" 
                   sx={{ 
@@ -282,7 +324,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
             
             {task.assignee && task.assignee.trim() && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <PersonIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                <PersonIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
                 <Typography 
                   variant="caption" 
                   sx={{ 
@@ -295,41 +337,45 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
                 </Typography>
               </Box>
             )}
-            
-            {task.priority && task.priority !== 'NONE' && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <PriorityIcon sx={{ 
-                  fontSize: 16, 
-                  color: priorityStyle?.color || 'text.secondary' 
-                }} />
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    fontSize: '0.75rem', 
-                    color: priorityStyle?.color || 'text.secondary',
-                    fontWeight: 'medium'
-                  }}
-                >
-                  {task.priority}
-                </Typography>
-              </Box>
+          </Box>
+          
+          {/* Status badge - more prominent */}
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              color: cat.text,
+              backgroundColor: cat.chip,
+              padding: '3px 8px',
+              borderRadius: '12px',
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+              flexShrink: 0
+            }}
+          >
+            {toSentenceCase(task.status)}
+          </Typography>
+        </Box>
+
+        {/* Third Row: Action Buttons and Additional Info */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: compact ? 0 : 0.5 }}>
+          {/* Left side: Additional metadata (only show if not compact) */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+            {!compact && task.priority && task.priority !== 'NONE' && task.priority !== 'HIGH' && (
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  fontSize: '0.7rem', 
+                  color: priorityStyle?.color || 'text.secondary',
+                  fontWeight: 'medium',
+                  textTransform: 'capitalize'
+                }}
+              >
+                {task.priority.toLowerCase()} priority
+              </Typography>
             )}
             
-            {task.urgency != null && task.urgency > 0 && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <UrgencyIcon sx={{ fontSize: 16, color: 'warning.main' }} />
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    fontSize: '0.75rem', 
-                    color: 'warning.main',
-                    fontWeight: 'medium'
-                  }}
-                >
-                  {task.urgency}
-                </Typography>
-              </Box>
-            )}
           </Box>
           
           {/* Right side: Action buttons */}
@@ -349,8 +395,10 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
               sx={{ 
                 color: 'text.secondary',
                 backgroundColor: 'transparent',
-                width: 24,
-                height: 24,
+                width: { xs: 32, sm: 24 },
+                height: { xs: 32, sm: 24 },
+                minWidth: { xs: 32, sm: 'auto' },
+                minHeight: { xs: 32, sm: 'auto' },
                 '&:hover': {
                   backgroundColor: 'action.hover',
                   color: 'primary.main'
@@ -369,8 +417,10 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
                 sx={{ 
                   color: 'text.secondary',
                   backgroundColor: 'transparent',
-                  width: 24,
-                  height: 24,
+                  width: { xs: 32, sm: 24 },
+                  height: { xs: 32, sm: 24 },
+                  minWidth: { xs: 32, sm: 'auto' },
+                  minHeight: { xs: 32, sm: 'auto' },
                   '&:hover': {
                     backgroundColor: 'action.hover',
                     color: 'warning.main'
@@ -387,8 +437,10 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
                 sx={{ 
                   color: 'text.secondary',
                   backgroundColor: 'transparent',
-                  width: 24,
-                  height: 24,
+                  width: { xs: 32, sm: 24 },
+                  height: { xs: 32, sm: 24 },
+                  minWidth: { xs: 32, sm: 'auto' },
+                  minHeight: { xs: 32, sm: 'auto' },
                   '&:hover': {
                     backgroundColor: 'action.hover',
                     color: 'success.main'
@@ -407,8 +459,10 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
               sx={{ 
                 color: task.status === 'COMPLETED' ? 'success.main' : 'text.secondary',
                 backgroundColor: 'transparent',
-                width: 24,
-                height: 24,
+                width: { xs: 32, sm: 24 },
+                height: { xs: 32, sm: 24 },
+                minWidth: { xs: 32, sm: 'auto' },
+                minHeight: { xs: 32, sm: 'auto' },
                 '&:hover': {
                   backgroundColor: 'action.hover',
                   color: 'success.main'
@@ -427,8 +481,10 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
                 sx={{ 
                   color: 'text.secondary',
                   backgroundColor: 'transparent',
-                  width: 24,
-                  height: 24,
+                  width: { xs: 32, sm: 24 },
+                  height: { xs: 32, sm: 24 },
+                  minWidth: { xs: 32, sm: 'auto' },
+                  minHeight: { xs: 32, sm: 'auto' },
                   '&:hover': {
                     backgroundColor: 'action.hover',
                     color: 'info.main'
@@ -447,8 +503,10 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
               sx={{ 
                 color: 'text.secondary',
                 backgroundColor: 'transparent',
-                width: 24,
-                height: 24,
+                width: { xs: 32, sm: 24 },
+                height: { xs: 32, sm: 24 },
+                minWidth: { xs: 32, sm: 'auto' },
+                minHeight: { xs: 32, sm: 'auto' },
                 '&:hover': {
                   backgroundColor: 'action.hover',
                   color: 'error.main'
@@ -461,12 +519,12 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
           </Box>
         </Box>
 
-        {/* Fourth Row: Dependencies */}
-        {(task.depends && task.depends.length > 0) && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-            <DependencyIcon sx={{ fontSize: 16, color: 'warning.main' }} />
-            <Typography variant="caption" sx={{ color: 'warning.main' }}>
-              {task.depends.length} dependencies
+        {/* Dependencies indicator - only show if not compact */}
+        {!compact && (task.depends && task.depends.length > 0) && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+            <DependencyIcon sx={{ fontSize: 12, color: 'warning.main' }} />
+            <Typography variant="caption" sx={{ color: 'warning.main', fontSize: '0.7rem' }}>
+              {task.depends.length} dep{task.depends.length !== 1 ? 's' : ''}
             </Typography>
           </Box>
         )}

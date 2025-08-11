@@ -45,13 +45,16 @@ public class ProjectService {
         }
         
         return getProjectByName(projectName.trim())
-            .onItem().ifNull().switchTo(() -> {
-                Project newProject = new Project();
-                newProject.name = projectName.trim();
-                newProject.status = ProjectStatus.PENDING;
-                logger.infof("Auto-creating project: %s", projectName.trim());
-                return createProject(newProject);
-            });
+                .onItem()
+                    .ifNull()
+                        .switchTo(() -> {
+                            Project newProject = new Project();
+                            newProject.name = projectName.trim();
+                            newProject.status = ProjectStatus.PENDING;
+                            logger.infof("Auto-creating project: %s", projectName.trim());
+                            return createProject(newProject);
+                        })
+                    ;
     }
     
     public Uni<Project> updateProject(UUID id, UpdateProject updates) {

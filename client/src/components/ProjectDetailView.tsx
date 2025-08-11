@@ -22,22 +22,16 @@ import {
   Warning as OverdueIcon
 } from '@mui/icons-material';
 import { Task, Project } from '../types';
+import { TaskActionCallbacks } from '../types/common';
 import TaskCard from './TaskCard';
 import TaskCapture from './TaskCapture';
 import { parseBackendDate } from '../utils/dateUtils';
 import { isTaskOverdue } from '../utils/taskUtils';
 
-interface ProjectDetailViewProps {
+interface ProjectDetailViewProps extends TaskActionCallbacks {
   project: Project;
   tasks: Task[];
-  onViewDependencies?: (task: Task) => void;
-  onMarkDone?: (task: Task) => void;
-  onUnmarkDone?: (task: Task) => void;
-  onEdit?: (task: Task) => void;
-  onDelete?: (task: Task) => void;
   onStop?: (task: Task) => void;
-  onStart?: (task: Task) => void;
-  onLinkTask?: (task: Task) => void;
   onTaskAdded?: () => void;
 }
 

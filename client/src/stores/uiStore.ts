@@ -5,7 +5,7 @@ import { Task, TaskFilters } from '../types'
 export interface ViewMode {
   type: 'list' | 'kanban' | 'calendar' | 'matrix'
   groupBy?: 'status' | 'priority' | 'project' | 'assignee'
-  sortBy?: 'urgency' | 'dueDate' | 'priority' | 'createdAt' | 'title'
+  sortBy?: 'priority' | 'dueDate' | 'createdAt' | 'title'
   sortOrder?: 'asc' | 'desc'
 }
 
@@ -81,7 +81,7 @@ export const useUiStore = create<UiState>()(
       searchQuery: '',
       viewMode: {
         type: 'list',
-        sortBy: 'urgency',
+        sortBy: 'priority',
         sortOrder: 'desc'
       },
       

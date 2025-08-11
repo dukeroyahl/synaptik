@@ -81,10 +81,8 @@ const Projects: React.FC = () => {
   const handleUnmarkDone = unmarkDone;
 
   const handleEdit = (task: Task) => {
-    console.log('Projects handleEdit called with task:', task);
     setEditingTask(task);
     setEditDialogOpen(true);
-    console.log('Edit dialog should be open now');
   };
 
   const handleSaveEdit = async (updatedTask: Task) => {
@@ -99,14 +97,12 @@ const Projects: React.FC = () => {
 
   const handleStart = startTask;
 
-  const handleLinkTask = (task: Task) => {
+  const handleLinkTask = (_task: Task) => {
     // TODO: Implement task linking functionality
-    console.log('Link task clicked:', task);
   };
 
-  const onViewDependencies = (task: Task) => {
+  const onViewDependencies = (_task: Task) => {
     // TODO: Implement view dependencies functionality
-    console.log('View dependencies clicked:', task);
   };
 
   const getProjectColorCategory = (project: Project) => {
@@ -214,7 +210,6 @@ const Projects: React.FC = () => {
           startIcon={<Add />}
           onClick={() => {
             // TODO: Implement create project dialog
-            console.log('Create project clicked');
           }}
           sx={{
             borderRadius: 2,
@@ -399,9 +394,6 @@ const Projects: React.FC = () => {
 
                   <CardActions sx={{ p: 2, pt: 0, justifyContent: 'flex-start' }}>
                     {/* Project status is automatically managed by the server based on task states */}
-                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                      Status automatically updates based on task progress
-                    </Typography>
                   </CardActions>
                 </Card>
               </Grid>

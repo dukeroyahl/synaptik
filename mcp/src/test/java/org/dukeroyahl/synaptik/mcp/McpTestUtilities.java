@@ -1,5 +1,6 @@
 package org.dukeroyahl.synaptik.mcp;
 
+import java.util.Arrays;
 import org.mockito.Mockito;
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.core.Response;
@@ -78,11 +79,14 @@ class McpTestUtilities {
      */
     static void mockEmptyCollections(SynaptikApiClient apiClient) {
         when(apiClient.getAllTasks()).thenReturn(Uni.createFrom().item(java.util.List.of()));
-        when(apiClient.getPendingTasks()).thenReturn(Uni.createFrom().item(java.util.List.of()));
-        when(apiClient.getActiveTasks()).thenReturn(Uni.createFrom().item(java.util.List.of()));
-        when(apiClient.getCompletedTasks()).thenReturn(Uni.createFrom().item(java.util.List.of()));
-        when(apiClient.getOverdueTasks(anyString())).thenReturn(Uni.createFrom().item(java.util.List.of()));
-        when(apiClient.getTodayTasks(anyString())).thenReturn(Uni.createFrom().item(java.util.List.of()));
+        // Mock search-based task retrieval methods (replacing old status-specific endpoints)
+        when(apiClient.searchTasks(eq(null), eq(null), eq(null), eq(null), eq(Arrays.asList("PENDING")), eq(null), eq(null)))
+                .thenReturn(Uni.createFrom().item(java.util.List.of()));
+        when(apiClient.searchTasks(eq(null), eq(null), eq(null), eq(null), eq(Arrays.asList("ACTIVE")), eq(null), eq(null)))
+                .thenReturn(Uni.createFrom().item(java.util.List.of()));
+        when(apiClient.searchTasks(eq(null), eq(null), eq(null), eq(null), eq(Arrays.asList("COMPLETED")), eq(null), eq(null)))
+                .thenReturn(Uni.createFrom().item(java.util.List.of()));
+        // Note: Overdue and Today tasks endpoints removed from API
         when(apiClient.getAllProjects()).thenReturn(Uni.createFrom().item(java.util.List.of()));
         when(apiClient.getActiveProjects()).thenReturn(Uni.createFrom().item(java.util.List.of()));
         when(apiClient.getOverdueProjects()).thenReturn(Uni.createFrom().item(java.util.List.of()));

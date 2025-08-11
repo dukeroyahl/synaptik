@@ -44,7 +44,7 @@ export class TaskBusinessLogic {
       isDueTomorrow,
       daysUntilDue,
       timeRemaining,
-      urgencyLevel: this.getUrgencyLevel(task.urgency),
+      urgencyLevel: this.getUrgencyLevel(task.urgency ?? undefined),
       quadrant: this.getEisenhowerQuadrant(task),
       canStart: this.canPerformAction(task, 'start'),
       canStop: this.canPerformAction(task, 'stop'),
