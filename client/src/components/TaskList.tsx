@@ -121,7 +121,7 @@ const TaskList: React.FC<TaskListProps> = memo(({
       const response = await fetch(fullUrl);
       const result = await response.json();
       if (response.ok) {
-        let list: Task[] = Array.isArray(result) ? result : [];
+        let list: TaskDTO[] = Array.isArray(result) ? result : [];
         // If combining today/overdue with a specific status subset, filter client side
         if (dueIsSpecial) {
           switch (filter.toUpperCase()) {
@@ -211,7 +211,7 @@ const TaskList: React.FC<TaskListProps> = memo(({
       }
       // Refresh counts after final state
       useFilterStore.getState().setCountsFromTasks(updatedTasks);
-      if (onTaskUpdate) onTaskUpdate({ id: taskId } as Task);
+      if (onTaskUpdate) onTaskUpdate({ id: taskId } as TaskDTO);
     } catch (error) {
       if (import.meta.env.DEV) console.error(`Failed to ${action} task:`, error);
       // Revert optimistic update on error
@@ -222,12 +222,12 @@ const TaskList: React.FC<TaskListProps> = memo(({
 
   useEffect(() => { fetchTasks() }, [fetchTasks])
 
-  const handleEditTask = useCallback((task: Task) => {
+  const handleEditTask = useCallback((task: TaskDTO) => {
     setEditingTask(task)
     setEditDialogOpen(true)
   }, [])
 
-  const handleEditDate = useCallback((task: Task) => {
+  const handleEditDate = useCallback((task: TaskDTO) => {
     // Open edit dialog focused on date - for now same as regular edit
     setEditingTask(task)
     setEditDialogOpen(true)
@@ -236,16 +236,16 @@ const TaskList: React.FC<TaskListProps> = memo(({
   // Suppress unused variable warning - keeping for future use
   void handleEditDate;
 
-  const handleViewDependencies = useCallback((task: Task) => {
+  const handleViewDependencies = useCallback((task: TaskDTO) => {
     navigate(`/dependencies?task=${task.id}`);
   }, [navigate]);
   
-  const handleLinkTask = useCallback((task: Task) => {
+  const handleLinkTask = useCallback((task: TaskDTO) => {
     setLinkingTask(task)
     setLinkTaskDialogOpen(true)
   }, [])
 
-  const handleSaveTask = useCallback(async (updatedTask: Task) => {
+  const handleSaveTask = useCallback(async (updatedTask: TaskDTO) => {
     try {
       const fullUrl = `${API_BASE_URL}/api/tasks/${updatedTask.id}`;
       
@@ -371,11 +371,11 @@ const TaskList: React.FC<TaskListProps> = memo(({
 
   // Memoize individual task action handlers to prevent unnecessary re-renders
   const memoizedTaskHandlers = useMemo(() => ({
-    onMarkDone: (task: Task) => handleTaskAction(task.id, 'done'),
-    onUnmarkDone: (task: Task) => handleTaskAction(task.id, 'undone'),
-    onDelete: (task: Task) => handleTaskAction(task.id, 'delete'),
-    onPause: (task: Task) => handleTaskAction(task.id, 'pause'),
-    onStart: (task: Task) => handleTaskAction(task.id, 'start'),
+    onMarkDone: (task: TaskDTO) => handleTaskAction(task.id, 'done'),
+    onUnmarkDone: (task: TaskDTO) => handleTaskAction(task.id, 'undone'),
+    onDelete: (task: TaskDTO) => handleTaskAction(task.id, 'delete'),
+    onPause: (task: TaskDTO) => handleTaskAction(task.id, 'pause'),
+    onStart: (task: TaskDTO) => handleTaskAction(task.id, 'start'),
   }), [handleTaskAction]);
 
   if (loading) {

@@ -10,10 +10,11 @@ import {
   Divider,
   CircularProgress,
   Alert,
-  Button
+  Button,
 } from '@mui/material';
 import { Task } from '../types';
 import TaskDependencyGraph from './TaskDependencyGraph';
+import PriorityDisplay from './PriorityDisplay';
 
 interface TaskDependencyViewProps {
   taskId: string;
@@ -129,13 +130,10 @@ const TaskDependencyView: React.FC<TaskDependencyViewProps> = ({ taskId }) => {
                               color={depTask.status === 'COMPLETED' ? 'success' : 'default'}
                             />
                             {depTask.priority && (
-                              <Chip 
-                                label={`Priority: ${depTask.priority}`} 
-                                size="small" 
-                                color={
-                                  depTask.priority === 'HIGH' ? 'error' : 
-                                  depTask.priority === 'MEDIUM' ? 'warning' : 'info'
-                                }
+                              <PriorityDisplay 
+                                priority={depTask.priority}
+                                variant="chip"
+                                size="small"
                               />
                             )}
                           </span>
@@ -168,13 +166,10 @@ const TaskDependencyView: React.FC<TaskDependencyViewProps> = ({ taskId }) => {
                               color={depTask.status === 'COMPLETED' ? 'success' : 'default'}
                             />
                             {depTask.priority && (
-                              <Chip 
-                                label={`Priority: ${depTask.priority}`} 
-                                size="small" 
-                                color={
-                                  depTask.priority === 'HIGH' ? 'error' : 
-                                  depTask.priority === 'MEDIUM' ? 'warning' : 'info'
-                                }
+                              <PriorityDisplay 
+                                priority={depTask.priority}
+                                variant="chip"
+                                size="small"
                               />
                             )}
                           </span>

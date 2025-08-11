@@ -31,6 +31,7 @@ import { TaskDTO } from '../types';
 import TaskEditDialog from './TaskEditDialog';
 import UnifiedTaskGraph from './UnifiedTaskGraph';
 import { formatTaskDate, toSentenceCase } from '../utils/taskUtils';
+import PriorityDisplay from './PriorityDisplay';
 
 interface UnifiedDependencyViewProps {
   open: boolean;
@@ -125,24 +126,11 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <TaskIcon color="primary" />
             {task.priority && (
-              (() => {
-                const theme: any = (globalThis as any).muiTheme || undefined; // fallback if needed
-                return (
-                  <Chip
-                    label={task.priority}
-                    size="small"
-                    sx={{
-                      fontSize: '0.7rem',
-                      height: 20,
-                      ...(theme?.semanticStyles?.priority[task.priority] ? {
-                        background: theme.semanticStyles.priority[task.priority].gradient,
-                        border: `1px solid ${theme.semanticStyles.priority[task.priority].border}`,
-                        color: theme.semanticStyles.priority[task.priority].color
-                      } : {})
-                    }}
-                  />
-                );
-              })()
+              <PriorityDisplay 
+                priority={task.priority}
+                variant="chip"
+                size="small"
+              />
             )}
           </Box>
         }

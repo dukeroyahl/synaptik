@@ -20,6 +20,7 @@ import {
   getTaskColorCategory
 } from '../utils/taskUtils';
 import { parseBackendDate, getTimeRemaining } from '../utils/dateUtils';
+import PriorityDisplay from './PriorityDisplay';
 
 interface TaskCardProps extends TaskActionCallbacks, BaseComponentProps, SelectableProps, CompactModeProps {
   task: TaskDTO;
@@ -50,7 +51,6 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
   void onViewDependencies;
   void compact;
   const theme = useTheme();
-  const semantic = (theme as any).semanticStyles;
   const colorCategory = getTaskColorCategory(task);
 
   // Simplified category styles
@@ -73,7 +73,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
     pending: {
       ring: theme.palette.grey[400],
       chip: theme.palette.grey[400],
-      text: theme.palette.grey.contrastText || '#000'
+      text: '#000'
     },
     open: {
       ring: theme.palette.warning.main,
@@ -82,7 +82,6 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
     }
   };
   const cat = categoryStyles[colorCategory];
-  const priorityStyle = task.priority && task.priority !== 'NONE' ? semantic?.priority?.[task.priority] : null;
 
   // Memoize overdue status and date formatting
   const isOverdue = useMemo(() => {
@@ -275,16 +274,14 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
           
           {/* Priority visual indicator and time remaining */}
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flexShrink: 0 }}>
-            {/* High priority indicator */}
-            {task.priority === 'HIGH' && (
-              <Box sx={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                backgroundColor: 'error.main',
-                mt: 0.75
-              }} />
-            )}
+            {/* Priority indicator */}
+            <Box sx={{ mt: 0.75 }}>
+              <PriorityDisplay 
+                priority={task.priority}
+                context="card"
+                size="medium"
+              />
+            </Box>
             
             {timeRemaining && (
               <Typography 
@@ -367,20 +364,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: compact ? 0 : 0.5 }}>
           {/* Left side: Additional metadata (only show if not compact) */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-            {!compact && task.priority && task.priority !== 'NONE' && task.priority !== 'HIGH' && (
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  fontSize: '0.7rem', 
-                  color: priorityStyle?.color || 'text.secondary',
-                  fontWeight: 'medium',
-                  textTransform: 'capitalize'
-                }}
-              >
-                {task.priority.toLowerCase()} priority
-              </Typography>
-            )}
-            
+            {/* Reserved for future metadata display */}
           </Box>
           
           {/* Right side: Action buttons */}

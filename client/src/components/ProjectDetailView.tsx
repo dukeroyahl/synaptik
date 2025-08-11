@@ -261,7 +261,7 @@ const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                 onUnmarkDone={onUnmarkDone}
                 onEdit={onEdit}
                 onDelete={onDelete}
-                onStop={onStop}
+                onPause={onStop}
                 onStart={onStart}
                 onLinkTask={onLinkTask}
               />

@@ -104,6 +104,8 @@ interface SortableTaskProps {
   onUnmarkDone: (task: TaskDTO) => void;
   onDeleteTask: (task: TaskDTO) => void;
   onLinkTask: (task: TaskDTO) => void;
+  onStartTask: (task: TaskDTO) => void;
+  onStopTask: (task: TaskDTO) => void;
 }
 
 const SortableTask: React.FC<SortableTaskProps & { selected?: boolean; onSelect?: (task: TaskDTO) => void }> = ({ 
@@ -114,6 +116,8 @@ const SortableTask: React.FC<SortableTaskProps & { selected?: boolean; onSelect?
   onUnmarkDone,
   onDeleteTask,
   onLinkTask,
+  onStartTask,
+  onStopTask,
   selected,
   onSelect
 }) => {
@@ -145,6 +149,8 @@ const SortableTask: React.FC<SortableTaskProps & { selected?: boolean; onSelect?
         onEdit={onEditTask}
         onDelete={onDeleteTask}
         onLinkTask={onLinkTask}
+        onStart={onStartTask}
+        onPause={onStopTask}
         draggable={true}
         compact={true}
       />
@@ -163,6 +169,8 @@ interface DroppableQuadrantProps {
   onUnmarkDone: (task: TaskDTO) => void;
   onDeleteTask: (task: TaskDTO) => void;
   onLinkTask: (task: TaskDTO) => void;
+  onStartTask: (task: TaskDTO) => void;
+  onStopTask: (task: TaskDTO) => void;
   selectedTaskId: string | null;
   setSelectedTaskId: React.Dispatch<React.SetStateAction<string | null>>;
 }
@@ -178,6 +186,8 @@ const DroppableQuadrant: React.FC<DroppableQuadrantProps> = ({
   onUnmarkDone,
   onDeleteTask,
   onLinkTask,
+  onStartTask,
+  onStopTask,
   selectedTaskId,
   setSelectedTaskId
 }) => {
@@ -233,10 +243,12 @@ const DroppableQuadrant: React.FC<DroppableQuadrantProps> = ({
                 task={task} 
                 quadrant={quadrant} 
                 onEditTask={onEditTask}
-                        onMarkDone={onMarkDone}
+                onMarkDone={onMarkDone}
                 onUnmarkDone={onUnmarkDone}
                 onDeleteTask={onDeleteTask}
                 onLinkTask={onLinkTask}
+                onStartTask={onStartTask}
+                onStopTask={onStopTask}
                 selected={task.id === selectedTaskId}
                 onSelect={(t) => setSelectedTaskId(prev => prev === t.id ? null : t.id)}
               />
@@ -283,7 +295,7 @@ const EisenhowerMatrix: React.FC = () => {
   }, []);
 
   // Use the new task actions hook
-  const { markDone, unmarkDone, deleteTask, updateTask } = useTaskActionsWithConfirm(fetchTasks);
+  const { markDone, unmarkDone, deleteTask, updateTask, startTask, stopTask } = useTaskActionsWithConfirm(fetchTasks);
 
   useEffect(() => {
     fetchTasks();
@@ -407,6 +419,8 @@ const EisenhowerMatrix: React.FC = () => {
   // Simplified task action handlers using the new hook
   const handleMarkDone = markDone;
   const handleUnmarkDone = unmarkDone;
+  const handleStartTask = startTask;
+  const handleStopTask = stopTask;
   
   const handleLinkTask = (_task: TaskDTO) => {
     // Implement task linking functionality
@@ -485,6 +499,8 @@ const EisenhowerMatrix: React.FC = () => {
                onUnmarkDone={handleUnmarkDone}
                onDeleteTask={handleDeleteTask}
                onLinkTask={handleLinkTask}
+               onStartTask={handleStartTask}
+               onStopTask={handleStopTask}
                selectedTaskId={selectedTaskId}
                setSelectedTaskId={setSelectedTaskId}
              />
