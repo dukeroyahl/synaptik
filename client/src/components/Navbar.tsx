@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   AppBar,
   Box,
@@ -29,7 +29,6 @@ import {
 } from '@mui/icons-material';
 import { setTheme } from '../utils/themeUtils';
 import ImportTasksDialog from './ImportTasksDialog';
-import UnifiedDependencyView from './UnifiedDependencyView';
 import pkg from '../../package.json';
 
 interface NavbarProps {
@@ -40,9 +39,9 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
   const theme = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [dependencyViewOpen, setDependencyViewOpen] = useState(false);
 
   const handleThemeToggle = () => {
     toggleDarkMode();
@@ -64,7 +63,7 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
 
   const handleDependencyViewClick = () => {
     handleMenuClose();
-    setDependencyViewOpen(true);
+    navigate('/dependencies');
   };
 
   const handleImportComplete = () => {
@@ -249,7 +248,7 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
                   bottom: 2,
                   height: 3,
                   borderRadius: 2,
-                  background: dependencyViewOpen ? theme.palette.primary.main : 'transparent',
+                  background: location.pathname === '/dependencies' ? theme.palette.primary.main : 'transparent',
                   transition: `background ${theme.ds?.motion.duration.fast}ms ${theme.ds?.motion.easing.standard}`
                 },
                 '&:hover': {
@@ -349,12 +348,6 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
         open={importDialogOpen}
         onClose={() => setImportDialogOpen(false)}
         onImportComplete={handleImportComplete}
-      />
-
-      {/* Unified Dependency View Dialog */}
-      <UnifiedDependencyView
-        open={dependencyViewOpen}
-        onClose={() => setDependencyViewOpen(false)}
       />
     </>
   );

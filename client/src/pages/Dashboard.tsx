@@ -7,8 +7,7 @@ import { taskService } from '../services/taskService'
 import DailyGlance from '../components/DailyGlance'
 // Removed combined CaptureFilterBar in favor of explicit cells
 import TaskCapture from '../components/TaskCapture'
-import ActiveFiltersBar from '../components/ActiveFiltersBar'
-import FilterSidebar from '../components/FilterSidebar'
+import InlineFilters from '../components/InlineFilters'
 import { useFilterStore } from '../stores/filterStore'
 
 const Dashboard = memo(() => {
@@ -24,7 +23,6 @@ const Dashboard = memo(() => {
   const overviewMode = useFilterStore(s => s.overviewMode)
   const dueDate = useFilterStore(s => s.dueDate)
   const setDueDate = useFilterStore(s => s.setDueDate)
-  const [filterOpen, setFilterOpen] = useState(false)
   // Active filter count handled inside ActiveFiltersBar badge now
 
   const fetchAssignees = useCallback(async () => {
@@ -115,43 +113,42 @@ const Dashboard = memo(() => {
         fullHeight
             />
           </Box>
-          {/* Cell 1,2: Chart + Insights fixed split (40% / 60%) */}
+          {/* Top Row - Daily Glance + Charts & Insights */}
           <Box sx={{ flex: 1, minWidth: 600, display: 'flex', gap: 1, overflow: 'hidden' }}>
             <TaskTrendChart sx={{ flex: '0 0 50%', width: '50%', minWidth: 380 }} />
             <DashboardInsights sx={{ flex: '0 0 50%', width: '50%', minWidth: 260 }} />
           </Box>
         </Box>
-  {/* Row 2 */}
-  <Box sx={{ display: 'flex', alignItems: 'stretch', gap: 1 }}>
-          {/* Cell 2,1: Quick Task Capture (fixed width) */}
-          <Box sx={{ width: 340, flexShrink: 0 }}>
-            <Card elevation={theme.palette.mode === 'dark' ? 3 : 1} sx={{ height: '100%', p: 1.5 }} className="glass-task-container">
+
+        {/* Bottom Row - Left Sidebar (Task Capture + Filters) + Right Task List */}
+        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+          {/* Left Column - Task Capture + Search & Filters */}
+          <Box sx={{ width: 340, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {/* Quick Task Capture */}
+            <Card elevation={theme.palette.mode === 'dark' ? 3 : 1} sx={{ p: 1.5 }} className="glass-task-container">
               <TaskCapture onTaskCaptured={handleTaskCaptured} />
             </Card>
+            
+            {/* Search & Filters */}
+            <Card elevation={theme.palette.mode === 'dark' ? 2 : 1} sx={{ p: 1.25, flex: 1 }} className="glass-task-container">
+              <InlineFilters 
+                projects={availableProjects}
+                assignees={availableAssignees}
+              />
+            </Card>
           </Box>
-          {/* Cell 2,2: Filters (active filters bar) */}
+
+          {/* Right Column - Task List */}
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Card elevation={theme.palette.mode === 'dark' ? 2 : 1} sx={{ height: '100%', p: 1.25 }} className="glass-task-container">
-              <ActiveFiltersBar onOpenFilters={() => setFilterOpen(true)} filtersOpen={filterOpen} />
+            <Card elevation={theme.palette.mode === 'dark' ? 2 : 1} className="custom-card glass-task-container" sx={{ p: 2, height: '100%' }}>
+              <TaskList 
+                key={`${statusFilter}-${refreshCounter}-${dueDate || 'none'}`}
+                filter={activeFilter as 'PENDING' | 'ACTIVE' | 'overdue' | 'COMPLETED' | 'all'} 
+                onTaskUpdate={handleTaskCaptured}
+              />
             </Card>
           </Box>
         </Box>
-      {/* Task List below layout */}
-      <Card elevation={theme.palette.mode === 'dark' ? 2 : 1} className="custom-card glass-task-container" sx={{ mt: 1, p: 2 }}>
-        <TaskList 
-          key={`${statusFilter}-${refreshCounter}-${dueDate || 'none'}`}
-          filter={activeFilter as 'PENDING' | 'ACTIVE' | 'overdue' | 'COMPLETED' | 'all'} 
-          onTaskUpdate={handleTaskCaptured}
-        />
-      </Card>
-      
-      {/* Dependency view now accessible via Navbar */}
-      <FilterSidebar
-        open={filterOpen}
-        onClose={() => setFilterOpen(false)}
-        projects={availableProjects}
-        assignees={availableAssignees}
-      />
     </Box>
   )
 });

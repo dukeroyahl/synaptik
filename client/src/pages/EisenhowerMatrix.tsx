@@ -68,7 +68,7 @@ const quadrantLabels = [
 // Helper to get new task fields for quadrant
 function getTaskFieldsForQuadrant(idx: number, task: Task): Partial<Task> {
   const now = new Date();
-  let dueDate: string | undefined = task.dueDate;
+  let dueDate: string | undefined = task.dueDate || undefined;
   let priority: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE' = task.priority;
   
   if (idx === 0) { // Urgent & Important

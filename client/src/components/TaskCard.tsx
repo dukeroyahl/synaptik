@@ -1,5 +1,5 @@
 import React, { memo, useMemo, useCallback } from 'react';
-import { useTheme, Box, Card, CardContent, Typography, IconButton } from '@mui/material';
+import { useTheme, Box, Card, CardContent, Typography, IconButton, Tooltip } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
   Flag as PriorityIcon,
@@ -32,8 +32,11 @@ interface TaskCardProps {
   onDelete?: (task: Task) => void;
   onPause?: (task: Task) => void;
   onStart?: (task: Task) => void;
+  onStop?: (task: Task) => void;
   onLinkTask?: (task: Task) => void;
+  onViewDependencies?: (task: Task) => void;
   compact?: boolean;
+  draggable?: boolean;
 }
 
 const TaskCard: React.FC<TaskCardProps> = memo(({
@@ -103,40 +106,58 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
   }, [task.dueDate]);
 
   // Memoize event handlers
-  const handleEdit = useCallback(() => {
-    if (onEdit) onEdit(task);
+  const handleEdit = useCallback((e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    console.log('Edit button clicked for task:', task.title);
+    if (onEdit) {
+      console.log('Calling onEdit with task:', task);
+      onEdit(task);
+    } else {
+      console.log('onEdit prop is not provided');
+    }
   }, [onEdit, task]);
 
-  const handleMarkDone = useCallback(() => {
+  const handleMarkDone = useCallback((e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (onMarkDone) onMarkDone(task);
   }, [onMarkDone, task]);
 
-  const handleUnmarkDone = useCallback(() => {
+  const handleUnmarkDone = useCallback((e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (onUnmarkDone) onUnmarkDone(task);
   }, [onUnmarkDone, task]);
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback((e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (onDelete) onDelete(task);
   }, [onDelete, task]);
 
-  const handlePause = useCallback(() => {
+  const handlePause = useCallback((e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (onPause) onPause(task);
   }, [onPause, task]);
 
-  const handleLinkTask = useCallback(() => {
+  const handleLinkTask = useCallback((e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (onLinkTask) onLinkTask(task);
   }, [onLinkTask, task]);
 
-  const handleStart = useCallback(() => {
+  const handleStart = useCallback((e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (onStart) onStart(task);
   }, [onStart, task]);
   
   return (
-    <Card
-      onClick={() => onSelect && onSelect(task)}
-      onDoubleClick={() => onEdit && onEdit(task)}
-      tabIndex={0}
-      sx={{
+    <Tooltip 
+      title={onEdit ? "Double-click to edit task or use the edit button" : ""} 
+      placement="top"
+      arrow
+    >
+      <Card
+        onClick={() => onSelect && onSelect(task)}
+        onDoubleClick={() => onEdit && onEdit(task)}
+        tabIndex={0}
+        sx={{
         mb: 1,
         p: 0,
         borderRadius: 2,
@@ -312,25 +333,70 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
           </Box>
           
           {/* Right side: Action buttons */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 0.5, // Reduced gap
+            backgroundColor: alpha(theme.palette.background.paper, 0.7),
+            borderRadius: 1,
+            p: 0.25, // Reduced padding
+            backdropFilter: 'blur(2px)'
+          }}>
+            {/* Edit button */}
+            <IconButton 
+              size="small" 
+              onClick={handleEdit}
+              sx={{ 
+                color: 'text.secondary',
+                backgroundColor: 'transparent',
+                width: 24,
+                height: 24,
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                  color: 'primary.main'
+                }
+              }}
+              title="Edit Task"
+            >
+              <EditIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+            
             {/* Start/Pause button - conditional based on status */}
             {task.status === 'ACTIVE' ? (
               <IconButton 
                 size="small" 
                 onClick={handlePause}
-                sx={{ color: 'warning.main' }}
+                sx={{ 
+                  color: 'text.secondary',
+                  backgroundColor: 'transparent',
+                  width: 24,
+                  height: 24,
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                    color: 'warning.main'
+                  }
+                }}
                 title="Pause"
               >
-                <PauseIcon sx={{ fontSize: 16 }} />
+                <PauseIcon sx={{ fontSize: 14 }} />
               </IconButton>
             ) : (
               <IconButton 
                 size="small" 
                 onClick={handleStart}
-                sx={{ color: 'success.main' }}
+                sx={{ 
+                  color: 'text.secondary',
+                  backgroundColor: 'transparent',
+                  width: 24,
+                  height: 24,
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                    color: 'success.main'
+                  }
+                }}
                 title="Start"
               >
-                <StartIcon sx={{ fontSize: 16 }} />
+                <StartIcon sx={{ fontSize: 14 }} />
               </IconButton>
             )}
             
@@ -338,10 +404,19 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
             <IconButton 
               size="small" 
               onClick={task.status === 'COMPLETED' ? handleUnmarkDone : handleMarkDone}
-              sx={{ color: task.status === 'COMPLETED' ? 'text.secondary' : 'success.main' }}
+              sx={{ 
+                color: task.status === 'COMPLETED' ? 'success.main' : 'text.secondary',
+                backgroundColor: 'transparent',
+                width: 24,
+                height: 24,
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                  color: 'success.main'
+                }
+              }}
               title={task.status === 'COMPLETED' ? 'Mark Incomplete' : 'Complete'}
             >
-              <CompleteIcon sx={{ fontSize: 16 }} />
+              <CompleteIcon sx={{ fontSize: 14 }} />
             </IconButton>
             
             {/* Link button */}
@@ -349,10 +424,19 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
               <IconButton 
                 size="small" 
                 onClick={handleLinkTask}
-                sx={{ color: 'primary.main' }}
+                sx={{ 
+                  color: 'text.secondary',
+                  backgroundColor: 'transparent',
+                  width: 24,
+                  height: 24,
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                    color: 'info.main'
+                  }
+                }}
                 title="Link Task"
               >
-                <LinkIcon sx={{ fontSize: 16 }} />
+                <LinkIcon sx={{ fontSize: 14 }} />
               </IconButton>
             )}
             
@@ -360,20 +444,19 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
             <IconButton 
               size="small" 
               onClick={handleDelete}
-              sx={{ color: 'error.main' }}
+              sx={{ 
+                color: 'text.secondary',
+                backgroundColor: 'transparent',
+                width: 24,
+                height: 24,
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                  color: 'error.main'
+                }
+              }}
               title="Delete"
             >
-              <DeleteIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-            
-            {/* Edit button */}
-            <IconButton 
-              size="small" 
-              onClick={handleEdit}
-              sx={{ color: 'text.secondary' }}
-              title="Edit"
-            >
-              <EditIcon sx={{ fontSize: 16 }} />
+              <DeleteIcon sx={{ fontSize: 14 }} />
             </IconButton>
           </Box>
         </Box>
@@ -389,6 +472,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
         )}
       </CardContent>
     </Card>
+    </Tooltip>
   );
 });
 

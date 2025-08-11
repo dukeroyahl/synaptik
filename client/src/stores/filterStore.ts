@@ -33,12 +33,12 @@ interface FilterStoreState {
 export const useFilterStore = create<FilterStoreState>((set, get) => ({
   statuses: new Set<Task['status']>(),
   status: 'pending',
-  overviewMode: null,
+  overviewMode: 'open', // Default to 'open' overview mode
   priorities: new Set<Task['priority']>(),
   assignees: new Set<string>(),
   projects: new Set<string>(),
   search: '',
-  dueDate: undefined,
+  dueDate: 'today', // Default to today's tasks
   urgencyRange: undefined,
   assigneeCounts: new Map<string, number>(),
   projectCounts: new Map<string, number>(),

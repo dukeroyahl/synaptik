@@ -3,9 +3,7 @@ import { Task } from '../types'
 import { 
   API_ENDPOINTS, 
   getTaskEndpoint, 
-  getTaskActionEndpoint, 
-  getTaskDependenciesEndpoint, 
-  getTaskDependencyEndpoint 
+  getTaskActionEndpoint
 } from '../constants/api'
 
 export type TaskAction = 'start' | 'stop' | 'done' | 'delete'
@@ -68,6 +66,14 @@ export class TaskService {
   }
 
   async performAction(id: string, action: TaskAction): Promise<Task> {
+    // Map client actions to backend endpoints
+    if (action === 'delete') {
+      // Delete uses DELETE method, not POST to action endpoint
+      await this.deleteTask(id)
+      // Return a placeholder since delete doesn't return task data
+      return {} as Task
+    }
+    
     const response = await apiClient.post<Task>(getTaskActionEndpoint(id, action))
     return response.data
   }
@@ -88,11 +94,12 @@ export class TaskService {
     return this.performAction(id, 'delete')
   }
 
-  async captureTask(text: string): Promise<Task> {
+  async captureTask(text: string, project?: string): Promise<Task> {
     // Create a task from the user-entered string with MEDIUM priority and no due date
     const taskData: CreateTaskRequest = {
       title: text.trim(),
       priority: 'MEDIUM',
+      project: project,
       // dueDate is undefined (null) by default
       // description is undefined by default
     }
@@ -125,20 +132,23 @@ export class TaskService {
     return response.data
   }
 
-  async getTaskDependencies(id: string): Promise<Task[]> {
-    const response = await apiClient.get<Task[]>(getTaskDependenciesEndpoint(id))
+  async getTaskDependencies(_id: string): Promise<Task[]> {
+    // Backend doesn't have dependencies endpoint, return empty array
+    console.warn('Task dependencies not supported by backend API')
+    return []
+  }
+
+  async addDependency(taskId: string, _dependsOnId: string): Promise<Task> {
+    // Backend doesn't support dependencies, return task unchanged
+    console.warn('Task dependencies not supported by backend API')
+    const response = await apiClient.get<Task>(getTaskEndpoint(taskId))
     return response.data
   }
 
-  async addDependency(taskId: string, dependsOnId: string): Promise<Task> {
-    const response = await apiClient.post<Task>(getTaskDependenciesEndpoint(taskId), {
-      dependsOn: dependsOnId
-    })
-    return response.data
-  }
-
-  async removeDependency(taskId: string, dependsOnId: string): Promise<Task> {
-    const response = await apiClient.delete<Task>(getTaskDependencyEndpoint(taskId, dependsOnId))
+  async removeDependency(taskId: string, _dependsOnId: string): Promise<Task> {
+    // Backend doesn't support dependencies, return task unchanged
+    console.warn('Task dependencies not supported by backend API')
+    const response = await apiClient.get<Task>(getTaskEndpoint(taskId))
     return response.data
   }
 }

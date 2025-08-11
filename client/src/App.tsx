@@ -13,6 +13,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'))
 const CalendarView = lazy(() => import('./pages/CalendarView'))
 const EisenhowerMatrix = lazy(() => import('./pages/EisenhowerMatrix'))
 const Projects = lazy(() => import('./pages/Projects'))
+const Dependencies = lazy(() => import('./pages/Dependencies'))
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -64,6 +65,7 @@ function App() {
                   <Route path="/calendar" element={<CalendarView />} />
                   <Route path="/matrix" element={<EisenhowerMatrix />} />
                   <Route path="/projects" element={<Projects />} />
+                  <Route path="/dependencies" element={<Dependencies />} />
                 </Routes>
               </Suspense>
             </ErrorBoundary>

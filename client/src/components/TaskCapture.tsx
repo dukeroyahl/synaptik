@@ -19,9 +19,10 @@ import { taskService } from '../services/taskService'
 
 interface TaskCaptureProps {
   onTaskCaptured?: (task: any) => void
+  project?: string
 }
 
-const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
+const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured, project }) => {
   const theme = useTheme();
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -34,7 +35,7 @@ const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
     setLoading(true)
     setMessage(null)
     try {
-      const task = await taskService.captureTask(input.trim())
+      const task = await taskService.captureTask(input.trim(), project)
       setMessage({ type: 'success', text: 'Task captured successfully!' })
       setInput('')
       onTaskCaptured?.(task)

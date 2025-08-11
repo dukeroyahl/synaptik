@@ -157,7 +157,7 @@ const TaskTrendChart = ({ sx }: TaskTrendChartProps) => {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Typography variant="h6" sx={{ display:'flex', alignItems:'center', gap:1 }}>
           <TrendingUpIcon fontSize="small" />
-          Task Trend
+          Trend
         </Typography>
         <ToggleButtonGroup
           size="small"

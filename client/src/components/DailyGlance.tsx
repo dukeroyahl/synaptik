@@ -164,7 +164,7 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
         <CardContent sx={{ p: 2, pr: 1.25, pb: 1 }}>
           <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <TimeIcon fontSize="small" />
-            Today's Overview
+            Overview
           </Typography>
           {loading ? (
             <LinearProgress sx={{ my: 2 }} />

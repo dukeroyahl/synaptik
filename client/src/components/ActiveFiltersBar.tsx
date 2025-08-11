@@ -1,6 +1,7 @@
 import React from 'react';
-import { Box, Chip, Button, Fade, Tooltip, IconButton, Badge } from '@mui/material';
+import { Box, Chip, Button, Fade, Tooltip, IconButton, Badge, TextField, InputAdornment } from '@mui/material';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import { Search as SearchIcon, Clear as ClearIcon } from '@mui/icons-material';
 import { useFilterStore } from '../stores/filterStore';
 
 /**
@@ -63,7 +64,53 @@ const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({ onOpenFilters, filt
     <Fade in timeout={200}>
       <Box sx={{ display: 'flex', alignItems: 'stretch', width: '100%', minHeight: 48 }}>
         <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, px: 1.25, py: 1, borderRadius: 1, bgcolor: (t) => t.palette.action.hover, border: (t)=>`1px solid ${t.palette.divider}`, overflow: 'hidden' }}>
-          {chips.length === 0 && (
+          {/* Search Input */}
+          <TextField
+            size="small"
+            placeholder="Search tasks..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
+                </InputAdornment>
+              ),
+              endAdornment: search ? (
+                <InputAdornment position="end">
+                  <ClearIcon 
+                    sx={{ 
+                      color: 'text.secondary', 
+                      fontSize: 16, 
+                      cursor: 'pointer',
+                      '&:hover': { color: 'text.primary' }
+                    }} 
+                    onClick={() => setSearch('')}
+                  />
+                </InputAdornment>
+              ) : null,
+            }}
+            sx={{
+              minWidth: 200,
+              maxWidth: 300,
+              '& .MuiOutlinedInput-root': {
+                height: 32,
+                backgroundColor: 'background.paper',
+                '&:hover': {
+                  backgroundColor: 'background.paper',
+                },
+                '&.Mui-focused': {
+                  backgroundColor: 'background.paper',
+                }
+              },
+              '& .MuiOutlinedInput-input': {
+                padding: '6px 8px',
+              }
+            }}
+          />
+          
+          {/* Filter Chips */}
+          {chips.length === 0 && !search && (
             <Chip size="small" label="No filters applied" variant="outlined" sx={{ opacity: 0.7 }} />
           )}
           {chips.map(chip => (
@@ -77,7 +124,7 @@ const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({ onOpenFilters, filt
               sx={{ fontWeight: 500 }}
             />
           ))}
-          {chips.length > 0 && (
+          {(chips.length > 0 || search) && (
             <Tooltip title="Reset all filters">
               <Button size="small" onClick={clearAll} sx={{ ml: 'auto', textTransform: 'none', fontWeight: 600 }} variant="text" color="inherit">
                 Reset

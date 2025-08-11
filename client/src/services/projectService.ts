@@ -45,18 +45,11 @@ class ProjectService {
     await apiClient.delete(API_ENDPOINTS.PROJECTS)
   }
 
-  async startProject(id: string): Promise<Project> {
-    const response = await apiClient.put<Project>(`${API_ENDPOINTS.PROJECTS}/${id}/start`, {})
-    return response.data
-  }
-
-  async completeProject(id: string): Promise<Project> {
-    const response = await apiClient.put<Project>(`${API_ENDPOINTS.PROJECTS}/${id}/complete`, {})
-    return response.data
-  }
+  // Note: Project status is automatically managed by the server based on task states
+  // startProject and completeProject methods are not needed
 
   async updateProjectProgress(id: string, progress: number): Promise<Project> {
-    const response = await apiClient.put<Project>(`${API_ENDPOINTS.PROJECTS}/${id}/progress?progress=${progress}`, {})
+    const response = await apiClient.put<Project>(`${API_ENDPOINTS.PROJECTS}/${id}/progress`, { progress })
     return response.data
   }
 

@@ -220,4 +220,20 @@ public class TaskResource {
     public Uni<List<Task>> getTodayTasks(@QueryParam("tz") String tz) {
         return taskService.getTodayTasks(tz);
     }
+    
+    @GET
+    @Path("/search")
+    @Operation(summary = "Search tasks with multiple filters", 
+               description = "Search tasks by status list, title (partial), assignee (partial), project UUID (exact), date range with timezone support")
+    public Uni<List<Task>> searchTasks(
+            @QueryParam("status") List<TaskStatus> statuses,
+            @QueryParam("title") String title,
+            @QueryParam("assignee") String assignee,
+            @QueryParam("projectId") String projectId,
+            @QueryParam("dateFrom") String dateFrom,
+            @QueryParam("dateTo") String dateTo,
+            @QueryParam("tz") @DefaultValue("UTC") String timezone) {
+        
+        return taskService.searchTasks(statuses, title, assignee, projectId, dateFrom, dateTo, timezone);
+    }
 }

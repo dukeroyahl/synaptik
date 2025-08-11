@@ -10,27 +10,20 @@ import {
   Grid,
   Chip,
   LinearProgress,
-  IconButton,
-  Menu,
-  MenuItem,
   useTheme
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { 
-  PlayArrow, 
-  CheckCircle, 
-  MoreVert, 
-  Edit, 
-  Delete,
   Add,
   Folder as ProjectIcon,
   Person as PersonIcon,
-  Schedule as ScheduleIcon
+  Schedule as ScheduleIcon,
+  ArrowBack
 } from '@mui/icons-material';
 import { Task, Project } from '../types';
 import { taskService } from '../services/taskService';
 import { projectService } from '../services/projectService';
-import ProjectView from '../components/ProjectView';
+import ProjectDetailView from '../components/ProjectDetailView';
 import TaskEditDialog from '../components/TaskEditDialog';
 
 const Projects: React.FC = () => {
@@ -41,8 +34,6 @@ const Projects: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [menuProject, setMenuProject] = useState<Project | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -83,6 +74,7 @@ const Projects: React.FC = () => {
         tags: task.tags
       });
       await fetchTasks();
+      await fetchProjects(); // Refresh projects to update status
     } catch (error) {
       console.error('Error marking task as done:', error);
     }
@@ -101,14 +93,17 @@ const Projects: React.FC = () => {
         tags: task.tags
       });
       await fetchTasks();
+      await fetchProjects(); // Refresh projects to update status
     } catch (error) {
       console.error('Error unmarking task as done:', error);
     }
   };
 
   const handleEdit = (task: Task) => {
+    console.log('Projects handleEdit called with task:', task);
     setEditingTask(task);
     setEditDialogOpen(true);
+    console.log('Edit dialog should be open now');
   };
 
   const handleSaveEdit = async (updatedTask: Task) => {
@@ -126,6 +121,7 @@ const Projects: React.FC = () => {
       setEditDialogOpen(false);
       setEditingTask(null);
       await fetchTasks();
+      await fetchProjects(); // Refresh projects to update status
     } catch (error) {
       console.error('Error updating task:', error);
     }
@@ -139,6 +135,7 @@ const Projects: React.FC = () => {
     try {
       await taskService.deleteTask(task.id);
       await fetchTasks();
+      await fetchProjects(); // Refresh projects to update status
     } catch (error) {
       console.error('Error deleting task:', error);
     }
@@ -157,42 +154,39 @@ const Projects: React.FC = () => {
         tags: task.tags
       });
       await fetchTasks();
+      await fetchProjects(); // Refresh projects to update status
     } catch (error) {
       console.error('Error stopping task:', error);
     }
   };
 
-  const handleProjectAction = async (project: Project, action: 'start' | 'complete' | 'delete') => {
+  const handleStart = async (task: Task) => {
     try {
-      switch (action) {
-        case 'start':
-          await projectService.startProject(project.id);
-          break;
-        case 'complete':
-          await projectService.completeProject(project.id);
-          break;
-        case 'delete':
-          if (window.confirm(`Are you sure you want to delete project "${project.name}"?`)) {
-            await projectService.deleteProject(project.id);
-          }
-          break;
-      }
-      await fetchProjects();
+      await taskService.updateTask(task.id, { 
+        title: task.title,
+        description: task.description || undefined,
+        status: 'ACTIVE',
+        priority: task.priority,
+        project: task.project || undefined,
+        assignee: task.assignee || undefined,
+        dueDate: task.dueDate || undefined,
+        tags: task.tags
+      });
+      await fetchTasks();
+      await fetchProjects(); // Refresh projects to update status
     } catch (error) {
-      console.error(`Error ${action}ing project:`, error);
+      console.error('Error starting task:', error);
     }
-    setAnchorEl(null);
-    setMenuProject(null);
   };
 
-  const handleMenuClick = (event: React.MouseEvent<HTMLElement>, project: Project) => {
-    setAnchorEl(event.currentTarget);
-    setMenuProject(project);
+  const handleLinkTask = (task: Task) => {
+    // TODO: Implement task linking functionality
+    console.log('Link task clicked:', task);
   };
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setMenuProject(null);
+  const onViewDependencies = (task: Task) => {
+    // TODO: Implement view dependencies functionality
+    console.log('View dependencies clicked:', task);
   };
 
   const getProjectColorCategory = (project: Project) => {
@@ -250,17 +244,28 @@ const Projects: React.FC = () => {
       <Box sx={{ p: 3 }}>
         <Button 
           onClick={() => setSelectedProject(null)}
-          sx={{ mb: 2 }}
+          startIcon={<ArrowBack />}
+          sx={{ mb: 3 }}
+          variant="outlined"
         >
-          ← Back to Projects
+          Back to Projects
         </Button>
-        <ProjectView
+        
+        <ProjectDetailView
+          project={selectedProject}
           tasks={projectTasks}
+          onViewDependencies={onViewDependencies}
           onMarkDone={handleMarkDone}
           onUnmarkDone={handleUnmarkDone}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onStop={handleStop}
+          onStart={handleStart}
+          onLinkTask={handleLinkTask}
+          onTaskAdded={async () => {
+            await fetchTasks();
+            await fetchProjects(); // Update project status after adding task
+          }}
         />
         
         {editingTask && (
@@ -357,36 +362,21 @@ const Projects: React.FC = () => {
                   }}
                 >
                   <CardContent sx={{ flexGrow: 1, p: 2, pb: 1 }}>
-                    {/* Header with title and menu */}
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1.5 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, mr: 1 }}>
-                        <ProjectIcon sx={{ color: cat.ring, fontSize: '1.2rem' }} />
-                        <Typography 
-                          variant="h6" 
-                          component="h2" 
-                          sx={{ 
-                            fontWeight: 600,
-                            fontSize: '1.1rem',
-                            color: 'text.primary',
-                            lineHeight: 1.2
-                          }}
-                        >
-                          {project.name}
-                        </Typography>
-                      </Box>
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMenuClick(e, project);
-                        }}
+                    {/* Header with title */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                      <ProjectIcon sx={{ color: cat.ring, fontSize: '1.2rem' }} />
+                      <Typography 
+                        variant="h6" 
+                        component="h2" 
                         sx={{ 
-                          color: 'text.secondary',
-                          '&:hover': { color: cat.ring }
+                          fontWeight: 600,
+                          fontSize: '1.1rem',
+                          color: 'text.primary',
+                          lineHeight: 1.2
                         }}
                       >
-                        <MoreVert fontSize="small" />
-                      </IconButton>
+                        {project.name}
+                      </Typography>
                     </Box>
 
                     {/* Description */}
@@ -488,48 +478,10 @@ const Projects: React.FC = () => {
                   </CardContent>
 
                   <CardActions sx={{ p: 2, pt: 0, justifyContent: 'flex-start' }}>
-                    {project.status === 'PENDING' && (
-                      <Button
-                        size="small"
-                        startIcon={<PlayArrow />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleProjectAction(project, 'start');
-                        }}
-                        sx={{
-                          color: cat.ring,
-                          borderColor: cat.ring,
-                          '&:hover': {
-                            backgroundColor: cat.bg,
-                            borderColor: cat.ring
-                          }
-                        }}
-                        variant="outlined"
-                      >
-                        Start
-                      </Button>
-                    )}
-                    {project.status === 'STARTED' && (
-                      <Button
-                        size="small"
-                        startIcon={<CheckCircle />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleProjectAction(project, 'complete');
-                        }}
-                        sx={{
-                          color: theme.palette.success.main,
-                          borderColor: theme.palette.success.main,
-                          '&:hover': {
-                            backgroundColor: alpha(theme.palette.success.main, 0.08),
-                            borderColor: theme.palette.success.main
-                          }
-                        }}
-                        variant="outlined"
-                      >
-                        Complete
-                      </Button>
-                    )}
+                    {/* Project status is automatically managed by the server based on task states */}
+                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                      Status automatically updates based on task progress
+                    </Typography>
                   </CardActions>
                 </Card>
               </Grid>
@@ -537,32 +489,6 @@ const Projects: React.FC = () => {
           })}
         </Grid>
       )}
-
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-      >
-        <MenuItem onClick={() => menuProject && handleProjectAction(menuProject, 'start')}>
-          <PlayArrow sx={{ mr: 1 }} />
-          Start Project
-        </MenuItem>
-        <MenuItem onClick={() => menuProject && handleProjectAction(menuProject, 'complete')}>
-          <CheckCircle sx={{ mr: 1 }} />
-          Complete Project
-        </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
-          <Edit sx={{ mr: 1 }} />
-          Edit Project
-        </MenuItem>
-        <MenuItem 
-          onClick={() => menuProject && handleProjectAction(menuProject, 'delete')}
-          sx={{ color: 'error.main' }}
-        >
-          <Delete sx={{ mr: 1 }} />
-          Delete Project
-        </MenuItem>
-      </Menu>
 
       {editingTask && (
         <TaskEditDialog

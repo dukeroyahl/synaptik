@@ -6,7 +6,6 @@ import {
   DialogActions,
   Button,
   Typography,
-  Box,
   Alert,
   AlertTitle,
   FormControlLabel,
@@ -23,7 +22,7 @@ interface ImportTasksDialogProps {
   onImportComplete: () => void;
 }
 
-const ImportTasksDialog: React.FC<ImportTasksDialogProps> = ({ open, onClose, onImportComplete }) => {
+const ImportTasksDialog: React.FC<ImportTasksDialogProps> = ({ open, onClose }) => {
   const theme = useTheme();
   const [importing, setImporting] = useState(false);
   const [forceImport, setForceImport] = useState(false);
@@ -38,34 +37,17 @@ const ImportTasksDialog: React.FC<ImportTasksDialogProps> = ({ open, onClose, on
     setResult(null);
     
     try {
-      const response = await fetch('/api/import/taskwarrior', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ force: forceImport })
-      });
-      
-      const data = await response.json();
-      
-      setResult({
-        success: data.success,
-        message: data.message,
-        count: data.count
-      });
-      
-      if (data.success) {
-        // Wait a moment before closing to show success message
-        setTimeout(() => {
-          onImportComplete();
-          onClose();
-        }, 2000);
-      }
-    } catch (error) {
-      console.error('Error importing tasks:', error);
+      // Backend doesn't support import functionality yet
       setResult({
         success: false,
-        message: 'Failed to connect to the server. Please try again.'
+        message: 'Import functionality is not available - backend API does not support /api/import/taskwarrior endpoint',
+        count: 0
+      });
+    } catch (error) {
+      setResult({
+        success: false,
+        message: error instanceof Error ? error.message : 'Import failed',
+        count: 0
       });
     } finally {
       setImporting(false);
@@ -73,9 +55,9 @@ const ImportTasksDialog: React.FC<ImportTasksDialogProps> = ({ open, onClose, on
   };
 
   const handleClose = () => {
-    if (!importing) {
-      onClose();
-    }
+    setResult(null);
+    setForceImport(false);
+    onClose();
   };
 
   return (
@@ -88,84 +70,85 @@ const ImportTasksDialog: React.FC<ImportTasksDialogProps> = ({ open, onClose, on
         sx: {
           borderRadius: 2,
           background: theme.palette.mode === 'dark' 
-            ? `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.9)} 0%, ${alpha(theme.palette.background.default, 0.95)} 100%)`
-            : theme.palette.background.paper,
-          backdropFilter: 'blur(10px)',
-          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+            ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, transparent 100%)`
+            : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, transparent 100%)`,
         }
       }}
     >
-      <DialogTitle sx={{ pb: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ImportIcon color="primary" />
-          <Typography variant="h6">Import Tasks from TaskWarrior</Typography>
-        </Box>
+      <DialogTitle sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: 1,
+        borderBottom: `1px solid ${theme.palette.divider}`,
+        pb: 2
+      }}>
+        <ImportIcon color="primary" />
+        Import Tasks from TaskWarrior
       </DialogTitle>
       
-      <DialogContent>
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="body1" paragraph>
-            This will import all your tasks from TaskWarrior into Synaptik. The import process:
-          </Typography>
-          
-          <Box component="ul" sx={{ pl: 2 }}>
-            <Typography component="li">Reads tasks from your TaskWarrior data</Typography>
-            <Typography component="li">Converts them to Synaptik format</Typography>
-            <Typography component="li">Preserves task relationships and attributes</Typography>
-          </Box>
-          
-          <Alert severity="info" sx={{ mt: 2 }}>
-            <AlertTitle>Requirements</AlertTitle>
-            <Typography variant="body2">
-              TaskWarrior must be installed and configured on this system.
-            </Typography>
-          </Alert>
-          
-          {result && (
-            <Alert 
-              severity={result.success ? 'success' : 'error'} 
-              sx={{ mt: 2 }}
-            >
-              <AlertTitle>{result.success ? 'Success' : 'Error'}</AlertTitle>
-              <Typography variant="body2">
-                {result.message}
-                {result.success && result.count !== undefined && (
-                  <strong> ({result.count} tasks imported)</strong>
-                )}
-              </Typography>
-            </Alert>
-          )}
-        </Box>
-        
+      <DialogContent sx={{ py: 3 }}>
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <AlertTitle>Import Not Available</AlertTitle>
+          The backend API does not currently support task import functionality.
+        </Alert>
+
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          This feature would import tasks from your TaskWarrior installation, but the required API endpoint is not implemented.
+        </Typography>
+
         <FormControlLabel
           control={
             <Checkbox
               checked={forceImport}
               onChange={(e) => setForceImport(e.target.checked)}
-              disabled={importing}
+              disabled={true}
             />
           }
-          label={
-            <Typography variant="body2">
-              Force import (delete existing tasks first)
-            </Typography>
-          }
+          label="Force import (overwrite existing tasks)"
+          disabled={true}
         />
+
+        {result && (
+          <Alert 
+            severity={result.success ? "success" : "error"} 
+            sx={{ mt: 2 }}
+          >
+            <AlertTitle>
+              {result.success ? "Import Successful" : "Import Failed"}
+            </AlertTitle>
+            {result.message}
+            {result.success && result.count !== undefined && (
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                Imported {result.count} tasks
+              </Typography>
+            )}
+          </Alert>
+        )}
       </DialogContent>
       
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button 
-          onClick={handleClose} 
-          disabled={importing}
-          variant="outlined"
-        >
+      <DialogActions sx={{ 
+        borderTop: `1px solid ${theme.palette.divider}`,
+        pt: 2,
+        gap: 1
+      }}>
+        <Button onClick={handleClose} disabled={importing}>
           Cancel
         </Button>
         <Button
           onClick={handleImport}
-          disabled={importing}
           variant="contained"
-          startIcon={importing ? <CircularProgress size={20} /> : <ImportIcon />}
+          disabled={importing || true} // Always disabled since not supported
+          startIcon={importing ? <CircularProgress size={16} /> : <ImportIcon />}
+          sx={{
+            background: importing 
+              ? undefined 
+              : `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.dark} 90%)`,
+            '&:hover': {
+              background: importing 
+                ? undefined 
+                : `linear-gradient(45deg, ${theme.palette.primary.dark} 30%, ${theme.palette.primary.main} 90%)`,
+            }
+          }}
         >
           {importing ? 'Importing...' : 'Import Tasks'}
         </Button>

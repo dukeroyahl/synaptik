@@ -1,16 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Box,
   Typography,
   LinearProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
   useTheme
 } from '@mui/material'
 import { Task } from '../types'
 import TaskEditDialog from './TaskEditDialog'
-import TaskDependencyView from './TaskDependencyView'
 import TaskCard from './TaskCard'
 import LinkTaskDialog from './LinkTaskDialog'
 import { parseBackendDate } from '../utils/dateUtils'
@@ -32,13 +29,12 @@ const TaskList: React.FC<TaskListProps> = memo(({
   projectFilter = '',
   dueDateFilter = ''
 }) => {
+  const navigate = useNavigate();
   const theme = useTheme();
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [dependencyViewOpen, setDependencyViewOpen] = useState(false)
-  const [viewingTaskId, setViewingTaskId] = useState<string | null>(null)
   const [linkTaskDialogOpen, setLinkTaskDialogOpen] = useState(false)
   const [linkingTask, setLinkingTask] = useState<Task | null>(null)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
@@ -81,13 +77,13 @@ const TaskList: React.FC<TaskListProps> = memo(({
       // Check if we have special filters that require getting all tasks
       const hasNoAssigneeFilter = effectiveAssignees.has('(No Assignee)');
       const hasNoProjectFilter = effectiveProjects.has('(No Project)');
-      const needsAllTasks = hasNoAssigneeFilter || hasNoProjectFilter;
+      const needsAllTasks = hasNoAssigneeFilter || hasNoProjectFilter || storeFilters.overviewMode;
       
       // If due date special and a specific status (other than all) is chosen we will still hit the special endpoint for broader set then intersect client-side
       if (dueIsSpecial) {
         endpoint = effectiveDueDate === 'today' ? '/api/tasks/today' : '/api/tasks/overdue';
       } else if (needsAllTasks) {
-        // When using special filters, always get all tasks to apply client-side filtering
+        // When using special filters or overview mode, always get all tasks to apply client-side filtering
         endpoint = '/api/tasks';
       } else {
         switch (filter.toUpperCase()) {
@@ -141,7 +137,7 @@ const TaskList: React.FC<TaskListProps> = memo(({
         }
         
         // If we fetched all tasks due to special filters but user has specific status, filter client side
-        if (needsAllTasks && filter !== 'all') {
+        if (needsAllTasks && filter !== 'all' && !storeFilters.overviewMode) {
           switch (filter.toUpperCase()) {
             case 'PENDING': list = list.filter(t => t.status === 'PENDING'); break;
             case 'ACTIVE': list = list.filter(t => t.status === 'ACTIVE'); break;
@@ -153,8 +149,8 @@ const TaskList: React.FC<TaskListProps> = memo(({
           }
         }
         
-        // Apply overview mode filtering when using 'all' endpoint
-        if (filter === 'all' && storeFilters.overviewMode) {
+        // Apply overview mode filtering - this takes precedence over regular status filtering
+        if (storeFilters.overviewMode) {
           if (storeFilters.overviewMode === 'open') {
             list = list.filter(t => t.status === 'PENDING' || t.status === 'ACTIVE');
           } else if (storeFilters.overviewMode === 'closed') {
@@ -201,7 +197,7 @@ const TaskList: React.FC<TaskListProps> = memo(({
         endpoint = `/api/tasks/${taskId}`
         method = 'DELETE'
       } else {
-        // Map pause action to stop endpoint for API compatibility
+        // Map client actions to backend action endpoints
         const apiAction = action === 'pause' ? 'stop' : action;
         endpoint = `/api/tasks/${taskId}/${apiAction}`;
       }
@@ -245,9 +241,8 @@ const TaskList: React.FC<TaskListProps> = memo(({
   }, [])
 
   const handleViewDependencies = useCallback((task: Task) => {
-    setViewingTaskId(task.id)
-    setDependencyViewOpen(true)
-  }, [])
+    navigate(`/dependencies?task=${task.id}`);
+  }, [navigate]);
   
   const handleLinkTask = useCallback((task: Task) => {
     setLinkingTask(task)
@@ -284,11 +279,6 @@ const TaskList: React.FC<TaskListProps> = memo(({
   const handleCloseEditDialog = useCallback(() => {
     setEditDialogOpen(false)
     setEditingTask(null)
-  }, [])
-
-  const handleCloseDependencyView = useCallback(() => {
-    setDependencyViewOpen(false)
-    setViewingTaskId(null)
   }, [])
   
   const handleCloseLinkTaskDialog = useCallback(() => {
@@ -354,7 +344,9 @@ const TaskList: React.FC<TaskListProps> = memo(({
       if (storeFilters.priorities.size && (!task.priority || !storeFilters.priorities.has(task.priority))) return false;
       if (storeFilters.search) {
         const q = storeFilters.search.toLowerCase();
-        if (!(task.title?.toLowerCase().includes(q) || task.description?.toLowerCase().includes(q))) return false;
+        if (!(task.title?.toLowerCase().includes(q) || 
+              task.description?.toLowerCase().includes(q) || 
+              task.assignee?.toLowerCase().includes(q))) return false;
       }
       if (storeFilters.urgencyRange && typeof (task as any).urgency === 'number') {
         const [minU, maxU] = storeFilters.urgencyRange;
@@ -483,18 +475,6 @@ const TaskList: React.FC<TaskListProps> = memo(({
         task={editingTask}
         onSave={handleSaveTask}
       />
-
-      <Dialog
-        open={dependencyViewOpen}
-        onClose={handleCloseDependencyView}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>Task Dependencies</DialogTitle>
-        <DialogContent>
-          {viewingTaskId && <TaskDependencyView taskId={viewingTaskId} />}
-        </DialogContent>
-      </Dialog>
       
       <LinkTaskDialog
         open={linkTaskDialogOpen}
