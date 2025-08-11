@@ -164,6 +164,12 @@ const TaskTrendChart = ({ sx }: TaskTrendChartProps) => {
           exclusive
           value={scale}
           onChange={(_, v) => v && setScale(v)}
+          sx={{
+            '& .MuiToggleButton-root': {
+              fontSize: '0.75rem', // Reduced font size
+              px: 1.5, // Adjust padding if needed
+            }
+          }}
         >
           <ToggleButton value='monthly'>Monthly</ToggleButton>
           <ToggleButton value='quarterly'>Quarterly</ToggleButton>

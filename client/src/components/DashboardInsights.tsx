@@ -20,7 +20,14 @@ const DashboardInsights = ({ sx }: DashboardInsightsProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string|undefined>();
   const [showAllPeople, setShowAllPeople] = useState(false);
-  const [showAllProjects, setShowAllProjects] = useState(false);
+
+  // Color scheme matching TaskCard
+  const statusColors = {
+    pending: theme.palette.grey[400],
+    active: theme.palette.warning.main,
+    completed: theme.palette.success.main,
+    overdue: theme.palette.error.main
+  };
 
   useEffect(()=>{ let mounted=true; setLoading(true); (async()=>{ try { const t= await taskService.getTasks(); if(mounted){ setTasks(t); } } catch(e:any){ if(mounted) setError(e?.message||'Failed to load tasks'); } finally { if(mounted) setLoading(false);} })(); return ()=>{mounted=false}; },[]);
 
@@ -48,7 +55,7 @@ const DashboardInsights = ({ sx }: DashboardInsightsProps) => {
   }, [tasks]);
 
   const visibleAssignees = showAllPeople ? assigneesAll : assigneesAll.slice(0,3);
-  const visibleProjects = showAllProjects ? projectOpenAll : projectOpenAll.slice(0,3);
+  const visibleProjects = projectOpenAll.slice(0,3); // Always show only 3 projects
 
   // Removed donut chart per request
 
@@ -63,13 +70,6 @@ const DashboardInsights = ({ sx }: DashboardInsightsProps) => {
       {!loading && !error && tasks && (
         <Box sx={{ display:'flex', flexDirection:'column', gap:1 }}>
           <Box>
-            {projectOpenAll.length>3 && (
-              <Box sx={{ display:'flex', justifyContent:'flex-end', mb:0.5 }}>
-                <IconButton size='small' onClick={()=>setShowAllProjects(v=>!v)} aria-label={showAllProjects? 'Show fewer projects':'Show all projects'}>
-                  {showAllProjects ? <ExpandLessIcon fontSize='small' /> : <ExpandMoreIcon fontSize='small' />}
-                </IconButton>
-              </Box>
-            )}
             {/* Legend removed */}
             {projectOpenAll.length===0 && <Typography variant='caption' color='text.secondary'>No open tasks</Typography>}
             <Box sx={{ display:'flex', flexDirection:'column', gap:0.75 }}>
@@ -86,13 +86,13 @@ const DashboardInsights = ({ sx }: DashboardInsightsProps) => {
                       </Box>
                       <Box sx={{ display:'flex', alignItems:'center', gap:1, flexWrap:'wrap' }}>
                         <Typography variant='caption' color='text.secondary' sx={{ minWidth:38, textAlign:'right' }}>{p.openTotal} open</Typography>
-                        <Typography variant='caption' sx={{ fontSize:'0.7rem', color:'#F7B801', fontWeight:500, mr:0.5 }}>P {p.pending}</Typography>
-                        <Typography variant='caption' sx={{ fontSize:'0.7rem', color:'#2185D0', fontWeight:500, mr:0.5 }}>S {p.started}</Typography>
+                        <Typography variant='caption' sx={{ fontSize:'0.7rem', color: statusColors.pending, fontWeight:500, mr:0.5 }}>P {p.pending}</Typography>
+                        <Typography variant='caption' sx={{ fontSize:'0.7rem', color: statusColors.active, fontWeight:500, mr:0.5 }}>S {p.started}</Typography>
                       </Box>
                     </Box>
                      <Box sx={{ position:'relative', height:10, borderRadius:5, background: alpha(theme.palette.divider,0.3), overflow:'hidden', display:'flex', mr:0.5 }}>
-                       <Box title={`Pending ${p.pending}`} sx={{ width:`${pctPending}%`, background:'#F7B801', opacity:0.9 }} />
-                       <Box title={`Started ${p.started}`} sx={{ width:`${pctStarted}%`, background:'#2185D0', opacity:0.9 }} />
+                       <Box title={`Pending ${p.pending}`} sx={{ width:`${pctPending}%`, background: statusColors.pending, opacity:0.9 }} />
+                       <Box title={`Started ${p.started}`} sx={{ width:`${pctStarted}%`, background: statusColors.active, opacity:0.9 }} />
                      </Box>
                   </Box>
                 );
