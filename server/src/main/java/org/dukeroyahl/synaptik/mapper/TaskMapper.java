@@ -38,7 +38,6 @@ public interface TaskMapper {
     @Mapping(target = "updatedAt", ignore = true) // Set by service
     @Mapping(target = "urgency", ignore = true) // Calculated separately
     @Mapping(target = "annotations", ignore = true) // Not in request
-    @Mapping(target = "depends", ignore = true) // Not in current request
     @Mapping(target = "originalInput", ignore = true) // Not in request
     Task toEntity(TaskRequest taskRequest);
 
@@ -50,7 +49,6 @@ public interface TaskMapper {
     @Mapping(target = "updatedAt", ignore = true) // Set by service
     @Mapping(target = "urgency", ignore = true) // Calculated separately
     @Mapping(target = "annotations", ignore = true) // Not in request
-    @Mapping(target = "depends", ignore = true) // Not in current request
     @Mapping(target = "originalInput", ignore = true) // Not in request
     Task updateEntityFromRequest(TaskRequest updates, @MappingTarget Task task);
 

@@ -85,6 +85,7 @@ const Dependencies: React.FC = () => {
         width: '93vw',
         maxWidth: '95vw',
         mb: 2,
+        minHeight: 520, // Increased height
       }}>
         <UnifiedTaskGraph
           tasks={allTasks}

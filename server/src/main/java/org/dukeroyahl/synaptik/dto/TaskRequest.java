@@ -5,6 +5,7 @@ import org.dukeroyahl.synaptik.domain.TaskStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,4 +35,5 @@ public class TaskRequest {
     public String dueDate;       // ISO 8601 with timezone: "2025-12-31T23:59:59-05:00" or "2025-12-31T23:59:59Z"
     public String waitUntil;     // ISO 8601 with timezone: "2025-11-30T10:00:00+01:00" or "2025-11-30T10:00:00Z"
     public List<String> tags;
+    public List<UUID> depends;
 }
