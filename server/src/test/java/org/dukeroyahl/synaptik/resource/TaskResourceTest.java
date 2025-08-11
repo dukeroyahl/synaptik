@@ -246,4 +246,171 @@ public class TaskResourceTest {
             .then()
                 .statusCode(400);
     }
+
+    @Test
+    @Order(18)
+    public void testSearchByStatus() {
+        // Search for PENDING tasks
+        given()
+            .queryParam("status", "PENDING")
+            .when().get("/api/tasks/search")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+
+        // Search for multiple statuses
+        given()
+            .queryParam("status", "PENDING")
+            .queryParam("status", "ACTIVE")
+            .when().get("/api/tasks/search")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+    }
+
+    @Test
+    @Order(19)
+    public void testSearchByTitle() {
+        // Search for tasks with "Test" in title
+        given()
+            .queryParam("title", "Test")
+            .when().get("/api/tasks/search")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+
+        // Case-insensitive search
+        given()
+            .queryParam("title", "test")
+            .when().get("/api/tasks/search")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+    }
+
+    @Test
+    @Order(20)
+    public void testSearchByAssignee() {
+        // Search for tasks assigned to "testuser"
+        given()
+            .queryParam("assignee", "testuser")
+            .when().get("/api/tasks/search")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+
+        // Partial assignee search
+        given()
+            .queryParam("assignee", "test")
+            .when().get("/api/tasks/search")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+    }
+
+    @Test
+    @Order(21)
+    public void testSearchByProjectId() {
+        // First get a project ID
+        String projectId = given()
+            .when().get("/api/projects")
+            .then()
+                .statusCode(200)
+                .extract().path("[0].id");
+
+        // Search by valid project UUID
+        given()
+            .queryParam("projectId", projectId)
+            .when().get("/api/tasks/search")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+
+        // Search with invalid UUID should return empty results
+        given()
+            .queryParam("projectId", "invalid-uuid")
+            .when().get("/api/tasks/search")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("size()", is(0));
+    }
+
+    @Test
+    @Order(22)
+    public void testSearchWithDateRange() {
+        // Search with date range
+        given()
+            .queryParam("dateFrom", "2025-01-01")
+            .queryParam("dateTo", "2025-12-31")
+            .when().get("/api/tasks/search")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+
+        // Search with timezone
+        given()
+            .queryParam("dateFrom", "2025-01-01")
+            .queryParam("dateTo", "2025-12-31")
+            .queryParam("tz", "America/New_York")
+            .when().get("/api/tasks/search")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+    }
+
+    @Test
+    @Order(23)
+    public void testSearchWithMultipleFilters() {
+        // Complex search with multiple filters
+        given()
+            .queryParam("status", "PENDING")
+            .queryParam("title", "Test")
+            .queryParam("assignee", "testuser")
+            .when().get("/api/tasks/search")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+    }
+
+    @Test
+    @Order(24)
+    public void testSearchWithInvalidStatus() {
+        // Invalid status should return 404 (handled by ParamConverter)
+        given()
+            .queryParam("status", "INVALID_STATUS")
+            .when().get("/api/tasks/search")
+            .then()
+                .statusCode(404);
+    }
+
+    @Test
+    @Order(25)
+    public void testSearchWithNoFilters() {
+        // Search with no filters should return all tasks
+        given()
+            .when().get("/api/tasks/search")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+    }
+
+    @Test
+    @Order(26)
+    public void testSearchCaseInsensitiveStatus() {
+        // Test case-insensitive status handling
+        given()
+            .queryParam("status", "pending")
+            .when().get("/api/tasks/search")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+
+        given()
+            .queryParam("status", "Pending")
+            .when().get("/api/tasks/search")
+            .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+    }
 }

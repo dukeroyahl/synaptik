@@ -54,7 +54,7 @@ public class TaskSearchQueryBuilderTest {
         
         Document titleQuery = (Document) query.get("title");
         assertNotNull(titleQuery);
-        assertEquals("test title", titleQuery.getString("$regex"));
+        assertEquals("\\Qtest title\\E", titleQuery.getString("$regex")); // Pattern.quote adds \Q and \E
         assertEquals("i", titleQuery.getString("$options"));
     }
 
@@ -64,7 +64,7 @@ public class TaskSearchQueryBuilderTest {
         
         Document assigneeQuery = (Document) query.get("assignee");
         assertNotNull(assigneeQuery);
-        assertEquals("john doe", assigneeQuery.getString("$regex"));
+        assertEquals("\\Qjohn doe\\E", assigneeQuery.getString("$regex")); // Pattern.quote adds \Q and \E
         assertEquals("i", assigneeQuery.getString("$options"));
     }
 
@@ -146,8 +146,8 @@ public class TaskSearchQueryBuilderTest {
         Document titleQuery = (Document) query.get("title");
         Document assigneeQuery = (Document) query.get("assignee");
         
-        assertEquals("test title", titleQuery.getString("$regex"));
-        assertEquals("john doe", assigneeQuery.getString("$regex"));
+        assertEquals("\\Qtest title\\E", titleQuery.getString("$regex")); // Pattern.quote adds \Q and \E
+        assertEquals("\\Qjohn doe\\E", assigneeQuery.getString("$regex")); // Pattern.quote adds \Q and \E
     }
 
     @Test
