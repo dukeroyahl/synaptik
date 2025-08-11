@@ -64,50 +64,38 @@ const Dependencies: React.FC = () => {
   }
 
   return (
-    <Box sx={{ p: 3, maxWidth: '100%', mx: 'auto' }}>
+    <Box sx={{ pt: 0.5, pb: 2, px: 2, maxWidth: '100%', mx: 'auto' }}>
       {/* Header */}
-      <Box sx={{ textAlign: 'center', mb: 4 }}>
+      <Box sx={{ textAlign: 'center', mb: 1 }}>
         <Typography variant="h4" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
           <DependencyIcon />
           Task Dependencies
         </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
-          Interactive visualization of task dependencies and relationships
-        </Typography>
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
 
-      {/* Force-Directed Graph - Center aligned, 95% width */}
+      {/* Force-Directed Graph - Full page width */}
       <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        mb: 4,
-        width: '100%'
+        justifyContent: 'center',
+        width: '93vw',
+        maxWidth: '95vw',
+        mb: 2,
       }}>
-        <Box sx={{ 
-          width: '95%',
-          height: 500, 
-          border: `1px solid ${theme.palette.divider}`,
-          borderRadius: 2,
-          backgroundColor: alpha(theme.palette.background.paper, 0.5),
-          overflow: 'hidden'
-        }}>
-          <UnifiedTaskGraph
-            tasks={allTasks}
-          />
-        </Box>
+        <UnifiedTaskGraph
+          tasks={allTasks}
+        />
       </Box>
 
       {/* Task Management Section */}
-      <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
+      <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' } }}>
         {/* Quick Task Capture */}
-        <Box sx={{ width: { xs: '100%', md: 340 }, flexShrink: 0 }}>
-          <Card elevation={theme.palette.mode === 'dark' ? 3 : 1} sx={{ p: 1.5 }} className="glass-task-container">
+        <Box sx={{ width: { xs: '100%', md: 320 }, flexShrink: 0 }}>
+          <Card elevation={theme.palette.mode === 'dark' ? 3 : 1} sx={{ p: 1 }} className="glass-task-container">
             <TaskCapture onTaskCaptured={handleTaskCaptured} />
           </Card>
         </Box>
@@ -115,8 +103,8 @@ const Dependencies: React.FC = () => {
         {/* Search and Task List */}
         <Box sx={{ flex: 1 }}>
           <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <CardContent sx={{ pb: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
                 <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <TaskIcon />
                   All Tasks
@@ -149,7 +137,7 @@ const Dependencies: React.FC = () => {
                     ) : null,
                   }}
                   sx={{
-                    minWidth: 250,
+                    minWidth: 220,
                     '& .MuiOutlinedInput-root': {
                       backgroundColor: 'background.paper',
                       '&:hover': {
@@ -163,7 +151,7 @@ const Dependencies: React.FC = () => {
                 />
               </Box>
               
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                 {search 
                   ? `Search active: "${search}" - Use "View Dependencies" to see specific relationships.`
                   : `Showing all tasks. Use "View Dependencies" to see specific relationships.`
