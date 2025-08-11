@@ -65,6 +65,14 @@ public interface SynaptikApiClient {
     Uni<Response> updateTaskStatus(@PathParam("id") String id, TaskStatus status);
     
     @GET
+    @Path("/api/tasks/overdue")
+    Uni<List<Task>> getOverdueTasks(@QueryParam("tz") String timezone);
+    
+    @GET
+    @Path("/api/tasks/due-today")
+    Uni<List<Task>> getTodayTasks(@QueryParam("tz") String timezone);
+    
+    @GET
     @Path("/api/tasks/search")
     Uni<List<Task>> searchTasks(@QueryParam("assignee") String assignee,
                                 @QueryParam("dateFrom") String dateFrom,

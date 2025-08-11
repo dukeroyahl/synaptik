@@ -6,7 +6,7 @@ import {
   LinearProgress,
   useTheme
 } from '@mui/material'
-import { Task } from '../types'
+import { TaskDTO } from '../types'
 import TaskEditDialog from './TaskEditDialog'
 import TaskCard from './TaskCard'
 import LinkTaskDialog from './LinkTaskDialog'
@@ -16,7 +16,7 @@ import { useFilterStore } from '../stores/filterStore'
 
 interface TaskListProps {
   filter?: 'PENDING' | 'ACTIVE' | 'overdue' | 'today' | 'COMPLETED' | 'all'
-  onTaskUpdate?: (task: Task) => void
+  onTaskUpdate?: (task: TaskDTO) => void
   assigneeFilter?: string // legacy (will be ignored if store provides assignees)
   projectFilter?: string  // legacy
   dueDateFilter?: string  // legacy
@@ -31,12 +31,12 @@ const TaskList: React.FC<TaskListProps> = memo(({
 }) => {
   const navigate = useNavigate();
   const theme = useTheme();
-  const [tasks, setTasks] = useState<Task[]>([])
+  const [tasks, setTasks] = useState<TaskDTO[]>([])
   const [loading, setLoading] = useState(true)
-  const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [editingTask, setEditingTask] = useState<TaskDTO | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [linkTaskDialogOpen, setLinkTaskDialogOpen] = useState(false)
-  const [linkingTask, setLinkingTask] = useState<Task | null>(null)
+  const [linkingTask, setLinkingTask] = useState<TaskDTO | null>(null)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
 
   const storeFilters = useFilterStore(s => ({
@@ -321,8 +321,8 @@ const TaskList: React.FC<TaskListProps> = memo(({
       // Client-side supplemental filtering (mirrors params to be safe)
       if (effectiveProjects.size) {
         const hasNoProjectFilter = effectiveProjects.has('(No Project)');
-        const taskHasNoProject = !task.project;
-        const taskProjectMatches = task.project && effectiveProjects.has(task.project);
+        const taskHasNoProject = !task.projectName;
+        const taskProjectMatches = task.projectName && effectiveProjects.has(task.projectName);
         
         // Task must match at least one project filter condition
         const matchesProjectFilter = (hasNoProjectFilter && taskHasNoProject) || taskProjectMatches;

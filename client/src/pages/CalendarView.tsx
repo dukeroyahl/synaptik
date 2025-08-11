@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid } from '@mui/material';
 import Calendar from '../components/Calendar';
-import { Task } from '../types';
+import { TaskDTO } from '../types';
 import { taskService } from '../services/taskService';
 
 const CalendarView: React.FC = () => {
-  const [taskDetails, setTaskDetails] = useState<Task | null>(null);
+  const [taskDetails, setTaskDetails] = useState<TaskDTO | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -70,9 +70,9 @@ const CalendarView: React.FC = () => {
               <Typography variant="body2">
                 <strong>Priority:</strong> {taskDetails.priority || 'None'}
               </Typography>
-              {taskDetails.project && (
+              {taskDetails.projectName && (
                 <Typography variant="body2">
-                  <strong>Project:</strong> {taskDetails.project}
+                  <strong>Project:</strong> {taskDetails.projectName}
                 </Typography>
               )}
               {taskDetails.dueDate && (

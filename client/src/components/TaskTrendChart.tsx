@@ -3,7 +3,7 @@ import { Card, Typography, Box, useTheme, ToggleButtonGroup, ToggleButton, Circu
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import type { SxProps, Theme } from '@mui/material';
 import { taskService } from '../services/taskService';
-import type { Task } from '../types';
+import type { TaskDTO } from '../types';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface TrendDatum {
@@ -33,7 +33,7 @@ interface TaskTrendChartProps { sx?: SxProps<Theme> }
 
 const TaskTrendChart = ({ sx }: TaskTrendChartProps) => {
   const theme = useTheme();
-  const [tasks, setTasks] = useState<Task[] | null>(null);
+  const [tasks, setTasks] = useState<TaskDTO[] | null>(null);
   // Always show full 12‑month window (current year) so period selector removed
   const [scale, setScale] = useState<'monthly'|'quarterly'>('monthly');
   const [loading, setLoading] = useState(false);

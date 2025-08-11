@@ -16,7 +16,7 @@ import {
   Schedule as ClockIcon,
   Inbox as InboxIcon,
 } from '@mui/icons-material';
-import { Task } from '../types';
+import { TaskDTO } from '../types';
 import { parseBackendDate } from '../utils/dateUtils';
 import TaskEditDialog from '../components/TaskEditDialog';
 import TaskCard from '../components/TaskCard';
@@ -39,7 +39,7 @@ import { generateTaskId } from '../utils/taskUtils';
 import { taskService } from '../services/taskService';
 import { useTaskActionsWithConfirm } from '../hooks/useTaskActions';
 
-function isUrgent(task: Task): boolean {
+function isUrgent(task: TaskDTO): boolean {
   if (!task.dueDate) {
     return false;
   }
@@ -51,7 +51,7 @@ function isUrgent(task: Task): boolean {
   return urgent;
 }
 
-function isImportant(task: Task): boolean {
+function isImportant(task: TaskDTO): boolean {
   const important = task.priority === 'HIGH' || task.priority === 'MEDIUM';
   return important;
 }
@@ -64,7 +64,7 @@ const quadrantLabels = [
 ];
 
 // Helper to get new task fields for quadrant
-function getTaskFieldsForQuadrant(idx: number, task: Task): Partial<Task> {
+function getTaskFieldsForQuadrant(idx: number, task: TaskDTO): Partial<TaskDTO> {
   const now = new Date();
   let dueDate: string | undefined = task.dueDate || undefined;
   let priority: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE' = task.priority;
@@ -97,16 +97,16 @@ function getTaskFieldsForQuadrant(idx: number, task: Task): Partial<Task> {
 }
 
 interface SortableTaskProps {
-  task: Task;
+  task: TaskDTO;
   quadrant: number;
-  onEditTask: (task: Task) => void;
-  onMarkDone: (task: Task) => void;
-  onUnmarkDone: (task: Task) => void;
-  onDeleteTask: (task: Task) => void;
-  onLinkTask: (task: Task) => void;
+  onEditTask: (task: TaskDTO) => void;
+  onMarkDone: (task: TaskDTO) => void;
+  onUnmarkDone: (task: TaskDTO) => void;
+  onDeleteTask: (task: TaskDTO) => void;
+  onLinkTask: (task: TaskDTO) => void;
 }
 
-const SortableTask: React.FC<SortableTaskProps & { selected?: boolean; onSelect?: (task: Task) => void }> = ({ 
+const SortableTask: React.FC<SortableTaskProps & { selected?: boolean; onSelect?: (task: TaskDTO) => void }> = ({ 
   task, 
   quadrant, 
   onEditTask,
@@ -154,15 +154,15 @@ const SortableTask: React.FC<SortableTaskProps & { selected?: boolean; onSelect?
 
 interface DroppableQuadrantProps {
   quadrant: number;
-  tasks: Task[];
+  tasks: TaskDTO[];
   title: string;
   color: string;
   icon: React.ComponentType<any>;
-  onEditTask: (task: Task) => void;
-  onMarkDone: (task: Task) => void;
-  onUnmarkDone: (task: Task) => void;
-  onDeleteTask: (task: Task) => void;
-  onLinkTask: (task: Task) => void;
+  onEditTask: (task: TaskDTO) => void;
+  onMarkDone: (task: TaskDTO) => void;
+  onUnmarkDone: (task: TaskDTO) => void;
+  onDeleteTask: (task: TaskDTO) => void;
+  onLinkTask: (task: TaskDTO) => void;
   selectedTaskId: string | null;
   setSelectedTaskId: React.Dispatch<React.SetStateAction<string | null>>;
 }
@@ -249,10 +249,10 @@ const DroppableQuadrant: React.FC<DroppableQuadrantProps> = ({
 };
 
 const EisenhowerMatrix: React.FC = () => {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTask, setActiveTask] = useState<Task | null>(null);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [activeTask, setActiveTask] = useState<TaskDTO | null>(null);
+  const [editingTask, setEditingTask] = useState<TaskDTO | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -291,7 +291,7 @@ const EisenhowerMatrix: React.FC = () => {
 
   // Quadrants: 0 = urgent+important, 1 = not urgent+important, 2 = urgent+not important, 3 = not urgent+not important
   const quadrants = useMemo(() => {
-    const result: Task[][] = [[], [], [], []];
+    const result: TaskDTO[][] = [[], [], [], []];
     
     if (tasks.length === 0) {
       return result;
@@ -373,7 +373,7 @@ const EisenhowerMatrix: React.FC = () => {
       const mergedData = {
         title: activeTask.title,
         description: activeTask.description,
-        project: activeTask.project,
+        projectName: activeTask.projectName,
         assignee: activeTask.assignee,
         dueDate: activeTask.dueDate,
         waitUntil: activeTask.waitUntil,
@@ -399,7 +399,7 @@ const EisenhowerMatrix: React.FC = () => {
     }
   };
 
-  const handleEditTask = (task: Task) => {
+  const handleEditTask = (task: TaskDTO) => {
     setEditingTask(task);
     setEditDialogOpen(true);
   };
@@ -408,14 +408,14 @@ const EisenhowerMatrix: React.FC = () => {
   const handleMarkDone = markDone;
   const handleUnmarkDone = unmarkDone;
   
-  const handleLinkTask = (_task: Task) => {
+  const handleLinkTask = (_task: TaskDTO) => {
     // Implement task linking functionality
     // You could open a dialog to select which task to link to
   };
   
   const handleDeleteTask = deleteTask;
 
-  const handleSaveTask = async (updatedTask: Task) => {
+  const handleSaveTask = async (updatedTask: TaskDTO) => {
     await updateTask(updatedTask, updatedTask);
   };
 

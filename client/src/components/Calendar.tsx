@@ -4,7 +4,7 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { Task } from '../types';
+import { TaskDTO } from '../types';
 import { taskService } from '../services/taskService';
 import { parseBackendDate } from '../utils/dateUtils';
 
@@ -14,7 +14,7 @@ interface CalendarProps {
 
 const Calendar: React.FC<CalendarProps> = ({ onTaskSelect }) => {
   const theme = useTheme();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +44,7 @@ const Calendar: React.FC<CalendarProps> = ({ onTaskSelect }) => {
     }
   };
     // Get CSS class based on task priority and status
-  const getTaskClass = (task: Task) => {
+  const getTaskClass = (task: TaskDTO) => {
     if (task.status === 'COMPLETED') return 'task-completed';
     
     switch (task.priority) {

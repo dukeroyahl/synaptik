@@ -86,7 +86,10 @@ class McpTestUtilities {
                 .thenReturn(Uni.createFrom().item(java.util.List.of()));
         when(apiClient.searchTasks(eq(null), eq(null), eq(null), eq(null), eq(Arrays.asList("COMPLETED")), eq(null), eq(null)))
                 .thenReturn(Uni.createFrom().item(java.util.List.of()));
-        // Note: Overdue and Today tasks endpoints removed from API
+        
+        // Mock restored endpoints
+        when(apiClient.getOverdueTasks(anyString())).thenReturn(Uni.createFrom().item(java.util.List.of()));
+        when(apiClient.getTodayTasks(anyString())).thenReturn(Uni.createFrom().item(java.util.List.of()));
         when(apiClient.getAllProjects()).thenReturn(Uni.createFrom().item(java.util.List.of()));
         when(apiClient.getActiveProjects()).thenReturn(Uni.createFrom().item(java.util.List.of()));
         when(apiClient.getOverdueProjects()).thenReturn(Uni.createFrom().item(java.util.List.of()));

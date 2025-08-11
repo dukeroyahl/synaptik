@@ -17,7 +17,7 @@ import {
   Search as SearchIcon,
   Clear as ClearIcon
 } from '@mui/icons-material';
-import { Task } from '../types';
+import { TaskDTO } from '../types';
 import UnifiedTaskGraph from '../components/UnifiedTaskGraph';
 import TaskList from '../components/TaskList';
 import TaskCapture from '../components/TaskCapture';
@@ -26,7 +26,7 @@ import { useFilterStore } from '../stores/filterStore';
 
 const Dependencies: React.FC = () => {
   const theme = useTheme();
-  const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [allTasks, setAllTasks] = useState<TaskDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   

@@ -20,7 +20,7 @@ import {
   Schedule as ScheduleIcon,
   ArrowBack
 } from '@mui/icons-material';
-import { Task, Project } from '../types';
+import { TaskDTO, Project } from '../types';
 import { taskService } from '../services/taskService';
 import { projectService } from '../services/projectService';
 import ProjectDetailView from '../components/ProjectDetailView';
@@ -30,10 +30,10 @@ import { useTaskActionsWithConfirm } from '../hooks/useTaskActions';
 const Projects: React.FC = () => {
   const theme = useTheme();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editingTask, setEditingTask] = useState<TaskDTO | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   
   // Use the new task actions hook with refresh callback
@@ -80,12 +80,12 @@ const Projects: React.FC = () => {
 
   const handleUnmarkDone = unmarkDone;
 
-  const handleEdit = (task: Task) => {
+  const handleEdit = (task: TaskDTO) => {
     setEditingTask(task);
     setEditDialogOpen(true);
   };
 
-  const handleSaveEdit = async (updatedTask: Task) => {
+  const handleSaveEdit = async (updatedTask: TaskDTO) => {
     await updateTask(updatedTask, updatedTask);
     setEditDialogOpen(false);
     setEditingTask(null);
@@ -97,11 +97,11 @@ const Projects: React.FC = () => {
 
   const handleStart = startTask;
 
-  const handleLinkTask = (_task: Task) => {
+  const handleLinkTask = (_task: TaskDTO) => {
     // TODO: Implement task linking functionality
   };
 
-  const onViewDependencies = (_task: Task) => {
+  const onViewDependencies = (_task: TaskDTO) => {
     // TODO: Implement view dependencies functionality
   };
 
@@ -133,7 +133,7 @@ const Projects: React.FC = () => {
   };
 
   const getProjectTasks = (projectName: string) => {
-    return tasks.filter(task => task.project === projectName);
+    return tasks.filter(task => task.projectName === projectName);
   };
 
   if (loading) {

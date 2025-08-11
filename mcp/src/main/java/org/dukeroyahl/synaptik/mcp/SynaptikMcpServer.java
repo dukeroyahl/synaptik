@@ -235,23 +235,21 @@ public class SynaptikMcpServer {
                 .map(tasks -> formatTasksResponseWithEmoji(tasks, "Completed tasks", "✅"));
     }
 
-    // TODO: Overdue tasks endpoint removed from API - need to implement client-side filtering
-    // @Tool(description = "Get all overdue tasks")
-    // public Uni<String> getOverdueTasks() {
-    //     // Get the user's current timezone
-    //     String userTimezone = java.time.ZoneId.systemDefault().getId();
-    //     return apiClient.getOverdueTasks(userTimezone)
-    //             .map(tasks -> formatTasksResponse(tasks, "Overdue tasks (timezone: " + userTimezone + ")"));
-    // }
+    @Tool(description = "Get all overdue tasks")
+    public Uni<String> getOverdueTasks() {
+        // Get the user's current timezone
+        String userTimezone = java.time.ZoneId.systemDefault().getId();
+        return apiClient.getOverdueTasks(userTimezone)
+                .map(tasks -> formatTasksResponse(tasks, "Overdue tasks (timezone: " + userTimezone + ")"));
+    }
 
-    // TODO: Today's tasks endpoint removed from API - need to implement client-side filtering
-    // @Tool(description = "Get today's tasks")
-    // public Uni<String> getTodayTasks() {
-    //     // Get the user's current timezone
-    //     String userTimezone = java.time.ZoneId.systemDefault().getId();
-    //     return apiClient.getTodayTasks(userTimezone)
-    //             .map(tasks -> formatTasksResponse(tasks, "Today's tasks (timezone: " + userTimezone + ")"));
-    // }
+    @Tool(description = "Get today's tasks")
+    public Uni<String> getTodayTasks() {
+        // Get the user's current timezone
+        String userTimezone = java.time.ZoneId.systemDefault().getId();
+        return apiClient.getTodayTasks(userTimezone)
+                .map(tasks -> formatTasksResponse(tasks, "Today's tasks (timezone: " + userTimezone + ")"));
+    }
 
     @Tool(description = "Search tasks with multiple filters")
     public Uni<String> searchTasks(

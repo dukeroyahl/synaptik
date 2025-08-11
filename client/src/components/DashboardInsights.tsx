@@ -7,16 +7,16 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import InsightsIcon from '@mui/icons-material/Insights';
 import type { SxProps, Theme } from '@mui/material';
 import { taskService } from '../services/taskService';
-import type { Task } from '../types';
+import type { TaskDTO } from '../types';
 
 interface ProjectOpenBreakdown { project: string; openTotal: number; pending: number; started: number; }
 interface AssigneeStat { assignee: string; open: number; }
-const openStatuses: Task['status'][] = ['PENDING','ACTIVE'];
+const openStatuses: TaskDTO['status'][] = ['PENDING','ACTIVE'];
 interface DashboardInsightsProps { sx?: SxProps<Theme> }
 
 const DashboardInsights = ({ sx }: DashboardInsightsProps) => {
   const theme = useTheme();
-  const [tasks, setTasks] = useState<Task[]|null>(null);
+  const [tasks, setTasks] = useState<TaskDTO[]|null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string|undefined>();
   const [showAllPeople, setShowAllPeople] = useState(false);
@@ -29,11 +29,11 @@ const DashboardInsights = ({ sx }: DashboardInsightsProps) => {
     const projectMap = new Map<string,{ total:number; open:number; pending:number; started:number }>();
     const assigneeMap = new Map<string, number>();
     tasks.forEach(t => {
-      if (t.project) {
-        const rec = projectMap.get(t.project) || { total:0, open:0, pending:0, started:0 };
+      if (t.projectName) {
+        const rec = projectMap.get(t.projectName) || { total:0, open:0, pending:0, started:0 };
         rec.total += 1;
         if (openStatuses.includes(t.status)) { rec.open += 1; if (t.status === 'PENDING') rec.pending += 1; if (t.status === 'ACTIVE') rec.started += 1; }
-        projectMap.set(t.project, rec);
+        projectMap.set(t.projectName, rec);
       }
       if (t.assignee && openStatuses.includes(t.status)) { assigneeMap.set(t.assignee, (assigneeMap.get(t.assignee)||0)+1); }
     });

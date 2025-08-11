@@ -16,15 +16,15 @@ import {
   Grid,
   Typography,
 } from '@mui/material';
-import { Task } from '../types';
+import { TaskDTO } from '../types';
 import { formatTag } from '../utils/taskUtils';
 import TaskDependencySelector from './TaskDependencySelector';
 
 interface TaskEditDialogProps {
-  task: Task | null;
+  task: TaskDTO | null;
   open: boolean;
   onClose: () => void;
-  onSave: (updatedTask: Task) => void;
+  onSave: (updatedTask: TaskDTO) => void;
 }
 
 const TaskEditDialog: React.FC<TaskEditDialogProps> = ({
@@ -40,7 +40,7 @@ const TaskEditDialog: React.FC<TaskEditDialogProps> = ({
     priority: 'NONE' as 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE',
     assignee: '',
     dueDate: '',
-    project: '',
+    projectName: '',
     tags: [] as string[],
     depends: [] as string[],
   });
@@ -53,7 +53,7 @@ const TaskEditDialog: React.FC<TaskEditDialogProps> = ({
         priority: task.priority || 'NONE',
         assignee: task.assignee || '',
         dueDate: task.dueDate ? task.dueDate.split('T')[0] : '', // Convert to YYYY-MM-DD format
-        project: task.project || '',
+        projectName: task.projectName || '',
         tags: task.tags || [],
         depends: task.depends || [],
       });
@@ -81,7 +81,7 @@ const TaskEditDialog: React.FC<TaskEditDialogProps> = ({
       priority: formData.priority,
       assignee: formData.assignee?.trim() || null,
       dueDate: formData.dueDate && formData.dueDate.trim() !== '' ? formData.dueDate : null,
-      project: formData.project?.trim() || null,
+      projectName: formData.projectName?.trim() || null,
       tags: formData.tags,
       depends: formData.depends,
     };
@@ -172,8 +172,8 @@ const TaskEditDialog: React.FC<TaskEditDialogProps> = ({
               <Grid item xs={6}>
                 <TextField
                   label="Project"
-                  value={formData.project}
-                  onChange={(e) => handleChange('project', e.target.value)}
+                  value={formData.projectName}
+                  onChange={(e) => handleChange('projectName', e.target.value)}
                   fullWidth
                   placeholder="Enter project name"
                 />
