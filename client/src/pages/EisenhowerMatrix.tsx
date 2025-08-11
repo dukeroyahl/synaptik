@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { 
   Box, 
   Card, 
@@ -37,6 +37,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { generateTaskId } from '../utils/taskUtils';
 import { taskService } from '../services/taskService';
+import { useTaskActionsWithConfirm } from '../hooks/useTaskActions';
 
 function isUrgent(task: Task): boolean {
   if (!task.dueDate) {
@@ -271,11 +272,7 @@ const EisenhowerMatrix: React.FC = () => {
     })
   );
 
-  useEffect(() => {
-    fetchTasks();
-  }, []);
-
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     setLoading(true);
     try {
       console.log('EisenhowerMatrix: Fetching tasks...');
@@ -292,7 +289,14 @@ const EisenhowerMatrix: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Use the new task actions hook
+  const { markDone, unmarkDone, deleteTask, updateTask } = useTaskActionsWithConfirm(fetchTasks);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
 
   // Quadrants: 0 = urgent+important, 1 = not urgent+important, 2 = urgent+not important, 3 = not urgent+not important
   const quadrants = useMemo(() => {
@@ -407,23 +411,9 @@ const EisenhowerMatrix: React.FC = () => {
     setEditDialogOpen(true);
   };
 
-  const handleMarkDone = async (task: Task) => {
-    try {
-      await taskService.completeTask(task.id);
-      fetchTasks();
-    } catch (e) {
-      console.error('Error marking task as done:', e);
-    }
-  };
-
-  const handleUnmarkDone = async (task: Task) => {
-    try {
-      await taskService.performAction(task.id, 'undone' as any);
-      fetchTasks();
-    } catch (e) {
-      console.error('Error unmarking task as done:', e);
-    }
-  };
+  // Simplified task action handlers using the new hook
+  const handleMarkDone = markDone;
+  const handleUnmarkDone = unmarkDone;
   
   const handleLinkTask = (task: Task) => {
     // Implement task linking functionality
@@ -431,22 +421,10 @@ const EisenhowerMatrix: React.FC = () => {
     // You could open a dialog to select which task to link to
   };
   
-  const handleDeleteTask = async (task: Task) => {
-    try {
-      await taskService.deleteTask(task.id);
-      fetchTasks();
-    } catch (e) {
-      console.error('Error deleting task:', e);
-    }
-  };
+  const handleDeleteTask = deleteTask;
 
   const handleSaveTask = async (updatedTask: Task) => {
-    try {
-      await taskService.updateTask(updatedTask.id, updatedTask);
-      fetchTasks(); // Refresh the tasks
-    } catch (e) {
-      console.error('Error updating task:', e);
-    }
+    await updateTask(updatedTask, updatedTask);
   };
 
   const handleCloseEditDialog = () => {

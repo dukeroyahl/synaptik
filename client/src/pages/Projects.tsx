@@ -25,6 +25,7 @@ import { taskService } from '../services/taskService';
 import { projectService } from '../services/projectService';
 import ProjectDetailView from '../components/ProjectDetailView';
 import TaskEditDialog from '../components/TaskEditDialog';
+import { useTaskActionsWithConfirm } from '../hooks/useTaskActions';
 
 const Projects: React.FC = () => {
   const theme = useTheme();
@@ -34,6 +35,19 @@ const Projects: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  
+  // Use the new task actions hook with refresh callback
+  const { 
+    markDone, 
+    unmarkDone, 
+    startTask, 
+    stopTask, 
+    deleteTask, 
+    updateTask 
+  } = useTaskActionsWithConfirm(() => {
+    fetchTasks();
+    fetchProjects(); // Refresh projects to update status
+  });
 
   useEffect(() => {
     fetchProjects();
@@ -61,43 +75,10 @@ const Projects: React.FC = () => {
     }
   };
 
-  const handleMarkDone = async (task: Task) => {
-    try {
-      await taskService.updateTask(task.id, { 
-        title: task.title,
-        description: task.description || undefined,
-        status: 'COMPLETED',
-        priority: task.priority,
-        project: task.project || undefined,
-        assignee: task.assignee || undefined,
-        dueDate: task.dueDate || undefined,
-        tags: task.tags
-      });
-      await fetchTasks();
-      await fetchProjects(); // Refresh projects to update status
-    } catch (error) {
-      console.error('Error marking task as done:', error);
-    }
-  };
+  // Simplified task action handlers using the new hook
+  const handleMarkDone = markDone;
 
-  const handleUnmarkDone = async (task: Task) => {
-    try {
-      await taskService.updateTask(task.id, { 
-        title: task.title,
-        description: task.description || undefined,
-        status: 'PENDING',
-        priority: task.priority,
-        project: task.project || undefined,
-        assignee: task.assignee || undefined,
-        dueDate: task.dueDate || undefined,
-        tags: task.tags
-      });
-      await fetchTasks();
-      await fetchProjects(); // Refresh projects to update status
-    } catch (error) {
-      console.error('Error unmarking task as done:', error);
-    }
-  };
+  const handleUnmarkDone = unmarkDone;
 
   const handleEdit = (task: Task) => {
     console.log('Projects handleEdit called with task:', task);
@@ -107,77 +88,16 @@ const Projects: React.FC = () => {
   };
 
   const handleSaveEdit = async (updatedTask: Task) => {
-    try {
-      await taskService.updateTask(updatedTask.id, {
-        title: updatedTask.title,
-        description: updatedTask.description || undefined,
-        status: updatedTask.status,
-        priority: updatedTask.priority,
-        project: updatedTask.project || undefined,
-        assignee: updatedTask.assignee || undefined,
-        dueDate: updatedTask.dueDate || undefined,
-        tags: updatedTask.tags
-      });
-      setEditDialogOpen(false);
-      setEditingTask(null);
-      await fetchTasks();
-      await fetchProjects(); // Refresh projects to update status
-    } catch (error) {
-      console.error('Error updating task:', error);
-    }
+    await updateTask(updatedTask, updatedTask);
+    setEditDialogOpen(false);
+    setEditingTask(null);
   };
 
-  const handleDelete = async (task: Task) => {
-    if (!window.confirm('Are you sure you want to delete this task?')) {
-      return;
-    }
-    
-    try {
-      await taskService.deleteTask(task.id);
-      await fetchTasks();
-      await fetchProjects(); // Refresh projects to update status
-    } catch (error) {
-      console.error('Error deleting task:', error);
-    }
-  };
+  const handleDelete = deleteTask; // useTaskActionsWithConfirm already includes confirmation
 
-  const handleStop = async (task: Task) => {
-    try {
-      await taskService.updateTask(task.id, { 
-        title: task.title,
-        description: task.description || undefined,
-        status: 'PENDING',
-        priority: task.priority,
-        project: task.project || undefined,
-        assignee: task.assignee || undefined,
-        dueDate: task.dueDate || undefined,
-        tags: task.tags
-      });
-      await fetchTasks();
-      await fetchProjects(); // Refresh projects to update status
-    } catch (error) {
-      console.error('Error stopping task:', error);
-    }
-  };
+  const handleStop = stopTask;
 
-  const handleStart = async (task: Task) => {
-    try {
-      await taskService.updateTask(task.id, { 
-        title: task.title,
-        description: task.description || undefined,
-        status: 'ACTIVE',
-        priority: task.priority,
-        project: task.project || undefined,
-        assignee: task.assignee || undefined,
-        dueDate: task.dueDate || undefined,
-        tags: task.tags
-      });
-      await fetchTasks();
-      await fetchProjects(); // Refresh projects to update status
-    } catch (error) {
-      console.error('Error starting task:', error);
-    }
-  };
+  const handleStart = startTask;
 
   const handleLinkTask = (task: Task) => {
     // TODO: Implement task linking functionality

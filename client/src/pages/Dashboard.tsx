@@ -5,25 +5,22 @@ import DashboardInsights from '../components/DashboardInsights'
 import TaskTrendChart from '../components/TaskTrendChart'
 import { taskService } from '../services/taskService'
 import DailyGlance from '../components/DailyGlance'
-// Removed combined CaptureFilterBar in favor of explicit cells
 import TaskCapture from '../components/TaskCapture'
-import InlineFilters from '../components/InlineFilters'
+import UnifiedFilter from '../components/UnifiedFilter'
 import { useFilterStore } from '../stores/filterStore'
 
 const Dashboard = memo(() => {
   const theme = useTheme();
   const [availableAssignees, setAvailableAssignees] = useState<string[]>([])
-  // Local status kept for keying TaskList; will sync with store
-  const [statusFilter, setStatusFilter] = useState<'pending' | 'active' | 'completed' | 'overdue' | 'all'>('pending')
   const [refreshCounter, setRefreshCounter] = useState(0)
   const [availableProjects, setAvailableProjects] = useState<string[]>([])
-  // Subscribe to store status + setter
-  const storeStatus = useFilterStore(s => s.status)
-  const setStoreStatus = useFilterStore(s => s.setStatus)
+  
+  // Use only store state - single source of truth
+  const status = useFilterStore(s => s.status)
+  const setStatus = useFilterStore(s => s.setStatus)
   const overviewMode = useFilterStore(s => s.overviewMode)
   const dueDate = useFilterStore(s => s.dueDate)
   const setDueDate = useFilterStore(s => s.setDueDate)
-  // Active filter count handled inside ActiveFiltersBar badge now
 
   const fetchAssignees = useCallback(async () => {
     try {
@@ -64,26 +61,21 @@ const Dashboard = memo(() => {
     fetchAssignees();
   }, []); // Remove fetchAssignees dependency to prevent re-renders
 
-  useEffect(() => {
-    // Sync local status with store changes (e.g. from sidebar)
-    if (statusFilter !== storeStatus) setStatusFilter(storeStatus)
-  }, [storeStatus])
-
   const handleStatusFilterChange = useCallback((filter: 'pending' | 'active' | 'completed' | 'overdue' | 'all') => {
-    setStoreStatus(filter)
-  }, [setStoreStatus]);
+    setStatus(filter)
+  }, [setStatus]);
 
-  // Memoize active filter calculation
+  // Simplified active filter calculation using store state
   const activeFilter = useMemo(() => {
     // Overview mode takes precedence
     if (overviewMode === 'open') {
-      return 'all'; // TaskList will need to be updated to handle this properly
+      return 'all';
     }
     if (overviewMode === 'closed') {
       return 'COMPLETED';
     }
     
-    switch (statusFilter) {
+    switch (status) {
       case 'all':
       case 'pending':
         return 'PENDING';
@@ -96,7 +88,7 @@ const Dashboard = memo(() => {
       default:
         return 'PENDING';
     }
-  }, [statusFilter, overviewMode]);
+  }, [status, overviewMode]);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -107,8 +99,8 @@ const Dashboard = memo(() => {
       <Box sx={{ width: 340, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
             <DailyGlance 
               onFilterChange={handleStatusFilterChange}
-              activeFilter={statusFilter}
-              onDueDateChange={(d) => setDueDate(d || undefined)}
+              activeFilter={status}
+              onDueDateChange={(d) => setDueDate(d ?? undefined)}
               activeDueDate={dueDate || null}
         fullHeight
             />
@@ -131,7 +123,8 @@ const Dashboard = memo(() => {
             
             {/* Search & Filters */}
             <Card elevation={theme.palette.mode === 'dark' ? 2 : 1} sx={{ p: 1.25, flex: 1 }} className="glass-task-container">
-              <InlineFilters 
+              <UnifiedFilter 
+                layout="inline"
                 projects={availableProjects}
                 assignees={availableAssignees}
               />
@@ -142,7 +135,7 @@ const Dashboard = memo(() => {
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Card elevation={theme.palette.mode === 'dark' ? 2 : 1} className="custom-card glass-task-container" sx={{ p: 2, height: '100%' }}>
               <TaskList 
-                key={`${statusFilter}-${refreshCounter}-${dueDate || 'none'}`}
+                key={`${status}-${refreshCounter}-${dueDate || 'none'}`}
                 filter={activeFilter as 'PENDING' | 'ACTIVE' | 'overdue' | 'COMPLETED' | 'all'} 
                 onTaskUpdate={handleTaskCaptured}
               />

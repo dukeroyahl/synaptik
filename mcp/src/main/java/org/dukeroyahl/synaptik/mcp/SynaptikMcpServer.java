@@ -3,6 +3,7 @@ package org.dukeroyahl.synaptik.mcp;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import jakarta.inject.Singleton;
 import org.dukeroyahl.synaptik.domain.Task;
@@ -248,6 +249,60 @@ public class SynaptikMcpServer {
         String userTimezone = java.time.ZoneId.systemDefault().getId();
         return apiClient.getTodayTasks(userTimezone)
                 .map(tasks -> formatTasksResponse(tasks, "Today's tasks (timezone: " + userTimezone + ")"));
+    }
+
+    @Tool(description = "Search tasks with multiple filters")
+    public Uni<String> searchTasks(
+            @ToolArg(description = "Assignee name (partial match, optional)") String assignee,
+            @ToolArg(description = "Date from (ISO format, optional): 2024-01-01T00:00:00Z") String dateFrom,
+            @ToolArg(description = "Date to (ISO format, optional): 2024-12-31T23:59:59Z") String dateTo,
+            @ToolArg(description = "Project ID (exact UUID match, optional)") String projectId,
+            @ToolArg(description = "Task statuses (comma-separated, optional): PENDING,ACTIVE,COMPLETED") String status,
+            @ToolArg(description = "Task title (partial match, optional)") String title,
+            @ToolArg(description = "Timezone (optional, default: system timezone)") String timezone) {
+        
+        // Use system timezone if not provided
+        String userTimezone = (timezone != null && !timezone.trim().isEmpty()) 
+            ? timezone.trim() 
+            : java.time.ZoneId.systemDefault().getId();
+        
+        // Validate project ID if provided
+        if (projectId != null && !projectId.trim().isEmpty() && !isValidUUID(projectId.trim())) {
+            return Uni.createFrom().item("❌ Invalid project ID format. Please provide a valid UUID.");
+        }
+        
+        // Clean up empty parameters
+        String cleanAssignee = (assignee != null && !assignee.trim().isEmpty()) ? assignee.trim() : null;
+        String cleanDateFrom = (dateFrom != null && !dateFrom.trim().isEmpty()) ? dateFrom.trim() : null;
+        String cleanDateTo = (dateTo != null && !dateTo.trim().isEmpty()) ? dateTo.trim() : null;
+        String cleanProjectId = (projectId != null && !projectId.trim().isEmpty()) ? projectId.trim() : null;
+        String cleanTitle = (title != null && !title.trim().isEmpty()) ? title.trim() : null;
+        
+        // Parse status parameter into list
+        final List<String> statusList;
+        if (status != null && !status.trim().isEmpty()) {
+            statusList = Arrays.stream(status.trim().split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList());
+        } else {
+            statusList = null;
+        }
+        
+        return apiClient.searchTasks(cleanAssignee, cleanDateFrom, cleanDateTo, cleanProjectId, statusList, cleanTitle, userTimezone)
+                .map(tasks -> {
+                    StringBuilder searchCriteria = new StringBuilder();
+                    if (cleanAssignee != null) searchCriteria.append("👤 Assignee: ").append(cleanAssignee).append(" ");
+                    if (cleanTitle != null) searchCriteria.append("📝 Title: ").append(cleanTitle).append(" ");
+                    if (statusList != null && !statusList.isEmpty()) searchCriteria.append("📊 Status: ").append(String.join(",", statusList)).append(" ");
+                    if (cleanProjectId != null) searchCriteria.append("📁 Project: ").append(cleanProjectId).append(" ");
+                    if (cleanDateFrom != null) searchCriteria.append("📅 From: ").append(cleanDateFrom).append(" ");
+                    if (cleanDateTo != null) searchCriteria.append("📅 To: ").append(cleanDateTo).append(" ");
+                    searchCriteria.append("🌍 Timezone: ").append(userTimezone);
+                    
+                    String searchTitle = "🔍 Task search results (" + searchCriteria.toString().trim() + ")";
+                    return formatTasksResponse(tasks, searchTitle);
+                });
     }
 
     // ===== TASK GRAPH AND DEPENDENCY TOOLS =====

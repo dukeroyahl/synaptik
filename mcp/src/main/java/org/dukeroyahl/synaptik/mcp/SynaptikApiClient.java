@@ -89,6 +89,16 @@ public interface SynaptikApiClient {
     @Path("/api/tasks/today")
     Uni<List<Task>> getTodayTasks(@QueryParam("tz") String timezone);
     
+    @GET
+    @Path("/api/tasks/search")
+    Uni<List<Task>> searchTasks(@QueryParam("assignee") String assignee,
+                                @QueryParam("dateFrom") String dateFrom,
+                                @QueryParam("dateTo") String dateTo,
+                                @QueryParam("projectId") String projectId,
+                                @QueryParam("status") List<String> status,
+                                @QueryParam("title") String title,
+                                @QueryParam("tz") String timezone);
+    
     // ===== PROJECT ENDPOINTS =====
     
     @GET

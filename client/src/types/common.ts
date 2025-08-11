@@ -6,8 +6,8 @@ import { Task, Project } from './index';
 export interface TaskActionCallbacks {
   onEdit?: (task: Task) => void;
   onDelete?: (task: Task) => void;
-  onComplete?: (task: Task) => void;
-  onUncomplete?: (task: Task) => void;
+  onMarkDone?: (task: Task) => void;
+  onUnmarkDone?: (task: Task) => void;
   onStart?: (task: Task) => void;
   onStop?: (task: Task) => void;
   onViewDependencies?: (task: Task) => void;
