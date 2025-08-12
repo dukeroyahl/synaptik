@@ -164,7 +164,7 @@ export const getPrioritySortOrder = (priority: PriorityLevel | undefined): numbe
  * Format priority for display in different contexts
  */
 export const formatPriorityForContext = (
-  priority: PriorityLevel | undefined,
+  _priority: PriorityLevel | undefined,
   context: 'dashboard' | 'list' | 'card' | 'graph' | 'calendar'
 ): {
   variant: 'dot' | 'chip' | 'text' | 'icon' | 'badge';

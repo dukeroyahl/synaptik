@@ -256,7 +256,7 @@ export class TaskService {
 
   async exportTasks(format: 'json' | 'csv' = 'json'): Promise<Blob> {
     try {
-      const response = await fetch(`${apiClient.baseURL}${API_ENDPOINTS.TASKS_EXPORT}?format=${format}`, {
+      const response = await fetch(`${apiClient.apiBaseURL}${API_ENDPOINTS.TASKS_EXPORT}?format=${format}`, {
         method: 'GET',
         headers: {
           'Accept': format === 'json' ? 'application/json' : 'text/csv',

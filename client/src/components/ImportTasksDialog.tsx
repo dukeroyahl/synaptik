@@ -8,13 +8,10 @@ import {
   Typography,
   Alert,
   AlertTitle,
-  FormControlLabel,
-  Checkbox,
   CircularProgress,
   useTheme,
   alpha,
-  Box,
-  Input
+  Box
 } from '@mui/material';
 import { CloudUpload as ImportIcon, AttachFile as FileIcon } from '@mui/icons-material';
 import { taskService } from '../services/taskService';
@@ -142,12 +139,12 @@ const ImportTasksDialog: React.FC<ImportTasksDialogProps> = ({
           </Typography>
         </Box>
 
-        <Input
+        <input
           ref={fileInputRef}
           type="file"
           onChange={handleFileSelect}
           accept=".json"
-          sx={{ display: 'none' }}
+          style={{ display: 'none' }}
         />
 
         {result && (

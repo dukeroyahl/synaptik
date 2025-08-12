@@ -46,7 +46,6 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
   const setOverviewMode = useFilterStore(s => s.setOverviewMode);
-  const overviewMode = useFilterStore(s => s.overviewMode);
   const [stats, setStats] = useState<TaskStats>({
     pending: 0,
     started: 0,
@@ -138,19 +137,6 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
     frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
   }, [completionPercentage]);
-
-  const formatValue = (value: number) => {
-    if (value >= 100) {
-      const str = value.toString();
-      return { digits: str.split(''), padCount: 0 } as const;
-    }
-    const str = value.toString().padStart(2, '0');
-    let padCount = 0;
-    for (let i = 0; i < str.length; i++) {
-      if (str[i] === '0') padCount++; else break;
-    }
-    return { digits: str.split(''), padCount } as const;
-  };
 
   return (
     <Box sx={{ mb: fullHeight ? 0 : 3, height: fullHeight ? '100%' : 'auto' }}>

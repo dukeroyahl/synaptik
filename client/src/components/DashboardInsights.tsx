@@ -1,9 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Card, Typography, Box, LinearProgress, useTheme, alpha, Divider, IconButton } from '@mui/material';
+import { Card, Typography, Box, LinearProgress, useTheme, alpha, Divider } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import FolderIcon from '@mui/icons-material/Folder';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import InsightsIcon from '@mui/icons-material/Insights';
 import type { SxProps, Theme } from '@mui/material';
 import { taskService } from '../services/taskService';

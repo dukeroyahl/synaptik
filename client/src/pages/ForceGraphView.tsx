@@ -4,7 +4,6 @@ import {
   Typography,
   Alert,
   CircularProgress,
-  useTheme,
   Card,
   CardContent,
   FormControlLabel,
@@ -21,7 +20,6 @@ import ForceDirectedTaskGraph from '../components/ForceDirectedTaskGraph';
 import { taskService } from '../services/taskService';
 
 const ForceGraphView: React.FC = () => {
-  const theme = useTheme();
   const [allTasks, setAllTasks] = useState<TaskDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

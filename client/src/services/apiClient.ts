@@ -26,6 +26,10 @@ export class ApiClient {
     this.baseURL = baseURL
   }
 
+  get apiBaseURL(): string {
+    return this.baseURL;
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
@@ -71,7 +75,7 @@ export class ApiClient {
       // Handle 204 No Content responses (common for DELETE operations)
       if (response.status === 204 || response.headers.get('content-length') === '0') {
         console.log('204 No Content or empty response - returning success indicator');
-        return { data: null }; // Return success indicator with null data
+        return { data: null as T }; // Return success indicator with null data
       }
 
       // Check if response has content to parse
@@ -80,7 +84,7 @@ export class ApiClient {
         // Non-JSON response, return as text wrapped in data
         const textData = await response.text();
         console.log('Non-JSON response data:', textData);
-        return { data: textData || null };
+        return { data: (textData || null) as T };
       }
 
       const data = await response.json()
