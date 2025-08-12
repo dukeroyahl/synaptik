@@ -109,7 +109,9 @@ const Dashboard = memo(() => {
       {/* Row 1 - Overview aligned with sidebar, Charts aligned with main content */}
       <Box sx={{ 
         gridColumn: { xs: '1', md: '1' },
-        gridRow: { xs: 'auto', md: '1' }
+        gridRow: { xs: 'auto', md: '1' },
+        width: '100%',
+        maxWidth: { xs: '100%', md: '100%' }
       }}>
         <DailyGlance 
           onFilterChange={handleStatusFilterChange}
@@ -140,12 +142,18 @@ const Dashboard = memo(() => {
         display: 'flex', 
         flexDirection: 'column', 
         gap: 1,
-        minWidth: 0 
+        minWidth: 0,
+        width: '100%',
+        maxWidth: { xs: '100%', md: '100%' }
       }}>
         {/* Quick Task Capture */}
         <Card 
           elevation={theme.palette.mode === 'dark' ? 3 : 1} 
-          sx={{ p: { xs: 1, sm: 1.5 } }} 
+          sx={{ 
+            p: { xs: 1, sm: 1.5 },
+            width: '100%',
+            boxSizing: 'border-box'
+          }} 
           className="glass-task-container"
         >
           <TaskCapture onTaskCaptured={handleTaskCaptured} />
@@ -154,7 +162,12 @@ const Dashboard = memo(() => {
         {/* Search & Filters */}
         <Card 
           elevation={theme.palette.mode === 'dark' ? 2 : 1} 
-          sx={{ p: { xs: 1, sm: 1.25 }, flex: 1 }} 
+          sx={{ 
+            p: { xs: 1, sm: 1.25 }, 
+            flex: 1,
+            width: '100%',
+            boxSizing: 'border-box'
+          }} 
           className="glass-task-container"
         >
           <UnifiedFilter 

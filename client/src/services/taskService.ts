@@ -65,8 +65,16 @@ export class TaskService {
     return response.data
   }
 
-  async deleteTask(id: string): Promise<void> {
-    await apiClient.delete(getTaskEndpoint(id))
+  async deleteTask(id: string): Promise<boolean> {
+    try {
+      const response = await apiClient.delete(getTaskEndpoint(id));
+      console.log('TaskService.deleteTask - response:', response);
+      // 204 responses return { data: null }, which indicates success
+      return true;
+    } catch (error) {
+      console.error('TaskService.deleteTask - error:', error);
+      throw error; // Re-throw to let calling code handle the error
+    }
   }
 
   async updateTaskStatus(id: string, status: TaskDTO['status']): Promise<TaskDTO> {
@@ -132,7 +140,19 @@ export class TaskService {
     
     console.log('TaskService.captureTask - sending data:', taskData);
     console.log('TaskService.captureTask - JSON stringified:', JSON.stringify(taskData));
-    return this.createTask(taskData)
+    
+    // Try the request with explicit Content-Type header
+    try {
+      const response = await apiClient.post<TaskDTO>(this.basePath, taskData, {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      })
+      console.log('TaskService.captureTask - response:', response);
+      return response.data
+    } catch (error) {
+      console.error('TaskService.captureTask - error:', error);
+      throw error;
+    }
   }
 
   // Filtered queries for common use cases (using search API)

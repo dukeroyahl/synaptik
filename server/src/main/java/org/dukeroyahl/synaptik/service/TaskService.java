@@ -374,6 +374,70 @@ public class TaskService {
             .onItem().transformToUni(this::enrichTaskListWithProjects);
     }
 
+    public Uni<String> exportTasksAsCsv() {
+        Log.info("Exporting all tasks as CSV");
+        
+        return getAllTasks()
+            .onItem().transform(this::convertTasksToCsv);
+    }
+    
+    private String convertTasksToCsv(List<TaskDTO> tasks) {
+        StringBuilder csv = new StringBuilder();
+        
+        // CSV Header
+        csv.append("ID,Title,Description,Status,Priority,Assignee,Project,Tags,Dependencies,")
+           .append("Due Date,Wait Until,Urgency,Created At,Updated At,Version,Original Input\n");
+        
+        // CSV Data
+        for (TaskDTO task : tasks) {
+            csv.append(escapeCsvField(task.id != null ? task.id.toString() : "")).append(",");
+            csv.append(escapeCsvField(task.title)).append(",");
+            csv.append(escapeCsvField(task.description)).append(",");
+            csv.append(escapeCsvField(task.status != null ? task.status.name() : "")).append(",");
+            csv.append(escapeCsvField(task.priority != null ? task.priority.name() : "")).append(",");
+            csv.append(escapeCsvField(task.assignee)).append(",");
+            csv.append(escapeCsvField(task.projectName)).append(",");
+            
+            // Tags - join with semicolons
+            String tags = task.tags != null ? String.join(";", task.tags) : "";
+            csv.append(escapeCsvField(tags)).append(",");
+            
+            // Dependencies - convert UUIDs to strings and join with semicolons
+            String dependencies = "";
+            if (task.depends != null && !task.depends.isEmpty()) {
+                dependencies = task.depends.stream()
+                    .map(UUID::toString)
+                    .collect(Collectors.joining(";"));
+            }
+            csv.append(escapeCsvField(dependencies)).append(",");
+            
+            csv.append(escapeCsvField(task.dueDate)).append(",");
+            csv.append(escapeCsvField(task.waitUntil)).append(",");
+            csv.append(task.urgency != null ? task.urgency.toString() : "").append(",");
+            csv.append(escapeCsvField(task.createdAt)).append(",");
+            csv.append(escapeCsvField(task.updatedAt)).append(",");
+            csv.append(task.version != null ? task.version.toString() : "").append(",");
+            csv.append(escapeCsvField(task.originalInput));
+            csv.append("\n");
+        }
+        
+        Log.infof("Generated CSV with %d tasks", tasks.size());
+        return csv.toString();
+    }
+    
+    private String escapeCsvField(String field) {
+        if (field == null) {
+            return "";
+        }
+        
+        // If field contains comma, quote, or newline, wrap in quotes and escape internal quotes
+        if (field.contains(",") || field.contains("\"") || field.contains("\n") || field.contains("\r")) {
+            return "\"" + field.replace("\"", "\"\"") + "\"";
+        }
+        
+        return field;
+    }
+
     public Uni<Boolean> linkTasks(UUID taskId, UUID dependencyId) {
         Log.infof("Linking task %s to depend on task %s", taskId, dependencyId);
         

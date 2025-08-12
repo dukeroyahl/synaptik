@@ -204,6 +204,21 @@ public class TaskResource {
         return taskService.getAllTasks();
     }
 
+    @GET
+    @Path("/export/csv")
+    @Produces("text/csv")
+    @Operation(summary = "Export all tasks as CSV", 
+               description = "Export all tasks as CSV file for spreadsheet applications")
+    public Uni<Response> exportTasksAsCsv() {
+        return taskService.exportTasksAsCsv()
+            .onItem().transform(csvContent -> 
+                Response.ok(csvContent)
+                    .header("Content-Type", "text/csv")
+                    .header("Content-Disposition", "attachment; filename=\"tasks-export.csv\"")
+                    .build()
+            );
+    }
+
     @POST
     @Path("/import")
     @Consumes(MediaType.MULTIPART_FORM_DATA)

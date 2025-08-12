@@ -261,7 +261,6 @@ const UnifiedFilter: React.FC<UnifiedFilterProps> = ({
     }}>
       {/* Search */}
       <Box>
-        <Typography sx={sectionTitleSx}>Search</Typography>
         <SearchInput />
       </Box>
 

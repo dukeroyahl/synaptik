@@ -193,7 +193,10 @@ const TaskList: React.FC<TaskListProps> = memo(({
       let updatedTask: TaskDTO | null = null;
       
       if (action === 'delete') {
-        await taskService.deleteTask(taskId);
+        const deleteSuccess = await taskService.deleteTask(taskId);
+        if (!deleteSuccess) {
+          throw new Error('Task deletion was not confirmed by server');
+        }
       } else if (action === 'done') {
         updatedTask = await taskService.completeTask(taskId);
       } else if (action === 'undone') {

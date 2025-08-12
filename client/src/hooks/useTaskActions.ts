@@ -70,7 +70,10 @@ export const useTaskActions = (onSuccess?: () => void): UseTaskActionsReturn => 
   // Delete task
   const deleteTask = useCallback(async (task: TaskDTO) => {
     try {
-      await taskService.deleteTask(task.id)
+      const success = await taskService.deleteTask(task.id)
+      if (!success) {
+        throw new Error('Task deletion was not confirmed by server')
+      }
       onSuccess?.()
     } catch (error) {
       handleApiError(error, `Failed to delete task "${task.title}"`)

@@ -157,9 +157,10 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
       <Card
         elevation={1}
         sx={{
-          height: 260,
+          height: { xs: 'auto', sm: 260 },
+          minHeight: { xs: 240, sm: 260 },
           width: '100%',
-          maxWidth: 410,
+          maxWidth: '100%',
           background: isDarkMode
             ? `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.85)} 0%, ${alpha(theme.palette.background.default, 0.9)} 100%)`
             : theme.palette.background.paper,
@@ -170,7 +171,8 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
           position: 'relative',
           boxShadow: theme.ds?.elevation[1],
           transition: `box-shadow ${theme.ds?.motion.duration.normal}ms ${theme.ds?.motion.easing.standard}`,
-          '&:hover': { boxShadow: theme.ds?.elevation[2] }
+          '&:hover': { boxShadow: theme.ds?.elevation[2] },
+          boxSizing: 'border-box'
         }}
         className="translucent-surface"
       >
@@ -188,7 +190,7 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
               ${theme.palette.success.main} 100%)`
           }}
         />
-        <CardContent sx={{ p: 2, pr: 1.25, pb: 1 }}>
+        <CardContent sx={{ p: { xs: 1.5, sm: 2 }, pr: { xs: 1, sm: 1.25 }, pb: { xs: 1, sm: 1 } }}>
           <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <TimeIcon fontSize="small" />
             Overview
@@ -198,11 +200,11 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
           ) : (
             <>
               <Box sx={{
-                mb: 1.25,
+                mb: { xs: 1, sm: 1.25 },
                 display: 'grid',
-                gap: 1.5,
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gridTemplateRows: 'repeat(2, 1fr)',
+                gap: { xs: 1, sm: 1.5 },
+                gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' },
+                gridTemplateRows: { xs: 'repeat(3, 1fr)', sm: 'repeat(2, 1fr)' },
               }}>
                 {([
                   { key: 'pending', label: 'Pending', value: stats.pending, color: theme.palette.text.secondary, icon: <PendingIcon fontSize="small" /> },
@@ -279,9 +281,9 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
                       }}
                       sx={{
                         cursor: 'pointer',
-                        px: 1.4,
-                        py: 1.05,
-                        height: 74,
+                        px: { xs: 1, sm: 1.4 },
+                        py: { xs: 0.8, sm: 1.05 },
+                        height: { xs: 60, sm: 74 },
                         borderRadius: 2,
                         position: 'relative',
                         display: 'flex',
@@ -303,13 +305,13 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
                       {/* Icon as stylistic watermark */}
                       <Box sx={{ 
                         position: 'absolute',
-                        top: -8,
-                        right: -8,
+                        top: { xs: -6, sm: -8 },
+                        right: { xs: -6, sm: -8 },
                         opacity: active ? 0.15 : 0.08,
                         transform: 'rotate(15deg)',
                         transition: 'all 200ms ease',
                         '& svg': { 
-                          fontSize: { xs: '3.5rem', sm: '4rem' },
+                          fontSize: { xs: '2.5rem', sm: '3.5rem', md: '4rem' },
                           color: item.color,
                           filter: active ? `drop-shadow(0 0 8px ${alpha(item.color, 0.2)})` : 'none'
                         }
@@ -330,7 +332,7 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
                         <Typography
                           sx={{
                             fontFamily: '"Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
-                            fontSize: { xs: '2.25rem', sm: '2.5rem' },
+                            fontSize: { xs: '1.75rem', sm: '2.25rem', md: '2.5rem' },
                             lineHeight: 1,
                             fontWeight: 700,
                             letterSpacing: '-0.05em',
@@ -338,7 +340,7 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
                             textShadow: `0 0 3px ${alpha(item.color, 0.3)}`,
                             transition: 'color 160ms ease, text-shadow 160ms ease',
                             textAlign: 'center',
-                            mb: 0.5,
+                            mb: { xs: 0.25, sm: 0.5 },
                             minWidth: '3ch',
                             display: 'block'
                           }}
@@ -353,7 +355,7 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
                             fontWeight: 500, 
                             color: active ? item.color : 'text.secondary', 
                             letterSpacing: 0.5,
-                            fontSize: '0.75rem',
+                            fontSize: { xs: '0.65rem', sm: '0.75rem' },
                             textTransform: 'uppercase',
                             textAlign: 'center',
                             transition: 'color 160ms ease',
@@ -369,8 +371,8 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
                   );
                 })}
               </Box>
-              <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', gap: 1, pl: 0.2 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+              <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 }, pl: { xs: 0.1, sm: 0.2 } }}>
+                <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
                   {animatedCompletion}% complete
                 </Typography>
                 <LinearProgress
@@ -378,7 +380,7 @@ const DailyGlance: React.FC<DailyGlanceProps> = ({
                   value={animatedCompletion}
                   sx={{
                     flexGrow: 1,
-                    height: 10,
+                    height: { xs: 8, sm: 10 },
                     borderRadius: 5,
                     backgroundColor: alpha(theme.palette.primary.main, 0.1),
                     '& .MuiLinearProgress-bar': {

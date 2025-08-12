@@ -68,6 +68,21 @@ export class ApiClient {
         throw new ApiError(response.status, errorData || response.statusText)
       }
 
+      // Handle 204 No Content responses (common for DELETE operations)
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        console.log('204 No Content or empty response - returning success indicator');
+        return { data: null }; // Return success indicator with null data
+      }
+
+      // Check if response has content to parse
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        // Non-JSON response, return as text wrapped in data
+        const textData = await response.text();
+        console.log('Non-JSON response data:', textData);
+        return { data: textData || null };
+      }
+
       const data = await response.json()
       console.log('Parsed JSON data:', data);
       

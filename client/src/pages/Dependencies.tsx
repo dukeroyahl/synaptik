@@ -24,6 +24,7 @@ import {
 import { TaskDTO } from '../types';
 import UnifiedTaskGraph from '../components/UnifiedTaskGraph';
 import ForceDirectedTaskGraph from '../components/ForceDirectedTaskGraph';
+import HierarchicalTaskTree from '../components/HierarchicalTaskTree';
 import TaskList from '../components/TaskList';
 import TaskCapture from '../components/TaskCapture';
 import { taskService } from '../services/taskService';
@@ -117,8 +118,10 @@ const Dependencies: React.FC = () => {
             height={520}
           />
         ) : (
-          <UnifiedTaskGraph
+          <HierarchicalTaskTree
             tasks={allTasks}
+            width={window.innerWidth * 0.9}
+            height={520}
           />
         )}
       </Box>

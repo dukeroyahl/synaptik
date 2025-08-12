@@ -15,11 +15,9 @@ import {
   Paper
 } from '@mui/material';
 import {
-  Search as SearchIcon,
-  Link as LinkIcon
+  Search as SearchIcon
 } from '@mui/icons-material';
 import { TaskDTO } from '../types';
-import { generateTaskId } from '../utils/taskUtils';
 
 interface TaskDependencySelectorProps {
   taskId: string;
@@ -156,26 +154,25 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
                   </ListItemIcon>
                   <ListItemText
                     primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="body2" fontWeight="medium">
-                          {generateTaskId(task)}
-                        </Typography>
-                        <Typography variant="body2">
-                          {task.title}
-                        </Typography>
-                      </Box>
+                      <Typography variant="body2" fontWeight="medium">
+                        {task.title}
+                      </Typography>
                     }
-                    primaryTypographyProps={{ component: 'div' }}
                     secondary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
-                        {task.projectName && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', mt: 0.5 }}>
+                        {task.assignee && (
                           <Typography variant="caption" color="text.secondary">
-                            Project: {task.projectName.toUpperCase()}
+                            Owner: {task.assignee}
                           </Typography>
                         )}
-                        {task.priority && (
+                        {task.projectName && (
                           <Typography variant="caption" color="text.secondary">
-                            Priority: {task.priority}
+                            Project: {task.projectName}
+                          </Typography>
+                        )}
+                        {task.dueDate && (
+                          <Typography variant="caption" color="text.secondary">
+                            Due: {new Date(task.dueDate).toLocaleDateString()}
                           </Typography>
                         )}
                       </Box>
@@ -190,20 +187,10 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
         )}
       </Paper>
       
-      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ mt: 2 }}>
         <Typography variant="caption" color="text.secondary">
           {selectedTasks.length} task{selectedTasks.length !== 1 ? 's' : ''} selected
         </Typography>
-        
-        <Button 
-          startIcon={<LinkIcon />}
-          variant="outlined"
-          size="small"
-          disabled={selectedTasks.length === 0}
-          onClick={() => onChange(selectedTasks)}
-        >
-          Link Selected Tasks
-        </Button>
       </Box>
     </Box>
   );
