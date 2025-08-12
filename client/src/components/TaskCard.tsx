@@ -102,7 +102,7 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
         day: 'numeric',
         year: 'numeric'
       });
-    } catch (error) {
+    } catch {
       return task.dueDate;
     }
   }, [task.dueDate]);
@@ -112,7 +112,6 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
     if (e) e.stopPropagation();
     if (onEdit) {
       onEdit(task);
-    } else {
     }
   }, [onEdit, task]);
 

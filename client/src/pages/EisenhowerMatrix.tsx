@@ -284,8 +284,6 @@ const EisenhowerMatrix: React.FC = () => {
     setLoading(true);
     try {
       const tasks = await taskService.getTasks();
-      if (tasks && tasks.length > 0) {
-      }
       setTasks(tasks || []);
     } catch (e) {
       console.error('Failed to fetch tasks:', e);

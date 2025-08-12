@@ -640,7 +640,7 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
             return 2;
           });
       })
-      .on('mouseleave', function(event, d) {
+      .on('mouseleave', function(_event, _d) {
         d3.select(this)
           .style('fill-opacity', d => {
             if (d.status === 'COMPLETED') return 0.6;
