@@ -409,78 +409,118 @@ const TaskList: React.FC<TaskListProps> = memo(({
   if (filteredTasks.length === 0) {
     const hasActiveFilters = assigneeFilter || projectFilter || dueDateFilter;
     
-    // Butterfly SVG clipart
-    const ButterflyIcon = () => (
+    // Dragonfly SVG clipart
+    const DragonflyIcon = () => (
       <svg 
-        width="80" 
-        height="60" 
-        viewBox="0 0 80 60" 
+        width="90" 
+        height="70" 
+        viewBox="0 0 90 70" 
         style={{ 
           opacity: 0.6,
           marginBottom: theme.spacing(2),
-          animation: 'flutter 3s ease-in-out infinite'
+          animation: 'hover 2.5s ease-in-out infinite'
         }}
       >
         <style>
           {`
-            @keyframes flutter {
+            @keyframes hover {
               0%, 100% { transform: translateY(0px) rotate(0deg); }
-              25% { transform: translateY(-5px) rotate(2deg); }
-              50% { transform: translateY(-8px) rotate(-1deg); }
-              75% { transform: translateY(-3px) rotate(1deg); }
+              25% { transform: translateY(-3px) rotate(1deg); }
+              50% { transform: translateY(-5px) rotate(0deg); }
+              75% { transform: translateY(-2px) rotate(-1deg); }
             }
           `}
         </style>
-        {/* Butterfly body */}
-        <ellipse cx="40" cy="30" rx="1.5" ry="20" fill={theme.palette.text.secondary} opacity="0.8"/>
         
-        {/* Upper wings */}
-        <path 
-          d="M40 15 Q25 5 15 15 Q20 25 35 20 Q40 18 40 15" 
+        {/* Dragonfly body - long and segmented */}
+        <ellipse cx="45" cy="35" rx="2" ry="25" fill={theme.palette.text.secondary} opacity="0.9"/>
+        
+        {/* Body segments */}
+        <circle cx="45" cy="20" r="2.5" fill={theme.palette.text.secondary} opacity="0.8"/>
+        <circle cx="45" cy="25" r="2" fill={theme.palette.text.secondary} opacity="0.7"/>
+        <circle cx="45" cy="30" r="2" fill={theme.palette.text.secondary} opacity="0.7"/>
+        <circle cx="45" cy="35" r="1.8" fill={theme.palette.text.secondary} opacity="0.7"/>
+        <circle cx="45" cy="40" r="1.5" fill={theme.palette.text.secondary} opacity="0.7"/>
+        <circle cx="45" cy="45" r="1.2" fill={theme.palette.text.secondary} opacity="0.7"/>
+        
+        {/* Upper wings - longer and narrower */}
+        <ellipse 
+          cx="30" cy="22" rx="15" ry="6" 
           fill={theme.palette.primary.main} 
-          opacity="0.7"
+          opacity="0.4"
+          transform="rotate(-15 30 22)"
         />
-        <path 
-          d="M40 15 Q55 5 65 15 Q60 25 45 20 Q40 18 40 15" 
+        <ellipse 
+          cx="60" cy="22" rx="15" ry="6" 
           fill={theme.palette.primary.main} 
-          opacity="0.7"
+          opacity="0.4"
+          transform="rotate(15 60 22)"
         />
         
-        {/* Lower wings */}
-        <path 
-          d="M40 25 Q28 35 18 40 Q25 45 38 35 Q40 30 40 25" 
+        {/* Lower wings - slightly smaller */}
+        <ellipse 
+          cx="32" cy="32" rx="12" ry="5" 
           fill={theme.palette.secondary.main} 
+          opacity="0.4"
+          transform="rotate(-20 32 32)"
+        />
+        <ellipse 
+          cx="58" cy="32" rx="12" ry="5" 
+          fill={theme.palette.secondary.main} 
+          opacity="0.4"
+          transform="rotate(20 58 32)"
+        />
+        
+        {/* Wing veins - characteristic dragonfly feature */}
+        <path 
+          d="M20 22 L40 22 M25 18 L35 26 M15 20 L25 24" 
+          stroke={theme.palette.text.secondary} 
+          strokeWidth="0.5" 
           opacity="0.6"
         />
         <path 
-          d="M40 25 Q52 35 62 40 Q55 45 42 35 Q40 30 40 25" 
-          fill={theme.palette.secondary.main} 
+          d="M50 22 L70 22 M55 18 L65 26 M65 20 L75 24" 
+          stroke={theme.palette.text.secondary} 
+          strokeWidth="0.5" 
+          opacity="0.6"
+        />
+        <path 
+          d="M22 32 L42 32 M27 28 L37 36" 
+          stroke={theme.palette.text.secondary} 
+          strokeWidth="0.5" 
+          opacity="0.6"
+        />
+        <path 
+          d="M48 32 L68 32 M53 28 L63 36" 
+          stroke={theme.palette.text.secondary} 
+          strokeWidth="0.5" 
           opacity="0.6"
         />
         
-        {/* Wing patterns */}
-        <circle cx="30" cy="18" r="3" fill={theme.palette.background.paper} opacity="0.8"/>
-        <circle cx="50" cy="18" r="3" fill={theme.palette.background.paper} opacity="0.8"/>
-        <circle cx="32" cy="32" r="2" fill={theme.palette.background.paper} opacity="0.6"/>
-        <circle cx="48" cy="32" r="2" fill={theme.palette.background.paper} opacity="0.6"/>
+        {/* Head - larger compound eyes */}
+        <circle cx="45" cy="15" r="4" fill={theme.palette.text.secondary} opacity="0.8"/>
         
-        {/* Antennae */}
+        {/* Compound eyes */}
+        <circle cx="42" cy="13" r="2.5" fill={theme.palette.primary.main} opacity="0.7"/>
+        <circle cx="48" cy="13" r="2.5" fill={theme.palette.primary.main} opacity="0.7"/>
+        
+        {/* Eye highlights */}
+        <circle cx="42.5" cy="12.5" r="1" fill={theme.palette.background.paper} opacity="0.9"/>
+        <circle cx="47.5" cy="12.5" r="1" fill={theme.palette.background.paper} opacity="0.9"/>
+        
+        {/* Short antennae */}
         <path 
-          d="M38 12 Q35 8 33 6" 
+          d="M43 11 L41 9" 
           stroke={theme.palette.text.secondary} 
           strokeWidth="1" 
-          fill="none" 
           opacity="0.8"
         />
         <path 
-          d="M42 12 Q45 8 47 6" 
+          d="M47 11 L49 9" 
           stroke={theme.palette.text.secondary} 
           strokeWidth="1" 
-          fill="none" 
           opacity="0.8"
         />
-        <circle cx="33" cy="6" r="1" fill={theme.palette.text.secondary} opacity="0.8"/>
-        <circle cx="47" cy="6" r="1" fill={theme.palette.text.secondary} opacity="0.8"/>
       </svg>
     );
 
@@ -496,7 +536,7 @@ const TaskList: React.FC<TaskListProps> = memo(({
           alignItems: 'center'
         }}
       >
-        <ButterflyIcon />
+        <DragonflyIcon />
         <Typography variant="h6" color="text.secondary" sx={{ mb: theme.spacing(1) }}>
           No tasks found
         </Typography>
