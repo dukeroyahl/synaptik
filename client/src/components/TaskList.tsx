@@ -413,11 +413,6 @@ const TaskList: React.FC<TaskListProps> = memo(({
         sx={{ 
           p: theme.spacing(4), 
           textAlign: 'center',
-          background: theme.palette.mode === 'dark' 
-            ? `linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0) 100%)`
-            : `linear-gradient(135deg, rgba(0,0,0,0.03) 0%, rgba(0,0,0,0) 100%)`,
-          borderRadius: theme.ds?.radii.md,
-          border: `1px solid ${theme.palette.divider}`,
           minHeight: '300px',
           display: 'flex',
           flexDirection: 'column',

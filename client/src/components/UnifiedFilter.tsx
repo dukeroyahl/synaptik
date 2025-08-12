@@ -306,7 +306,7 @@ const UnifiedFilter: React.FC<UnifiedFilterProps> = ({
             onChange={(e) => setProjectFilter(e.target.value)}
             sx={{ mb: 1 }}
           />
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, maxHeight: 120, overflowY: 'auto' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25}}>
             {filteredProjects.map(p => {
               const active = selectedProjects.has(p);
               const count = useFilterStore.getState().projectCounts.get(p) || 0;
@@ -335,7 +335,7 @@ const UnifiedFilter: React.FC<UnifiedFilterProps> = ({
       {assignees.length > 0 && (
         <Box>
           <Typography sx={sectionTitleSx}>Assignees</Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, maxHeight: 120, overflowY: 'auto' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25}}>
             {assignees.map(a => {
               const active = selectedAssignees.has(a);
               const count = useFilterStore.getState().assigneeCounts.get(a) || 0;
@@ -355,7 +355,7 @@ const UnifiedFilter: React.FC<UnifiedFilterProps> = ({
         </Box>
       )}
 
-      <Divider />
+
     </Box>
   );
 
