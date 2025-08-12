@@ -104,10 +104,44 @@ const DashboardInsights = ({ sx }: DashboardInsightsProps) => {
               <Box sx={{ display:'flex', flexDirection:'column', gap:1, flex:1, minWidth:0 }}>
                 <Box sx={{ display:'flex', flexWrap:'wrap', gap:0.75 }}>
                   {visibleAssignees.map(a => (
-                    <Box key={a.assignee} sx={{ display:'flex', alignItems:'center', gap:.5, px:0.75, py:0.4, borderRadius:1, bgcolor: alpha(theme.palette.success.main,0.08), border:`1px solid ${alpha(theme.palette.success.main,0.25)}`, maxWidth:160 }}>
+                    <Box key={a.assignee} sx={{ 
+                      display:'flex', 
+                      alignItems:'center', 
+                      gap:.5, 
+                      px:0.75, 
+                      py:0.4, 
+                      borderRadius:1, 
+                      bgcolor: alpha(theme.palette.success.main,0.08), 
+                      border:`1px solid ${alpha(theme.palette.success.main,0.25)}`,
+                      minWidth: 'fit-content', // Allow natural width
+                      maxWidth: '100%' // Use full available width
+                    }}>
                       <PersonIcon sx={{ fontSize:15, color: theme.palette.text.secondary, flexShrink:0 }} />
-                      <Typography variant='caption' sx={{ fontWeight:600, whiteSpace:'nowrap', textOverflow:'ellipsis', overflow:'hidden', flexGrow:1 }}>{a.assignee}</Typography>
-                      <Box aria-label={`Open tasks ${a.open}`} sx={{ minWidth:20, height:18, px:0.5, borderRadius:9, bgcolor: alpha(theme.palette.success.main,0.2), color: theme.palette.success.main, fontSize:10, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center' }}>{a.open}</Box>
+                      <Typography variant='caption' sx={{ 
+                        fontWeight:600, 
+                        whiteSpace:'normal', // Allow wrapping instead of nowrap
+                        wordBreak: 'break-word', // Break long words if needed
+                        lineHeight: 1.2, // Compact line height for wrapped text
+                        flexGrow:1 
+                      }}>
+                        {a.assignee}
+                      </Typography>
+                      <Box aria-label={`Open tasks ${a.open}`} sx={{ 
+                        minWidth:20, 
+                        height:18, 
+                        px:0.5, 
+                        borderRadius:9, 
+                        bgcolor: alpha(theme.palette.success.main,0.2), 
+                        color: theme.palette.success.main, 
+                        fontSize:10, 
+                        fontWeight:600, 
+                        display:'flex', 
+                        alignItems:'center', 
+                        justifyContent:'center',
+                        flexShrink: 0 // Prevent the count badge from shrinking
+                      }}>
+                        {a.open}
+                      </Box>
                     </Box>
                   ))}
                   {assigneesAll.length>3 && (
