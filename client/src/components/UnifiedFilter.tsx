@@ -91,14 +91,8 @@ const UnifiedFilter: React.FC<UnifiedFilterProps> = ({
     getActiveCount
   } = useFilterStore();
 
-  const [projectFilter, setProjectFilter] = React.useState('');
   const activeCount = getActiveCount();
 
-  const filteredProjects = React.useMemo(() => {
-    if (!projectFilter.trim()) return projects;
-    const q = projectFilter.toLowerCase();
-    return projects.filter(p => p.toLowerCase().includes(q));
-  }, [projects, projectFilter]);
 
   // Common search component
   const SearchInput = ({ compact = false }: { compact?: boolean }) => (
@@ -298,16 +292,8 @@ const UnifiedFilter: React.FC<UnifiedFilterProps> = ({
       {projects.length > 0 && (
         <Box>
           <Typography sx={sectionTitleSx}>Projects</Typography>
-          <TextField
-            size="small"
-            fullWidth
-            placeholder="Filter projects..."
-            value={projectFilter}
-            onChange={(e) => setProjectFilter(e.target.value)}
-            sx={{ mb: 1 }}
-          />
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25}}>
-            {filteredProjects.map(p => {
+            {projects.map(p => {
               const active = selectedProjects.has(p);
               const count = useFilterStore.getState().projectCounts.get(p) || 0;
               return (
@@ -322,11 +308,6 @@ const UnifiedFilter: React.FC<UnifiedFilterProps> = ({
                 />
               );
             })}
-            {filteredProjects.length === 0 && (
-              <Typography variant="caption" sx={{ opacity: 0.6, pl: 0.5, py: 0.5 }}>
-                No matches
-              </Typography>
-            )}
           </Box>
         </Box>
       )}

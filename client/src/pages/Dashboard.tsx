@@ -33,8 +33,8 @@ const Dashboard = memo(() => {
       
       // Extract unique projects from tasks
       const projects = tasks
-        .filter((task: any) => task.project)
-        .map((task: any) => task.project as string);
+        .filter((task: any) => task.projectName)
+        .map((task: any) => task.projectName as string);
       
       // Remove duplicates
       const uniqueAssignees = [...new Set(assignees)] as string[];
