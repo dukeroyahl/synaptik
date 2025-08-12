@@ -408,6 +408,82 @@ const TaskList: React.FC<TaskListProps> = memo(({
 
   if (filteredTasks.length === 0) {
     const hasActiveFilters = assigneeFilter || projectFilter || dueDateFilter;
+    
+    // Butterfly SVG clipart
+    const ButterflyIcon = () => (
+      <svg 
+        width="80" 
+        height="60" 
+        viewBox="0 0 80 60" 
+        style={{ 
+          opacity: 0.6,
+          marginBottom: theme.spacing(2),
+          animation: 'flutter 3s ease-in-out infinite'
+        }}
+      >
+        <style>
+          {`
+            @keyframes flutter {
+              0%, 100% { transform: translateY(0px) rotate(0deg); }
+              25% { transform: translateY(-5px) rotate(2deg); }
+              50% { transform: translateY(-8px) rotate(-1deg); }
+              75% { transform: translateY(-3px) rotate(1deg); }
+            }
+          `}
+        </style>
+        {/* Butterfly body */}
+        <ellipse cx="40" cy="30" rx="1.5" ry="20" fill={theme.palette.text.secondary} opacity="0.8"/>
+        
+        {/* Upper wings */}
+        <path 
+          d="M40 15 Q25 5 15 15 Q20 25 35 20 Q40 18 40 15" 
+          fill={theme.palette.primary.main} 
+          opacity="0.7"
+        />
+        <path 
+          d="M40 15 Q55 5 65 15 Q60 25 45 20 Q40 18 40 15" 
+          fill={theme.palette.primary.main} 
+          opacity="0.7"
+        />
+        
+        {/* Lower wings */}
+        <path 
+          d="M40 25 Q28 35 18 40 Q25 45 38 35 Q40 30 40 25" 
+          fill={theme.palette.secondary.main} 
+          opacity="0.6"
+        />
+        <path 
+          d="M40 25 Q52 35 62 40 Q55 45 42 35 Q40 30 40 25" 
+          fill={theme.palette.secondary.main} 
+          opacity="0.6"
+        />
+        
+        {/* Wing patterns */}
+        <circle cx="30" cy="18" r="3" fill={theme.palette.background.paper} opacity="0.8"/>
+        <circle cx="50" cy="18" r="3" fill={theme.palette.background.paper} opacity="0.8"/>
+        <circle cx="32" cy="32" r="2" fill={theme.palette.background.paper} opacity="0.6"/>
+        <circle cx="48" cy="32" r="2" fill={theme.palette.background.paper} opacity="0.6"/>
+        
+        {/* Antennae */}
+        <path 
+          d="M38 12 Q35 8 33 6" 
+          stroke={theme.palette.text.secondary} 
+          strokeWidth="1" 
+          fill="none" 
+          opacity="0.8"
+        />
+        <path 
+          d="M42 12 Q45 8 47 6" 
+          stroke={theme.palette.text.secondary} 
+          strokeWidth="1" 
+          fill="none" 
+          opacity="0.8"
+        />
+        <circle cx="33" cy="6" r="1" fill={theme.palette.text.secondary} opacity="0.8"/>
+        <circle cx="47" cy="6" r="1" fill={theme.palette.text.secondary} opacity="0.8"/>
+      </svg>
+    );
+
     return (
       <Box 
         sx={{ 
@@ -416,16 +492,18 @@ const TaskList: React.FC<TaskListProps> = memo(({
           minHeight: '300px',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          alignItems: 'center'
         }}
       >
+        <ButterflyIcon />
         <Typography variant="h6" color="text.secondary" sx={{ mb: theme.spacing(1) }}>
           No tasks found
         </Typography>
         <Typography variant="body2" color="text.secondary">
           {hasActiveFilters
             ? `No ${filter} tasks found matching your current filters`
-            : `No ${filter} tasks found. Create a new task to get started!`
+            : `No tasks found. Create a new task to get started!`
           }
         </Typography>
       </Box>
