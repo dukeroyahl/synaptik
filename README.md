@@ -34,7 +34,7 @@
 - ⚡ **Blazing fast**: Modern technology that won't slow you down
 - 🌐 **Works anywhere**: Access from any device with a web browser
 
-![Synaptik Application](docs/images/app-main.png)
+![Synaptik Application](docs/images/app-main-v1.png)
 
 ---
 

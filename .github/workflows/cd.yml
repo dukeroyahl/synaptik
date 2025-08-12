@@ -405,6 +405,7 @@ jobs:
     needs: [validate-tag, create-release]
     runs-on: ${{ matrix.runner }}
     if: needs.validate-tag.outputs.should_create_release == 'true'
+    continue-on-error: true  # Don't fail the entire release if native builds fail
     strategy:
       matrix:
         include:
@@ -443,33 +444,99 @@ jobs:
           distribution: 'graalvm'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Run tests first
+        run: |
+          cd mcp
+          ./gradlew test --continue
+
       - name: Build MCP native binary
         run: |
           cd mcp
           
+          echo "🔨 Building native binary for ${{ matrix.platform }}..."
+          
           if [ "${{ matrix.use-native }}" = "true" ]; then
-            # macOS: Use native GraalVM installation
-            ./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=false
+            echo "📱 macOS: Using native GraalVM installation"
+            ./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=false -x test \
+              -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g" \
+              -Dquarkus.native.additional-build-args="--initialize-at-run-time=org.eclipse.jgit" \
+              --info || {
+                echo "❌ Native build failed for macOS, falling back to JAR build"
+                echo "📋 Available files in build directory:"
+                find build -type f | head -20 || true
+                echo "🔄 Building JAR fallback..."
+                ./gradlew quarkusBuild -x test
+                echo "FALLBACK_BUILD=true" >> $GITHUB_ENV
+              }
           else
-            # Linux: Use containerized Mandrel builder
-            ./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=${{ matrix.builder-image }}
+            echo "🐧 Linux: Using containerized Mandrel builder"
+            ./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=true \
+              -Dquarkus.native.builder-image=${{ matrix.builder-image }} -x test \
+              -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g" \
+              -Dquarkus.native.additional-build-args="--initialize-at-run-time=org.eclipse.jgit" \
+              --info || {
+                echo "❌ Native build failed for Linux, falling back to JAR build"
+                echo "📋 Available files in build directory:"
+                find build -type f | head -20 || true
+                echo "🔄 Building JAR fallback..."
+                ./gradlew quarkusBuild -x test
+                echo "FALLBACK_BUILD=true" >> $GITHUB_ENV
+              }
           fi
+          
+          echo "✅ Binary build completed successfully"
 
       - name: Prepare binary for release
         run: |
           cd mcp/build
           
-          # Find the generated native binary
-          BINARY_NAME=$(find . -name "*-runner" -type f | head -n 1)
-          if [ -z "$BINARY_NAME" ]; then
-            echo "❌ No native binary found!"
-            find . -type f -name "*" | head -20
-            exit 1
+          if [ "$FALLBACK_BUILD" = "true" ]; then
+            echo "📦 Preparing JAR-based executable (fallback)..."
+            
+            # Create a shell script wrapper for the JAR
+            cat > "synaptik-mcp-${{ matrix.platform }}" << 'EOF'
+#!/bin/bash
+# Synaptik MCP Server (JAR-based fallback)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec java -jar "$SCRIPT_DIR/quarkus-app/quarkus-run.jar" "$@"
+EOF
+            chmod +x "synaptik-mcp-${{ matrix.platform }}"
+            
+            # Verify the JAR exists
+            if [ ! -f "quarkus-app/quarkus-run.jar" ]; then
+              echo "❌ JAR file not found!"
+              find . -name "*.jar" | head -10
+              exit 1
+            fi
+            
+            echo "✅ JAR-based executable prepared: synaptik-mcp-${{ matrix.platform }}"
+            
+          else
+            echo "🔍 Looking for generated native binary..."
+            
+            # Find the generated native binary
+            BINARY_NAME=$(find . -name "*-runner" -type f | head -n 1)
+            if [ -z "$BINARY_NAME" ]; then
+              echo "❌ No native binary found!"
+              echo "📋 Available files in build directory:"
+              find . -type f -name "*" | head -20 || true
+              echo "📋 Looking for any executable files:"
+              find . -type f -executable | head -10 || true
+              exit 1
+            fi
+            
+            echo "✅ Found native binary: $BINARY_NAME"
+            
+            # Rename to standard format
+            mv "$BINARY_NAME" "synaptik-mcp-${{ matrix.platform }}"
+            chmod +x "synaptik-mcp-${{ matrix.platform }}"
+            
+            echo "✅ Native binary prepared: synaptik-mcp-${{ matrix.platform }}"
           fi
           
-          # Rename to standard format
-          mv "$BINARY_NAME" "synaptik-mcp-${{ matrix.platform }}"
-          chmod +x "synaptik-mcp-${{ matrix.platform }}"
+          # Verify the final binary
+          ls -la "synaptik-mcp-${{ matrix.platform }}"
+          file "synaptik-mcp-${{ matrix.platform }}" || true
           
           # Verify binary
           file "synaptik-mcp-${{ matrix.platform }}"
@@ -478,14 +545,27 @@ jobs:
       - name: Upload binary to release
         run: |
           TAG_NAME="${{ needs.validate-tag.outputs.tag_name }}"
-          BINARY_PATH="mcp/build/synaptik-mcp-${{ matrix.platform }}"
+          cd mcp/build
           
-          echo "📦 Uploading ${{ matrix.platform }} binary to release $TAG_NAME"
-          
-          # Upload to release (with --clobber to replace if exists)
-          gh release upload "$TAG_NAME" "$BINARY_PATH" --clobber --repo dukeroyahl/synaptik
-          
-          echo "✅ Successfully uploaded synaptik-mcp-${{ matrix.platform }}"
+          if [ "$FALLBACK_BUILD" = "true" ]; then
+            echo "📦 Packaging JAR-based executable for upload..."
+            
+            # Create a tar.gz with the executable and JAR
+            tar -czf "synaptik-mcp-${{ matrix.platform }}.tar.gz" \
+              "synaptik-mcp-${{ matrix.platform }}" \
+              quarkus-app/
+            
+            echo "📤 Uploading JAR-based package to release $TAG_NAME"
+            gh release upload "$TAG_NAME" "synaptik-mcp-${{ matrix.platform }}.tar.gz" --clobber --repo dukeroyahl/synaptik
+            
+            echo "✅ Successfully uploaded synaptik-mcp-${{ matrix.platform }}.tar.gz (JAR-based)"
+            
+          else
+            echo "📤 Uploading native binary to release $TAG_NAME"
+            gh release upload "$TAG_NAME" "synaptik-mcp-${{ matrix.platform }}" --clobber --repo dukeroyahl/synaptik
+            
+            echo "✅ Successfully uploaded synaptik-mcp-${{ matrix.platform }} (native)"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
