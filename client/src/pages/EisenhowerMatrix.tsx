@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { 
   Box, 
   Card, 
@@ -16,7 +16,7 @@ import {
   Schedule as ClockIcon,
   Inbox as InboxIcon,
 } from '@mui/icons-material';
-import { Task } from '../types';
+import { TaskDTO } from '../types';
 import { parseBackendDate } from '../utils/dateUtils';
 import TaskEditDialog from '../components/TaskEditDialog';
 import TaskCard from '../components/TaskCard';
@@ -37,10 +37,10 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { generateTaskId } from '../utils/taskUtils';
 import { taskService } from '../services/taskService';
+import { useTaskActionsWithConfirm } from '../hooks/useTaskActions';
 
-function isUrgent(task: Task): boolean {
+function isUrgent(task: TaskDTO): boolean {
   if (!task.dueDate) {
-    console.log(`isUrgent: Task "${task.title}" has no due date, returning false`);
     return false;
   }
   
@@ -48,13 +48,11 @@ function isUrgent(task: Task): boolean {
   const due = parseBackendDate(task.dueDate);
   const diff = (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
   const urgent = diff <= 30; // due within 30 days (including today) or overdue
-  console.log(`isUrgent: Task "${task.title}" - due: ${task.dueDate}, diff: ${diff.toFixed(1)} days, urgent: ${urgent}`);
   return urgent;
 }
 
-function isImportant(task: Task): boolean {
+function isImportant(task: TaskDTO): boolean {
   const important = task.priority === 'HIGH' || task.priority === 'MEDIUM';
-  console.log(`isImportant: Task "${task.title}" - priority: ${task.priority}, important: ${important}`);
   return important;
 }
 
@@ -66,9 +64,9 @@ const quadrantLabels = [
 ];
 
 // Helper to get new task fields for quadrant
-function getTaskFieldsForQuadrant(idx: number, task: Task): Partial<Task> {
+function getTaskFieldsForQuadrant(idx: number, task: TaskDTO): Partial<TaskDTO> {
   const now = new Date();
-  let dueDate: string | undefined = task.dueDate;
+  let dueDate: string | undefined = task.dueDate || undefined;
   let priority: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE' = task.priority;
   
   if (idx === 0) { // Urgent & Important
@@ -99,25 +97,29 @@ function getTaskFieldsForQuadrant(idx: number, task: Task): Partial<Task> {
 }
 
 interface SortableTaskProps {
-  task: Task;
+  task: TaskDTO;
   quadrant: number;
-  onEditTask: (task: Task) => void;
-  onEditDate: (task: Task) => void;
-  onMarkDone: (task: Task) => void;
-  onUnmarkDone: (task: Task) => void;
-  onDeleteTask: (task: Task) => void;
-  onLinkTask: (task: Task) => void;
+  onEditTask: (task: TaskDTO) => void;
+  onMarkDone: (task: TaskDTO) => void;
+  onUnmarkDone: (task: TaskDTO) => void;
+  onDeleteTask: (task: TaskDTO) => void;
+  onLinkTask: (task: TaskDTO) => void;
+  onStartTask: (task: TaskDTO) => void;
+  onStopTask: (task: TaskDTO) => void;
 }
 
-const SortableTask: React.FC<SortableTaskProps> = ({ 
+const SortableTask: React.FC<SortableTaskProps & { selected?: boolean; onSelect?: (task: TaskDTO) => void }> = ({ 
   task, 
   quadrant, 
   onEditTask,
-  onEditDate,
   onMarkDone,
   onUnmarkDone,
   onDeleteTask,
-  onLinkTask
+  onLinkTask,
+  onStartTask,
+  onStopTask,
+  selected,
+  onSelect
 }) => {
   const {
     attributes,
@@ -140,12 +142,15 @@ const SortableTask: React.FC<SortableTaskProps> = ({
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <TaskCard 
         task={task}
+        selected={selected}
+        onSelect={() => onSelect?.(task)}
         onMarkDone={onMarkDone}
         onUnmarkDone={onUnmarkDone}
         onEdit={onEditTask}
-        onEditDate={onEditDate}
         onDelete={onDeleteTask}
         onLinkTask={onLinkTask}
+        onStart={onStartTask}
+        onPause={onStopTask}
         draggable={true}
         compact={true}
       />
@@ -155,16 +160,19 @@ const SortableTask: React.FC<SortableTaskProps> = ({
 
 interface DroppableQuadrantProps {
   quadrant: number;
-  tasks: Task[];
+  tasks: TaskDTO[];
   title: string;
   color: string;
   icon: React.ComponentType<any>;
-  onEditTask: (task: Task) => void;
-  onEditDate: (task: Task) => void;
-  onMarkDone: (task: Task) => void;
-  onUnmarkDone: (task: Task) => void;
-  onDeleteTask: (task: Task) => void;
-  onLinkTask: (task: Task) => void;
+  onEditTask: (task: TaskDTO) => void;
+  onMarkDone: (task: TaskDTO) => void;
+  onUnmarkDone: (task: TaskDTO) => void;
+  onDeleteTask: (task: TaskDTO) => void;
+  onLinkTask: (task: TaskDTO) => void;
+  onStartTask: (task: TaskDTO) => void;
+  onStopTask: (task: TaskDTO) => void;
+  selectedTaskId: string | null;
+  setSelectedTaskId: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
 const DroppableQuadrant: React.FC<DroppableQuadrantProps> = ({ 
@@ -174,11 +182,14 @@ const DroppableQuadrant: React.FC<DroppableQuadrantProps> = ({
   color, 
   icon: IconComponent, 
   onEditTask,
-  onEditDate,
   onMarkDone,
   onUnmarkDone,
   onDeleteTask,
-  onLinkTask
+  onLinkTask,
+  onStartTask,
+  onStopTask,
+  selectedTaskId,
+  setSelectedTaskId
 }) => {
   const theme = useTheme();
   const { isOver, setNodeRef } = useDroppable({
@@ -232,11 +243,14 @@ const DroppableQuadrant: React.FC<DroppableQuadrantProps> = ({
                 task={task} 
                 quadrant={quadrant} 
                 onEditTask={onEditTask}
-                onEditDate={onEditDate}
                 onMarkDone={onMarkDone}
                 onUnmarkDone={onUnmarkDone}
                 onDeleteTask={onDeleteTask}
                 onLinkTask={onLinkTask}
+                onStartTask={onStartTask}
+                onStopTask={onStopTask}
+                selected={task.id === selectedTaskId}
+                onSelect={(t) => setSelectedTaskId(prev => prev === t.id ? null : t.id)}
               />
             ))
           )}
@@ -247,15 +261,15 @@ const DroppableQuadrant: React.FC<DroppableQuadrantProps> = ({
 };
 
 const EisenhowerMatrix: React.FC = () => {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTask, setActiveTask] = useState<Task | null>(null);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [activeTask, setActiveTask] = useState<TaskDTO | null>(null);
+  const [editingTask, setEditingTask] = useState<TaskDTO | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   
   // Debug state changes
-  console.log('EisenhowerMatrix: Component render - tasks.length:', tasks.length, 'loading:', loading);
   const theme = useTheme();
 
   const sensors = useSensors(
@@ -266,75 +280,56 @@ const EisenhowerMatrix: React.FC = () => {
     })
   );
 
-  useEffect(() => {
-    fetchTasks();
-  }, []);
-
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     setLoading(true);
     try {
-      console.log('EisenhowerMatrix: Fetching tasks...');
       const tasks = await taskService.getTasks();
-      console.log('EisenhowerMatrix: Received tasks:', tasks);
-      console.log('EisenhowerMatrix: Task count:', tasks?.length || 0);
       if (tasks && tasks.length > 0) {
-        console.log('EisenhowerMatrix: First task:', tasks[0]);
       }
       setTasks(tasks || []);
-      console.log('EisenhowerMatrix: setTasks called with:', tasks?.length || 0, 'tasks');
     } catch (e) {
       console.error('Failed to fetch tasks:', e);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Use the new task actions hook
+  const { markDone, unmarkDone, deleteTask, updateTask, startTask, stopTask } = useTaskActionsWithConfirm(fetchTasks);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
 
   // Quadrants: 0 = urgent+important, 1 = not urgent+important, 2 = urgent+not important, 3 = not urgent+not important
   const quadrants = useMemo(() => {
-    const result: Task[][] = [[], [], [], []];
-    console.log('EisenhowerMatrix: Processing tasks for quadrants, total tasks:', tasks.length);
-    console.log('EisenhowerMatrix: showCompleted:', showCompleted);
-    console.log('EisenhowerMatrix: tasks array:', tasks);
+    const result: TaskDTO[][] = [[], [], [], []];
     
     if (tasks.length === 0) {
-      console.log('EisenhowerMatrix: No tasks to process');
       return result;
     }
     
-    tasks.forEach((task, index) => {
-      console.log(`EisenhowerMatrix: Processing task ${index}:`, {
-        title: task.title,
-        status: task.status,
-        priority: task.priority,
-        dueDate: task.dueDate
-      });
+    tasks.forEach((task) => {
       
       // Skip completed tasks if showCompleted is false
       if (!showCompleted && task.status === 'COMPLETED') {
-        console.log(`EisenhowerMatrix: Skipping completed task: ${task.title}`);
         return;
       }
       
       const urgent = isUrgent(task);
       const important = isImportant(task);
-      console.log(`EisenhowerMatrix: Task "${task.title}" - urgent: ${urgent}, important: ${important}`);
       
       if (urgent && important) {
-        console.log(`EisenhowerMatrix: Adding "${task.title}" to quadrant 0 (urgent & important)`);
         result[0].push(task);
       } else if (!urgent && important) {
-        console.log(`EisenhowerMatrix: Adding "${task.title}" to quadrant 1 (not urgent & important)`);
         result[1].push(task);
       } else if (urgent && !important) {
-        console.log(`EisenhowerMatrix: Adding "${task.title}" to quadrant 2 (urgent & not important)`);
         result[2].push(task);
       } else {
-        console.log(`EisenhowerMatrix: Adding "${task.title}" to quadrant 3 (not urgent & not important)`);
         result[3].push(task);
       }
     });
     
-    console.log('EisenhowerMatrix: Final quadrant counts:', result.map((q, i) => ({ quadrant: i, count: q.length })));
     return result;
   }, [tasks, showCompleted]);
 
@@ -386,62 +381,56 @@ const EisenhowerMatrix: React.FC = () => {
     // Update task fields for new quadrant
     const updatedFields = getTaskFieldsForQuadrant(targetQuadrant, activeTask);
     try {
-      await taskService.updateTask(activeTask.id, {
-        ...activeTask,
-        ...updatedFields,
-        status: activeTask.status
-      });
+      // Merge task data with updated fields then convert nulls to undefined
+      const mergedData = {
+        title: activeTask.title,
+        description: activeTask.description,
+        projectName: activeTask.projectName,
+        assignee: activeTask.assignee,
+        dueDate: activeTask.dueDate,
+        waitUntil: activeTask.waitUntil,
+        priority: activeTask.priority,
+        status: activeTask.status,
+        ...updatedFields
+      };
+      
+      // Convert null values to undefined for API compatibility
+      const updateData = {
+        ...mergedData,
+        description: mergedData.description || undefined,
+        projectName: mergedData.projectName || undefined,
+        assignee: mergedData.assignee || undefined,
+        dueDate: mergedData.dueDate || undefined,
+        waitUntil: mergedData.waitUntil || undefined,
+      };
+      
+      await taskService.updateTask(activeTask.id, updateData);
       fetchTasks();
     } catch (e) {
       console.error('Error updating task:', e);
     }
   };
 
-  const handleEditTask = (task: Task) => {
+  const handleEditTask = (task: TaskDTO) => {
     setEditingTask(task);
     setEditDialogOpen(true);
   };
 
-  const handleMarkDone = async (task: Task) => {
-    try {
-      await taskService.completeTask(task.id);
-      fetchTasks();
-    } catch (e) {
-      console.error('Error marking task as done:', e);
-    }
-  };
-
-  const handleUnmarkDone = async (task: Task) => {
-    try {
-      await taskService.performAction(task.id, 'undone' as any);
-      fetchTasks();
-    } catch (e) {
-      console.error('Error unmarking task as done:', e);
-    }
-  };
+  // Simplified task action handlers using the new hook
+  const handleMarkDone = markDone;
+  const handleUnmarkDone = unmarkDone;
+  const handleStartTask = startTask;
+  const handleStopTask = stopTask;
   
-  const handleLinkTask = (task: Task) => {
+  const handleLinkTask = (_task: TaskDTO) => {
     // Implement task linking functionality
-    console.log('Link task:', task.id);
     // You could open a dialog to select which task to link to
   };
   
-  const handleDeleteTask = async (task: Task) => {
-    try {
-      await taskService.deleteTask(task.id);
-      fetchTasks();
-    } catch (e) {
-      console.error('Error deleting task:', e);
-    }
-  };
+  const handleDeleteTask = deleteTask;
 
-  const handleSaveTask = async (updatedTask: Task) => {
-    try {
-      await taskService.updateTask(updatedTask.id, updatedTask);
-      fetchTasks(); // Refresh the tasks
-    } catch (e) {
-      console.error('Error updating task:', e);
-    }
+  const handleSaveTask = async (updatedTask: TaskDTO) => {
+    await updateTask(updatedTask, updatedTask);
   };
 
   const handleCloseEditDialog = () => {
@@ -486,7 +475,7 @@ const EisenhowerMatrix: React.FC = () => {
         }}
       >
         <Typography variant="body2" color="text.secondary">
-          Drag tasks between quadrants to change their priority and urgency. Tasks are automatically 
+          Drag tasks between quadrants to change their priority. Tasks are automatically 
           categorized based on their due date and priority.
         </Typography>
       </Paper>
@@ -497,22 +486,25 @@ const EisenhowerMatrix: React.FC = () => {
         onDragEnd={handleDragEnd}
       >
         <Grid container spacing={2}>
-          {quadrants.map((quadrantTasks, idx) => (
-            <DroppableQuadrant
-              key={idx}
-              quadrant={idx}
-              tasks={quadrantTasks}
-              title={quadrantLabels[idx].title}
-              color={quadrantLabels[idx].color}
-              icon={quadrantLabels[idx].icon}
-              onEditTask={handleEditTask}
-              onEditDate={handleEditTask}
-              onMarkDone={handleMarkDone}
-              onUnmarkDone={handleUnmarkDone}
-              onDeleteTask={handleDeleteTask}
-              onLinkTask={handleLinkTask}
-            />
-          ))}
+           {quadrants.map((quadrantTasks, idx) => (
+             <DroppableQuadrant
+               key={idx}
+               quadrant={idx}
+               tasks={quadrantTasks}
+               title={quadrantLabels[idx].title}
+               color={quadrantLabels[idx].color}
+               icon={quadrantLabels[idx].icon}
+               onEditTask={handleEditTask}
+               onMarkDone={handleMarkDone}
+               onUnmarkDone={handleUnmarkDone}
+               onDeleteTask={handleDeleteTask}
+               onLinkTask={handleLinkTask}
+               onStartTask={handleStartTask}
+               onStopTask={handleStopTask}
+               selectedTaskId={selectedTaskId}
+               setSelectedTaskId={setSelectedTaskId}
+             />
+           ))}
         </Grid>
         <DragOverlay>
           {activeTask ? (

@@ -29,13 +29,17 @@ dependencies {
     compileOnly 'org.projectlombok:lombok:1.18.30'
     annotationProcessor 'org.projectlombok:lombok:1.18.30'
     
+    // MapStruct
+    implementation 'org.mapstruct:mapstruct:1.5.5.Final'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
+    
     testImplementation 'io.quarkus:quarkus-junit5'
     testImplementation 'io.rest-assured:rest-assured'
     testImplementation 'org.mockito:mockito-core:5.8.0'
 }
 
-group 'org.dukeroyahl.synaptik'
-version '0.0.5'
+group = 'org.dukeroyahl.synaptik'
+version = '1.0.0'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
@@ -66,11 +70,11 @@ test {
     
     // Test logger configuration
     testlogger {
-        theme 'mocha'
-        showExceptions true
-        showStackTraces true
-        slowThreshold 2000
-        showSummary true
-        logLevel 'lifecycle'
+        theme = 'mocha'
+        showExceptions = true
+        showStackTraces = true
+        slowThreshold = 2000
+        showSummary = true
+        logLevel = 'lifecycle'
     }
 }

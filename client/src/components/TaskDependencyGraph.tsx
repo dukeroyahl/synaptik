@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { Box, Typography, Paper } from '@mui/material';
+import { Box, Typography, Paper, useTheme } from '@mui/material';
 import * as d3 from 'd3';
 import { Task } from '../types';
+import { getPriorityConfig } from '../utils/priorityUtils';
 
 interface TaskDependencyGraphProps {
   task: Task;
@@ -22,6 +23,7 @@ interface GraphLink {
 
 const TaskDependencyGraph: React.FC<TaskDependencyGraphProps> = ({ task, dependencyTasks }) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const theme = useTheme();
 
   useEffect(() => {
     if (!svgRef.current || !task || dependencyTasks.length === 0) return;
@@ -108,13 +110,9 @@ const TaskDependencyGraph: React.FC<TaskDependencyGraphProps> = ({ task, depende
       .attr('fill', (d) => {
         if (d.id === task.id) return '#4caf50'; // Current task is green
         
-        // Color based on priority
-        switch (d.priority) {
-          case 'H': return '#f44336'; // High priority - red
-          case 'M': return '#ff9800'; // Medium priority - orange
-          case 'L': return '#2196f3'; // Low priority - blue
-          default: return '#9e9e9e'; // No priority - gray
-        }
+        // Color based on priority using unified system
+        const priorityConfig = getPriorityConfig(d.priority as any, theme);
+        return priorityConfig.color;
       })
       .attr('stroke', '#fff')
       .attr('stroke-width', 2)

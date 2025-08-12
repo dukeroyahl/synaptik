@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { Box, Typography, Paper } from '@mui/material';
 import * as d3 from 'd3';
-import { Task } from '../types';
+import { TaskDTO } from '../types';
 
 interface UnifiedTaskGraphProps {
-  tasks: Task[];
+  tasks: TaskDTO[];
 }
 
 interface GraphNode {
@@ -277,9 +277,6 @@ const UnifiedTaskGraph: React.FC<UnifiedTaskGraphProps> = ({ tasks }) => {
       }}
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="subtitle2">
-          Task Dependency Graph
-        </Typography>
         <Box sx={{ display: 'flex', gap: 2, fontSize: '0.75rem', color: 'text.secondary' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#ff5722' }} />

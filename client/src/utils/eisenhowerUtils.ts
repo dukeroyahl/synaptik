@@ -1,9 +1,9 @@
-import { Task } from '../types';
+import { TaskDTO } from '../types';
 import { darkPalette } from './themeUtils';
 import { parseBackendDate } from './dateUtils';
 
 // Determine if a task is urgent based on due date
-export function isUrgent(task: Task): boolean {
+export function isUrgent(task: TaskDTO): boolean {
   if (!task.dueDate) return false;
   
   try {
@@ -23,12 +23,12 @@ export function isUrgent(task: Task): boolean {
 }
 
 // Determine if a task is important based on priority
-export function isImportant(task: Task): boolean {
+export function isImportant(task: TaskDTO): boolean {
   return task.priority === 'HIGH' || task.priority === 'MEDIUM';
 }
 
 // Get the Eisenhower quadrant for a task (0-3)
-export function getQuadrant(task: Task): number {
+export function getQuadrant(task: TaskDTO): number {
   const urgent = isUrgent(task);
   const important = isImportant(task);
   

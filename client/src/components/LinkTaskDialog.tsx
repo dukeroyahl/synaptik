@@ -6,12 +6,12 @@ import {
   DialogActions,
   Button,
 } from '@mui/material';
-import { Task } from '../types';
+import { TaskDTO } from '../types';
 import TaskDependencySelector from './TaskDependencySelector';
 
 interface LinkTaskDialogProps {
   open: boolean;
-  task: Task | null;
+  task: TaskDTO | null;
   onClose: () => void;
   onSave: (taskId: string, dependencies: string[]) => void;
 }

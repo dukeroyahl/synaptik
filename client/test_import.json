@@ -1,0 +1,16 @@
+[
+  {
+    "title": "Test imported task 1",
+    "description": "This is a test task imported from JSON",
+    "status": "PENDING",
+    "priority": "HIGH",
+    "assignee": "test.user"
+  },
+  {
+    "title": "Test imported task 2", 
+    "description": "Another test task",
+    "status": "ACTIVE",
+    "priority": "MEDIUM",
+    "dueDate": "2025-08-15T10:00:00Z"
+  }
+]

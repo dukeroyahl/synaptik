@@ -1,100 +1,155 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Typography, CircularProgress, Button } from '@mui/material';
-import { Task } from '../types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  Box, 
+  Typography, 
+  CircularProgress, 
+  Button, 
+  Card, 
+  CardContent, 
+  CardActions,
+  Grid,
+  Chip,
+  LinearProgress,
+  useTheme
+} from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import { 
+  Add,
+  Folder as ProjectIcon,
+  Person as PersonIcon,
+  Schedule as ScheduleIcon,
+  ArrowBack
+} from '@mui/icons-material';
+import { TaskDTO, Project } from '../types';
 import { taskService } from '../services/taskService';
-import ProjectView from '../components/ProjectView';
+import { projectService } from '../services/projectService';
+import ProjectDetailView from '../components/ProjectDetailView';
 import TaskEditDialog from '../components/TaskEditDialog';
-import TaskDependencyView from '../components/TaskDependencyView';
+import { useTaskActionsWithConfirm } from '../hooks/useTaskActions';
 
 const Projects: React.FC = () => {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const theme = useTheme();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [editingTask, setEditingTask] = useState<TaskDTO | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [dependencyTaskId, setDependencyTaskId] = useState<string | null>(null);
-  const [dependencyViewOpen, setDependencyViewOpen] = useState(false);
-
-  useEffect(() => {
+  
+  // Use the new task actions hook with refresh callback
+  const { 
+    markDone, 
+    unmarkDone, 
+    startTask, 
+    stopTask, 
+    deleteTask, 
+    updateTask 
+  } = useTaskActionsWithConfirm(() => {
     fetchTasks();
+    fetchProjects(); // Refresh projects to update status
+  });
+
+  const fetchProjects = useCallback(async () => {
+    try {
+      setLoading(true);
+      const projects = await projectService.getProjects();
+      setProjects(projects || []);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // Separate function to refresh selected project
+  const refreshSelectedProject = useCallback(async () => {
+    if (!selectedProject) return;
+    
+    try {
+      const projects = await projectService.getProjects();
+      const updatedSelectedProject = projects?.find(p => p.id === selectedProject.id);
+      if (updatedSelectedProject) {
+        setSelectedProject(updatedSelectedProject);
+        setProjects(projects || []);
+      }
+    } catch (error) {
+      console.error('Error refreshing selected project:', error);
+    }
+  }, [selectedProject]);
 
   const fetchTasks = async () => {
     try {
-      setLoading(true);
       const tasks = await taskService.getTasks();
       setTasks(tasks || []);
     } catch (error) {
       console.error('Error fetching tasks:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleMarkDone = async (task: Task) => {
-    try {
-      await taskService.updateTask(task.id, { ...task, status: 'COMPLETED' });
-      await fetchTasks();
-    } catch (error) {
-      console.error('Error marking task as done:', error);
-    }
-  };
+  useEffect(() => {
+    fetchProjects();
+    fetchTasks();
+  }, [fetchProjects]);
 
-  const handleUnmarkDone = async (task: Task) => {
-    try {
-      await taskService.updateTask(task.id, { ...task, status: 'PENDING' });
-      await fetchTasks();
-    } catch (error) {
-      console.error('Error unmarking task as done:', error);
-    }
-  };
+  // Simplified task action handlers using the new hook
+  const handleMarkDone = markDone;
 
-  const handleEdit = (task: Task) => {
+  const handleUnmarkDone = unmarkDone;
+
+  const handleEdit = (task: TaskDTO) => {
     setEditingTask(task);
     setEditDialogOpen(true);
   };
 
-  const handleEditDate = (task: Task) => {
-    // Open edit dialog focused on date - for now same as regular edit
-    setEditingTask(task);
-    setEditDialogOpen(true);
+  const handleSaveEdit = async (updatedTask: TaskDTO) => {
+    await updateTask(updatedTask, updatedTask);
+    setEditDialogOpen(false);
+    setEditingTask(null);
   };
 
-  const handleSaveEdit = async (updatedTask: Task) => {
-    try {
-      await taskService.updateTask(updatedTask.id, updatedTask);
-      setEditDialogOpen(false);
-      setEditingTask(null);
-      await fetchTasks();
-    } catch (error) {
-      console.error('Error updating task:', error);
-    }
+  const handleDelete = deleteTask; // useTaskActionsWithConfirm already includes confirmation
+
+  const handleStop = stopTask;
+
+  const handleStart = startTask;
+
+  const handleLinkTask = (_task: TaskDTO) => {
+    // TODO: Implement task linking functionality
   };
 
-  const handleDelete = async (task: Task) => {
-    if (!window.confirm('Are you sure you want to delete this task?')) {
-      return;
-    }
-    
-    try {
-      await taskService.deleteTask(task.id);
-      await fetchTasks();
-    } catch (error) {
-      console.error('Error deleting task:', error);
-    }
+  const onViewDependencies = (_task: TaskDTO) => {
+    // TODO: Implement view dependencies functionality
   };
 
-  const handleViewDependencies = (task: Task) => {
-    setDependencyTaskId(task.id);
-    setDependencyViewOpen(true);
+  const getProjectColorCategory = (project: Project) => {
+    const baseColors = {
+      PENDING: {
+        ring: theme.palette.warning.main,
+        chip: theme.palette.warning.main,
+        bg: alpha(theme.palette.warning.main, 0.08)
+      },
+      STARTED: {
+        ring: theme.palette.primary.main,
+        chip: theme.palette.primary.main,
+        bg: alpha(theme.palette.primary.main, 0.08)
+      },
+      COMPLETED: {
+        ring: theme.palette.success.main,
+        chip: theme.palette.success.main,
+        bg: alpha(theme.palette.success.main, 0.08)
+      },
+      DELETED: {
+        ring: theme.palette.error.main,
+        chip: theme.palette.error.main,
+        bg: alpha(theme.palette.error.main, 0.08)
+      }
+    };
+
+    return baseColors[project.status] || baseColors.PENDING;
   };
 
-  const handleStop = async (task: Task) => {
-    try {
-      await taskService.updateTask(task.id, { ...task, status: 'PENDING' });
-      await fetchTasks();
-    } catch (error) {
-      console.error('Error stopping task:', error);
-    }
+  const getProjectTasks = (projectName: string) => {
+    return tasks.filter(task => task.projectName === projectName);
   };
 
   if (loading) {
@@ -115,81 +170,265 @@ const Projects: React.FC = () => {
     );
   }
 
-  return (
-    <Box sx={{ p: 3 }}>
-      <ProjectView
-        tasks={tasks}
-        onMarkDone={handleMarkDone}
-        onUnmarkDone={handleUnmarkDone}
-        onEdit={handleEdit}
-        onEditDate={handleEditDate}
-        onDelete={handleDelete}
-        onViewDependencies={handleViewDependencies}
-        onStop={handleStop}
-      />
-
-      {/* Edit Dialog */}
-      <TaskEditDialog
-        task={editingTask}
-        open={editDialogOpen}
-        onClose={() => {
-          setEditDialogOpen(false);
-          setEditingTask(null);
-        }}
-        onSave={handleSaveEdit}
-      />
-
-      {/* Dependency View Dialog */}
-      {dependencyTaskId && (
-        <TaskDependencyView
-          taskId={dependencyTaskId}
-        />
-      )}
-      
-      {dependencyViewOpen && (
-        <Box
-          sx={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            zIndex: 1300,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            p: 2
+  if (selectedProject) {
+    const projectTasks = getProjectTasks(selectedProject.name);
+    return (
+      <Box sx={{ p: 3 }}>
+        <Button 
+          onClick={() => setSelectedProject(null)}
+          startIcon={<ArrowBack />}
+          sx={{ mb: 3 }}
+          variant="outlined"
+        >
+          Back to Projects
+        </Button>
+        
+        <ProjectDetailView
+          project={selectedProject}
+          tasks={projectTasks}
+          onViewDependencies={onViewDependencies}
+          onMarkDone={handleMarkDone}
+          onUnmarkDone={handleUnmarkDone}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onStop={handleStop}
+          onStart={handleStart}
+          onLinkTask={handleLinkTask}
+          onTaskAdded={async () => {
+            await fetchTasks();
+            await fetchProjects(); // Update project status after adding task
           }}
+          onProjectUpdated={refreshSelectedProject}
+        />
+        
+        {editingTask && (
+          <TaskEditDialog
+            open={editDialogOpen}
+            task={editingTask}
+            onClose={() => {
+              setEditDialogOpen(false);
+              setEditingTask(null);
+            }}
+            onSave={handleSaveEdit}
+          />
+        )}
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ p: 3, minHeight: '100vh', backgroundColor: 'background.default' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 600, color: 'text.primary' }}>
+          Projects
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
           onClick={() => {
-            setDependencyViewOpen(false);
-            setDependencyTaskId(null);
+            // TODO: Implement create project dialog
+          }}
+          sx={{
+            borderRadius: 2,
+            textTransform: 'none',
+            fontWeight: 600,
+            px: 3,
+            py: 1
           }}
         >
-          <Box
-            sx={{
-              maxWidth: '90vw',
-              maxHeight: '90vh',
-              overflow: 'auto',
-              bgcolor: 'background.paper',
-              borderRadius: 2,
-              p: 2
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {dependencyTaskId && <TaskDependencyView taskId={dependencyTaskId} />}
-            <Box sx={{ mt: 2, textAlign: 'right' }}>
-              <Button 
-                onClick={() => {
-                  setDependencyViewOpen(false);
-                  setDependencyTaskId(null);
-                }}
-              >
-                Close
-              </Button>
-            </Box>
-          </Box>
+          New Project
+        </Button>
+      </Box>
+
+      {projects.length === 0 ? (
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          height: '50vh',
+          gap: 2
+        }}>
+          <Typography variant="h6" color="text.secondary">
+            No projects found
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Create your first project to get started
+          </Typography>
         </Box>
+      ) : (
+        <Grid container spacing={3}>
+          {projects.map((project) => {
+            const projectTasks = getProjectTasks(project.name);
+            const completedTasks = projectTasks.filter(t => t.status === 'COMPLETED').length;
+            const totalTasks = projectTasks.length;
+            const progressPercent = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+            const cat = getProjectColorCategory(project);
+            const isOverdue = project.overdue || false;
+
+            return (
+              <Grid item xs={12} sm={6} md={4} key={project.id}>
+                <Card 
+                  onClick={() => setSelectedProject(project)}
+                  sx={{
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    cursor: 'pointer',
+                    borderRadius: 2,
+                    border: `1px solid ${cat.ring}40`,
+                    borderBottom: `1px solid ${cat.ring}40`,
+                    background: theme.palette.background.paper,
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                    boxShadow: theme.shadows[1],
+                    transition: `all ${theme.transitions.duration.short}ms ${theme.transitions.easing.easeInOut}`,
+                    '&:hover': {
+                      background: cat.bg,
+                      borderBottom: `4px solid ${cat.ring}`,
+                      borderTop: `1px solid ${cat.ring}40`,
+                      borderLeft: `1px solid ${cat.ring}40`,
+                      borderRight: `1px solid ${cat.ring}40`,
+                      boxShadow: theme.shadows[4]
+                    }
+                  }}
+                >
+                  <CardContent sx={{ flexGrow: 1, p: 2, pb: 1 }}>
+                    {/* Header with title */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                      <ProjectIcon sx={{ color: cat.ring, fontSize: '1.2rem' }} />
+                      <Typography 
+                        variant="h6" 
+                        component="h2" 
+                        sx={{ 
+                          fontWeight: 600,
+                          fontSize: '1.1rem',
+                          color: 'text.primary',
+                          lineHeight: 1.2
+                        }}
+                      >
+                        {project.name}
+                      </Typography>
+                    </Box>
+
+                    {/* Description */}
+                    <Typography 
+                      variant="body2" 
+                      color="text.secondary" 
+                      sx={{ 
+                        mb: 2,
+                        lineHeight: 1.4,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      {project.description || 'No description'}
+                    </Typography>
+
+                    {/* Status and Owner chips */}
+                    <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+                      <Chip 
+                        label={project.status} 
+                        size="small"
+                        sx={{
+                          backgroundColor: `${cat.chip}20`,
+                          color: cat.chip,
+                          fontWeight: 600,
+                          fontSize: '0.75rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.5,
+                          border: `1px solid ${cat.chip}40`
+                        }}
+                      />
+                      {project.owner && (
+                        <Chip 
+                          icon={<PersonIcon sx={{ fontSize: '0.8rem' }} />}
+                          label={project.owner} 
+                          variant="outlined"
+                          size="small"
+                          sx={{
+                            fontSize: '0.75rem',
+                            '& .MuiChip-icon': {
+                              color: 'text.secondary'
+                            }
+                          }}
+                        />
+                      )}
+                    </Box>
+
+                    {/* Progress and Due Date */}
+                    <Box sx={{ mb: 2 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                          Progress: {completedTasks}/{totalTasks} tasks ({Math.round(progressPercent)}%)
+                        </Typography>
+                        {project.dueDate && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <ScheduleIcon sx={{ fontSize: '0.8rem', color: 'text.secondary' }} />
+                            <Typography 
+                              variant="body2" 
+                              color={isOverdue ? 'error.main' : 'text.secondary'} 
+                              sx={{ 
+                                fontSize: '0.75rem',
+                                fontWeight: isOverdue ? 600 : 400
+                              }}
+                            >
+                              {new Date(project.dueDate).toLocaleDateString()}
+                            </Typography>
+                            {isOverdue && (
+                              <Chip 
+                                label="Overdue" 
+                                color="error" 
+                                size="small" 
+                                sx={{ 
+                                  height: 16, 
+                                  fontSize: '0.65rem',
+                                  fontWeight: 600,
+                                  ml: 0.5
+                                }}
+                              />
+                            )}
+                          </Box>
+                        )}
+                      </Box>
+                      <LinearProgress 
+                        variant="determinate" 
+                        value={progressPercent} 
+                        sx={{ 
+                          height: 6, 
+                          borderRadius: 3,
+                          backgroundColor: alpha(cat.ring, 0.1),
+                          '& .MuiLinearProgress-bar': {
+                            backgroundColor: cat.ring,
+                            borderRadius: 3
+                          }
+                        }}
+                      />
+                    </Box>
+                  </CardContent>
+
+                  <CardActions sx={{ p: 2, pt: 0, justifyContent: 'flex-start' }}>
+                    {/* Project status is automatically managed by the server based on task states */}
+                  </CardActions>
+                </Card>
+              </Grid>
+            );
+          })}
+        </Grid>
+      )}
+
+      {editingTask && (
+        <TaskEditDialog
+          open={editDialogOpen}
+          task={editingTask}
+          onClose={() => {
+            setEditDialogOpen(false);
+            setEditingTask(null);
+          }}
+          onSave={handleSaveEdit}
+        />
       )}
     </Box>
   );

@@ -1,27 +1,26 @@
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Box,
   Typography,
   LinearProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
   useTheme
 } from '@mui/material'
-import { Task } from '../types'
+import { TaskDTO } from '../types'
 import TaskEditDialog from './TaskEditDialog'
-import TaskDependencyView from './TaskDependencyView'
 import TaskCard from './TaskCard'
 import LinkTaskDialog from './LinkTaskDialog'
 import { parseBackendDate } from '../utils/dateUtils'
 import { API_BASE_URL } from '../config'
+import { useFilterStore } from '../stores/filterStore'
+import { TaskService } from '../services/taskService'
 
 interface TaskListProps {
   filter?: 'PENDING' | 'ACTIVE' | 'overdue' | 'today' | 'COMPLETED' | 'all'
-  onTaskUpdate?: (task: Task) => void
-  assigneeFilter?: string
-  projectFilter?: string
-  dueDateFilter?: string
+  onTaskUpdate?: (task: TaskDTO) => void
+  assigneeFilter?: string // legacy (will be ignored if store provides assignees)
+  projectFilter?: string  // legacy
+  dueDateFilter?: string  // legacy
 }
 
 const TaskList: React.FC<TaskListProps> = memo(({ 
@@ -31,145 +30,225 @@ const TaskList: React.FC<TaskListProps> = memo(({
   projectFilter = '',
   dueDateFilter = ''
 }) => {
+  const navigate = useNavigate();
   const theme = useTheme();
-  const [tasks, setTasks] = useState<Task[]>([])
+  const taskService = new TaskService();
+  const [tasks, setTasks] = useState<TaskDTO[]>([])
   const [loading, setLoading] = useState(true)
-  const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [editingTask, setEditingTask] = useState<TaskDTO | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [dependencyViewOpen, setDependencyViewOpen] = useState(false)
-  const [viewingTaskId, setViewingTaskId] = useState<string | null>(null)
   const [linkTaskDialogOpen, setLinkTaskDialogOpen] = useState(false)
-  const [linkingTask, setLinkingTask] = useState<Task | null>(null)
+  const [linkingTask, setLinkingTask] = useState<TaskDTO | null>(null)
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+
+  const storeFilters = useFilterStore(s => ({
+    status: s.status,
+    priorities: s.priorities,
+    assignees: s.assignees,
+    projects: s.projects,
+    search: s.search,
+    dueDate: s.dueDate,
+    overviewMode: s.overviewMode,
+  }));
+
+  // Derive effective filters (store overrides legacy props if set)
+  const effectiveAssignees = storeFilters.assignees.size ? storeFilters.assignees : (assigneeFilter ? new Set([assigneeFilter]) : new Set<string>());
+  const effectiveProjects = storeFilters.projects.size ? storeFilters.projects : (projectFilter ? new Set([projectFilter]) : new Set<string>());
+  const effectiveDueDate = storeFilters.dueDate || dueDateFilter || '';
+
+  const querySignature = useMemo(() => (
+    [
+      filter,
+      Array.from(storeFilters.priorities).join(','),
+      Array.from(effectiveAssignees).join(','),
+      Array.from(effectiveProjects).join(','),
+      storeFilters.search,
+      effectiveDueDate,
+    ].join('|')
+  ), [filter, storeFilters.priorities, effectiveAssignees, effectiveProjects, storeFilters.search, effectiveDueDate]);
 
   const fetchTasks = useCallback(async () => {
     setLoading(true)
     try {
-      let endpoint = '/api/tasks'
+      const effectiveAssigneesArr = Array.from(effectiveAssignees);
+      let endpoint = '/api/tasks';
+      const dueIsSpecial = effectiveDueDate === 'today' || effectiveDueDate === 'overdue';
       
-      switch (filter) {
-        case 'PENDING':
-          endpoint = '/api/tasks/pending'
-          break
-        case 'ACTIVE':
-          endpoint = '/api/tasks/active'
-          break
-        case 'overdue':
-          endpoint = '/api/tasks/overdue'
-          break
-        case 'today':
-          endpoint = '/api/tasks/today'
-          break
-        case 'COMPLETED':
-          endpoint = '/api/tasks/completed'
-          break
-        default:
-          endpoint = '/api/tasks'
+      // Check if we have special filters that require getting all tasks
+      const hasNoAssigneeFilter = effectiveAssignees.has('(No Assignee)');
+      const hasNoProjectFilter = effectiveProjects.has('(No Project)');
+      const needsAllTasks = hasNoAssigneeFilter || hasNoProjectFilter || storeFilters.overviewMode;
+      
+      // If due date special and a specific status (other than all) is chosen we will still hit the special endpoint for broader set then intersect client-side
+      if (dueIsSpecial) {
+        endpoint = effectiveDueDate === 'today' ? '/api/tasks/today' : '/api/tasks/overdue';
+      } else if (needsAllTasks) {
+        // When using special filters or overview mode, always get all tasks to apply client-side filtering
+        endpoint = '/api/tasks';
+      } else {
+        switch (filter.toUpperCase()) {
+          case 'PENDING': endpoint = '/api/tasks/pending'; break;
+          case 'ACTIVE': endpoint = '/api/tasks/active'; break;
+          case 'OVERDUE': endpoint = '/api/tasks/overdue'; break; // legacy direct selection
+          case 'COMPLETED': endpoint = '/api/tasks/completed'; break;
+          default: endpoint = '/api/tasks';
+        }
       }
-
-      // Add assignee filter if provided
-      if (assigneeFilter) {
-        endpoint += endpoint.includes('?') ? '&' : '?'
-        endpoint += `assignee=${encodeURIComponent(assigneeFilter)}`
+      const params = new URLSearchParams();
+      if (['/api/tasks/overdue','/api/tasks/today'].includes(endpoint)) {
+        try { params.set('tz', Intl.DateTimeFormat().resolvedOptions().timeZone); } catch { /* ignore tz detection errors */ }
       }
-
-      const fullUrl = `${API_BASE_URL}${endpoint}`;
+      if (storeFilters.search) params.set('search', storeFilters.search);
+      if (storeFilters.priorities.size) params.set('priority', Array.from(storeFilters.priorities).join(','));
       
-      const response = await fetch(fullUrl)
-      const result = await response.json()
+      // Handle assignee filters - exclude special "(No Assignee)" from server params
+      if (effectiveAssignees.size) {
+        const serverAssignees = effectiveAssigneesArr.filter(a => a !== '(No Assignee)');
+        if (serverAssignees.length > 0) {
+          params.set('assignee', serverAssignees.join(','));
+        }
+      }
       
+      // Handle project filters - exclude special "(No Project)" from server params
+      if (effectiveProjects.size) {
+        const serverProjects = Array.from(effectiveProjects).filter(p => p !== '(No Project)');
+        if (serverProjects.length > 0) {
+          params.set('project', serverProjects.join(','));
+        }
+      }
+      if (!dueIsSpecial && effectiveDueDate && !['overdue','today'].includes(effectiveDueDate)) params.set('dueDate', effectiveDueDate);
+      const fullUrl = `${API_BASE_URL}${endpoint}${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await fetch(fullUrl);
+      const result = await response.json();
       if (response.ok) {
-        setTasks(Array.isArray(result) ? result : [])
+        let list: TaskDTO[] = Array.isArray(result) ? result : [];
+        // If combining today/overdue with a specific status subset, filter client side
+        if (dueIsSpecial) {
+          switch (filter.toUpperCase()) {
+            case 'PENDING': list = list.filter(t => t.status === 'PENDING'); break;
+            case 'ACTIVE': list = list.filter(t => t.status === 'ACTIVE'); break;
+            case 'COMPLETED': list = list.filter(t => t.status === 'COMPLETED'); break;
+            default: break; // all or legacy
+          }
+        }
+        
+        // If we fetched all tasks due to special filters but user has specific status, filter client side
+        if (needsAllTasks && filter !== 'all' && !storeFilters.overviewMode) {
+          switch (filter.toUpperCase()) {
+            case 'PENDING': list = list.filter(t => t.status === 'PENDING'); break;
+            case 'ACTIVE': list = list.filter(t => t.status === 'ACTIVE'); break;
+            case 'COMPLETED': list = list.filter(t => t.status === 'COMPLETED'); break;
+            case 'OVERDUE': 
+              // Keep existing overdue logic or implement if needed
+              break;
+            default: break; // all or legacy
+          }
+        }
+        
+        // Apply overview mode filtering - this takes precedence over regular status filtering
+        if (storeFilters.overviewMode) {
+          if (storeFilters.overviewMode === 'open') {
+            list = list.filter(t => t.status === 'PENDING' || t.status === 'ACTIVE');
+          } else if (storeFilters.overviewMode === 'closed') {
+            list = list.filter(t => t.status === 'COMPLETED');
+          }
+        }
+        
+        setTasks(list);
+        useFilterStore.getState().setCountsFromTasks(list);
       }
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('Failed to fetch tasks:', error)
-      }
+      if (import.meta.env.DEV) console.error('Failed to fetch tasks:', error)
     } finally {
       setLoading(false)
     }
-  }, [filter, assigneeFilter])
+  }, [filter, querySignature, effectiveDueDate])
 
-  const handleTaskAction = useCallback(async (taskId: string, action: 'done' | 'delete' | 'start' | 'stop' | 'undone') => {
+  const handleTaskAction = useCallback(async (taskId: string, action: 'done' | 'delete' | 'start' | 'pause' | 'undone') => {
+    // Store original tasks for error recovery
+    const originalTasks = [...tasks];
+    
     try {
-      let endpoint = `/api/tasks/${taskId}`
-      let method = 'POST'
+      const targetTask = tasks.find(t => t.id === taskId) || null;
+      // Optimistic local mutation snapshot
+      let updatedTasks = [...tasks];
+      // Apply optimistic diff
+      if (action === 'delete') {
+        if (targetTask) {
+          updatedTasks = updatedTasks.filter(t => t.id !== taskId);
+          useFilterStore.getState().decrementCountsForTask(targetTask);
+        }
+      } else if (targetTask) {
+        const idx = updatedTasks.findIndex(t => t.id === taskId);
+        const patched = { ...targetTask } as any;
+        if (action === 'done') patched.status = 'COMPLETED';
+        if (action === 'undone') patched.status = 'PENDING';
+        if (action === 'start') patched.status = 'ACTIVE';
+        if (action === 'pause') patched.status = 'PENDING';
+        updatedTasks[idx] = patched;
+      }
+      setTasks(updatedTasks);
+
+      // Make API call using TaskService
+      let updatedTask: TaskDTO | null = null;
       
       if (action === 'delete') {
-        endpoint = `/api/tasks/${taskId}` // Use the simpler delete route
-        method = 'DELETE'
-      } else {
-        endpoint = `/api/tasks/${taskId}/${action}`
+        const deleteSuccess = await taskService.deleteTask(taskId);
+        if (!deleteSuccess) {
+          throw new Error('Task deletion was not confirmed by server');
+        }
+      } else if (action === 'done') {
+        updatedTask = await taskService.completeTask(taskId);
+      } else if (action === 'undone') {
+        updatedTask = await taskService.updateTaskStatus(taskId, 'PENDING');
+      } else if (action === 'start') {
+        updatedTask = await taskService.startTask(taskId);
+      } else if (action === 'pause') {
+        updatedTask = await taskService.stopTask(taskId);
       }
 
-      const fullUrl = `${API_BASE_URL}${endpoint}`;
-      
-      const response = await fetch(fullUrl, { 
-        method,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        if (import.meta.env.DEV) {
-          console.error(`Request failed with status ${response.status}:`, errorText)
-        }
-        throw new Error(`HTTP ${response.status}: ${errorText}`)
+      // On success reconcile with server if mutated (non-delete)
+      if (action !== 'delete' && updatedTask) {
+        // Merge updated task from server response
+        setTasks(prev => prev.map(t => t.id === taskId ? updatedTask! : t));
       }
-      
-      // Handle different response types
-      let result = null
-      if (action === 'delete') {
-        // Delete returns 204 No Content, no JSON body
-        result = { success: true }
-      } else {
-        result = await response.json()
-      }
-
-      if (response.ok) {
-        await fetchTasks() // Refresh the list
-        if (onTaskUpdate) {
-          // For delete operations, pass a dummy task object to trigger refresh
-          const updateData = action === 'delete' ? { id: taskId } : (result.data || result)
-          onTaskUpdate(updateData)
-        }
-      }
+      // Refresh counts after final state
+      useFilterStore.getState().setCountsFromTasks(updatedTasks);
+      if (onTaskUpdate) onTaskUpdate({ id: taskId } as TaskDTO);
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error(`Failed to ${action} task:`, error)
-      }
-      // You might want to show a user-friendly error message here
+      if (import.meta.env.DEV) console.error(`Failed to ${action} task:`, error);
+      // Revert optimistic update on error
+      setTasks(originalTasks);
+      useFilterStore.getState().setCountsFromTasks(originalTasks);
     }
-  }, [fetchTasks, onTaskUpdate])
+  }, [tasks, onTaskUpdate, taskService])
 
-  useEffect(() => {
-    fetchTasks()
-  }, [fetchTasks])
+  useEffect(() => { fetchTasks() }, [fetchTasks])
 
-  const handleEditTask = useCallback((task: Task) => {
+  const handleEditTask = useCallback((task: TaskDTO) => {
     setEditingTask(task)
     setEditDialogOpen(true)
   }, [])
 
-  const handleEditDate = useCallback((task: Task) => {
+  const handleEditDate = useCallback((task: TaskDTO) => {
     // Open edit dialog focused on date - for now same as regular edit
     setEditingTask(task)
     setEditDialogOpen(true)
   }, [])
-
-  const handleViewDependencies = useCallback((task: Task) => {
-    setViewingTaskId(task.id)
-    setDependencyViewOpen(true)
-  }, [])
   
-  const handleLinkTask = useCallback((task: Task) => {
+  // Suppress unused variable warning - keeping for future use
+  void handleEditDate;
+
+  const handleViewDependencies = useCallback((task: TaskDTO) => {
+    navigate(`/dependencies?task=${task.id}`);
+  }, [navigate]);
+  
+  const handleLinkTask = useCallback((task: TaskDTO) => {
     setLinkingTask(task)
     setLinkTaskDialogOpen(true)
   }, [])
 
-  const handleSaveTask = useCallback(async (updatedTask: Task) => {
+  const handleSaveTask = useCallback(async (updatedTask: TaskDTO) => {
     try {
       const fullUrl = `${API_BASE_URL}/api/tasks/${updatedTask.id}`;
       
@@ -199,11 +278,6 @@ const TaskList: React.FC<TaskListProps> = memo(({
   const handleCloseEditDialog = useCallback(() => {
     setEditDialogOpen(false)
     setEditingTask(null)
-  }, [])
-
-  const handleCloseDependencyView = useCallback(() => {
-    setDependencyViewOpen(false)
-    setViewingTaskId(null)
   }, [])
   
   const handleCloseLinkTaskDialog = useCallback(() => {
@@ -246,89 +320,86 @@ const TaskList: React.FC<TaskListProps> = memo(({
   // Memoize filtered tasks to prevent unnecessary recalculations
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
-      // Project filter
-      if (projectFilter && task.project !== projectFilter) {
-        return false;
+      // Client-side supplemental filtering (mirrors params to be safe)
+      if (effectiveProjects.size) {
+        const hasNoProjectFilter = effectiveProjects.has('(No Project)');
+        const taskHasNoProject = !task.projectName;
+        const taskProjectMatches = task.projectName && effectiveProjects.has(task.projectName);
+        
+        // Task must match at least one project filter condition
+        const matchesProjectFilter = (hasNoProjectFilter && taskHasNoProject) || taskProjectMatches;
+        if (!matchesProjectFilter) return false;
       }
-
-      // Assignee filter (already applied in server endpoint, but also check quick filter)
-      if (assigneeFilter && task.assignee !== assigneeFilter) {
-        return false;
+      
+      if (effectiveAssignees.size) {
+        const hasNoAssigneeFilter = effectiveAssignees.has('(No Assignee)');
+        const taskHasNoAssignee = !task.assignee;
+        const taskAssigneeMatches = task.assignee && effectiveAssignees.has(task.assignee);
+        
+        // Task must match at least one assignee filter condition
+        const matchesAssigneeFilter = (hasNoAssigneeFilter && taskHasNoAssignee) || taskAssigneeMatches;
+        if (!matchesAssigneeFilter) return false;
       }
-
-      // Due date filter
-      if (dueDateFilter) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        
-        const nextWeek = new Date(today);
-        nextWeek.setDate(nextWeek.getDate() + 7);
-        
-        const thisMonth = new Date(today);
-        thisMonth.setMonth(thisMonth.getMonth() + 1);
-
+      if (storeFilters.priorities.size && (!task.priority || !storeFilters.priorities.has(task.priority))) return false;
+      if (storeFilters.search) {
+        const q = storeFilters.search.toLowerCase();
+        if (!(task.title?.toLowerCase().includes(q) || 
+              task.description?.toLowerCase().includes(q) || 
+              task.assignee?.toLowerCase().includes(q))) return false;
+      }
+      // Due date (reuse existing logic)
+      if (effectiveDueDate) {
+        const today = new Date(); today.setHours(0,0,0,0);
+        const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
+        const nextWeek = new Date(today); nextWeek.setDate(nextWeek.getDate()+7);
+        const thisMonth = new Date(today); thisMonth.setMonth(thisMonth.getMonth()+1);
         if (task.dueDate) {
-          const dueDate = parseBackendDate(task.dueDate);
-          dueDate.setHours(0, 0, 0, 0);
-
-          switch (dueDateFilter) {
-            case 'today':
-              return dueDate.getTime() === today.getTime();
-            case 'tomorrow':
-              return dueDate.getTime() === tomorrow.getTime();
-            case 'this-week':
-              return dueDate >= today && dueDate < nextWeek;
+          const due = parseBackendDate(task.dueDate); due.setHours(0,0,0,0);
+          switch (effectiveDueDate) {
+            case 'today': if (due.getTime() !== today.getTime()) return false; break;
+            case 'tomorrow': if (due.getTime() !== tomorrow.getTime()) return false; break;
+            case 'this-week': if (!(due >= today && due < nextWeek)) return false; break;
             case 'next-week': {
-              const nextWeekStart = new Date(nextWeek);
-              const nextWeekEnd = new Date(nextWeek);
-              nextWeekEnd.setDate(nextWeekEnd.getDate() + 7);
-              return dueDate >= nextWeekStart && dueDate < nextWeekEnd;
+              const start = nextWeek; const end = new Date(nextWeek); end.setDate(end.getDate()+7);
+              if (!(due >= start && due < end)) return false; break;
             }
-            case 'this-month':
-              return dueDate >= today && dueDate < thisMonth;
-            case 'overdue':
-              return dueDate < today;
-            default:
-              return true;
+            case 'this-month': if (!(due >= today && due < thisMonth)) return false; break;
+            case 'overdue': if (!(due < today)) return false; break;
           }
-        } else {
-          // Tasks without due dates are excluded from date-specific filters (except 'all')
-          return dueDateFilter === '';
-        }
+        } else if (effectiveDueDate) return false;
       }
-
       return true;
     });
-  }, [tasks, projectFilter, assigneeFilter, dueDateFilter]);
+  }, [tasks, effectiveProjects, effectiveAssignees, storeFilters.priorities, storeFilters.search, effectiveDueDate]);
 
   // Memoize individual task action handlers to prevent unnecessary re-renders
   const memoizedTaskHandlers = useMemo(() => ({
-    onMarkDone: (task: Task) => handleTaskAction(task.id, 'done'),
-    onUnmarkDone: (task: Task) => handleTaskAction(task.id, 'undone'),
-    onDelete: (task: Task) => handleTaskAction(task.id, 'delete'),
-    onStop: (task: Task) => handleTaskAction(task.id, 'stop'),
+    onMarkDone: (task: TaskDTO) => handleTaskAction(task.id, 'done'),
+    onUnmarkDone: (task: TaskDTO) => handleTaskAction(task.id, 'undone'),
+    onDelete: (task: TaskDTO) => handleTaskAction(task.id, 'delete'),
+    onPause: (task: TaskDTO) => handleTaskAction(task.id, 'pause'),
+    onStart: (task: TaskDTO) => handleTaskAction(task.id, 'start'),
   }), [handleTaskAction]);
 
   if (loading) {
     return (
       <Box sx={{ 
-        p: 3, 
+        p: theme.spacing(3), 
         textAlign: 'center',
-        background: 'linear-gradient(135deg, rgba(25,118,210,0.05) 0%, rgba(0,0,0,0) 100%)',
-        borderRadius: 2,
-        border: '1px solid rgba(25,118,210,0.1)'
-      }}>
-        <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+        background: theme.palette.mode === 'dark'
+          ? `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, transparent 100%)`
+          : `linear-gradient(135deg, ${theme.palette.primary.main}14 0%, transparent 100%)`,
+        borderRadius: theme.ds?.radii.md,
+        border: `1px solid ${theme.palette.divider}`
+      }} aria-busy="true" aria-live="polite">
+        <Typography variant="h6" sx={{ mb: theme.spacing(2), color: 'primary.main' }}>
           Loading tasks...
         </Typography>
         <LinearProgress sx={{ 
-          borderRadius: 1,
+          borderRadius: theme.ds?.radii.xs,
           height: 6,
           '& .MuiLinearProgress-bar': {
-            borderRadius: 1
+            borderRadius: theme.ds?.radii.xs
           }
         }} />
       </Box>
@@ -338,31 +409,141 @@ const TaskList: React.FC<TaskListProps> = memo(({
   if (filteredTasks.length === 0) {
     const hasActiveFilters = assigneeFilter || projectFilter || dueDateFilter;
     
+    // Dragonfly SVG clipart
+    const DragonflyIcon = () => (
+      <svg 
+        width="90" 
+        height="70" 
+        viewBox="0 0 90 70" 
+        style={{ 
+          opacity: 0.6,
+          marginBottom: theme.spacing(2),
+          animation: 'hover 2.5s ease-in-out infinite'
+        }}
+      >
+        <style>
+          {`
+            @keyframes hover {
+              0%, 100% { transform: translateY(0px) rotate(0deg); }
+              25% { transform: translateY(-3px) rotate(1deg); }
+              50% { transform: translateY(-5px) rotate(0deg); }
+              75% { transform: translateY(-2px) rotate(-1deg); }
+            }
+          `}
+        </style>
+        
+        {/* Dragonfly body - long and segmented */}
+        <ellipse cx="45" cy="35" rx="2" ry="25" fill={theme.palette.text.secondary} opacity="0.9"/>
+        
+        {/* Body segments */}
+        <circle cx="45" cy="20" r="2.5" fill={theme.palette.text.secondary} opacity="0.8"/>
+        <circle cx="45" cy="25" r="2" fill={theme.palette.text.secondary} opacity="0.7"/>
+        <circle cx="45" cy="30" r="2" fill={theme.palette.text.secondary} opacity="0.7"/>
+        <circle cx="45" cy="35" r="1.8" fill={theme.palette.text.secondary} opacity="0.7"/>
+        <circle cx="45" cy="40" r="1.5" fill={theme.palette.text.secondary} opacity="0.7"/>
+        <circle cx="45" cy="45" r="1.2" fill={theme.palette.text.secondary} opacity="0.7"/>
+        
+        {/* Upper wings - longer and narrower */}
+        <ellipse 
+          cx="30" cy="22" rx="15" ry="6" 
+          fill={theme.palette.primary.main} 
+          opacity="0.4"
+          transform="rotate(-15 30 22)"
+        />
+        <ellipse 
+          cx="60" cy="22" rx="15" ry="6" 
+          fill={theme.palette.primary.main} 
+          opacity="0.4"
+          transform="rotate(15 60 22)"
+        />
+        
+        {/* Lower wings - slightly smaller */}
+        <ellipse 
+          cx="32" cy="32" rx="12" ry="5" 
+          fill={theme.palette.secondary.main} 
+          opacity="0.4"
+          transform="rotate(-20 32 32)"
+        />
+        <ellipse 
+          cx="58" cy="32" rx="12" ry="5" 
+          fill={theme.palette.secondary.main} 
+          opacity="0.4"
+          transform="rotate(20 58 32)"
+        />
+        
+        {/* Wing veins - characteristic dragonfly feature */}
+        <path 
+          d="M20 22 L40 22 M25 18 L35 26 M15 20 L25 24" 
+          stroke={theme.palette.text.secondary} 
+          strokeWidth="0.5" 
+          opacity="0.6"
+        />
+        <path 
+          d="M50 22 L70 22 M55 18 L65 26 M65 20 L75 24" 
+          stroke={theme.palette.text.secondary} 
+          strokeWidth="0.5" 
+          opacity="0.6"
+        />
+        <path 
+          d="M22 32 L42 32 M27 28 L37 36" 
+          stroke={theme.palette.text.secondary} 
+          strokeWidth="0.5" 
+          opacity="0.6"
+        />
+        <path 
+          d="M48 32 L68 32 M53 28 L63 36" 
+          stroke={theme.palette.text.secondary} 
+          strokeWidth="0.5" 
+          opacity="0.6"
+        />
+        
+        {/* Head - larger compound eyes */}
+        <circle cx="45" cy="15" r="4" fill={theme.palette.text.secondary} opacity="0.8"/>
+        
+        {/* Compound eyes */}
+        <circle cx="42" cy="13" r="2.5" fill={theme.palette.primary.main} opacity="0.7"/>
+        <circle cx="48" cy="13" r="2.5" fill={theme.palette.primary.main} opacity="0.7"/>
+        
+        {/* Eye highlights */}
+        <circle cx="42.5" cy="12.5" r="1" fill={theme.palette.background.paper} opacity="0.9"/>
+        <circle cx="47.5" cy="12.5" r="1" fill={theme.palette.background.paper} opacity="0.9"/>
+        
+        {/* Short antennae */}
+        <path 
+          d="M43 11 L41 9" 
+          stroke={theme.palette.text.secondary} 
+          strokeWidth="1" 
+          opacity="0.8"
+        />
+        <path 
+          d="M47 11 L49 9" 
+          stroke={theme.palette.text.secondary} 
+          strokeWidth="1" 
+          opacity="0.8"
+        />
+      </svg>
+    );
+
     return (
       <Box 
         sx={{ 
-          p: 4, 
+          p: theme.spacing(4), 
           textAlign: 'center',
-          background: theme.palette.mode === 'dark' 
-            ? 'linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(0,0,0,0) 100%)'
-            : 'linear-gradient(135deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0) 100%)',
-          borderRadius: 2,
-          border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
           minHeight: '300px',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
-          position: 'relative',
-          overflow: 'hidden'
+          alignItems: 'center'
         }}
       >
-        <Typography variant="h6" color="text.secondary" sx={{ mb: 1, zIndex: 2, position: 'relative' }}>
+        <DragonflyIcon />
+        <Typography variant="h6" color="text.secondary" sx={{ mb: theme.spacing(1) }}>
           No tasks found
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ zIndex: 2, position: 'relative' }}>
+        <Typography variant="body2" color="text.secondary">
           {hasActiveFilters
             ? `No ${filter} tasks found matching your current filters`
-            : `No ${filter} tasks found. Create a new task to get started!`
+            : `No tasks found. Create a new task to get started!`
           }
         </Typography>
       </Box>
@@ -373,23 +554,23 @@ const TaskList: React.FC<TaskListProps> = memo(({
     <Box 
       sx={{ 
         '& > *:not(:last-child)': { 
-          marginBottom: 1.5 
-        },
-        position: 'relative',
-        zIndex: 1
+          marginBottom: theme.spacing(1.5) 
+        }
       }}
     >
       {filteredTasks.map((task) => (
         <Box key={task.id}>
           <TaskCard
             task={task}
+            selected={task.id === selectedTaskId}
+            onSelect={() => setSelectedTaskId(prev => prev === task.id ? null : task.id)}
             onViewDependencies={handleViewDependencies}
             onMarkDone={memoizedTaskHandlers.onMarkDone}
             onUnmarkDone={memoizedTaskHandlers.onUnmarkDone}
             onDelete={memoizedTaskHandlers.onDelete}
-            onStop={memoizedTaskHandlers.onStop}
+            onPause={memoizedTaskHandlers.onPause}
+            onStart={memoizedTaskHandlers.onStart}
             onEdit={handleEditTask}
-            onEditDate={handleEditDate}
             onLinkTask={handleLinkTask}
             compact={false}
           />
@@ -402,18 +583,6 @@ const TaskList: React.FC<TaskListProps> = memo(({
         task={editingTask}
         onSave={handleSaveTask}
       />
-
-      <Dialog
-        open={dependencyViewOpen}
-        onClose={handleCloseDependencyView}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>Task Dependencies</DialogTitle>
-        <DialogContent>
-          {viewingTaskId && <TaskDependencyView taskId={viewingTaskId} />}
-        </DialogContent>
-      </Dialog>
       
       <LinkTaskDialog
         open={linkTaskDialogOpen}

@@ -4,10 +4,11 @@ import java.util.List;
 
 import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.Project;
-import org.dukeroyahl.synaptik.domain.Mindmap;
-import org.dukeroyahl.synaptik.domain.MindmapNode;
-import org.dukeroyahl.synaptik.domain.TaskStatus;
 import org.dukeroyahl.synaptik.domain.ProjectStatus;
+import org.dukeroyahl.synaptik.domain.TaskStatus;
+import org.dukeroyahl.synaptik.dto.TaskGraphResponse;
+import org.dukeroyahl.synaptik.dto.UpdateProject;
+import org.dukeroyahl.synaptik.dto.TaskRequest;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
 import io.smallrye.mutiny.Uni;
@@ -28,32 +29,54 @@ public interface SynaptikApiClient {
     Uni<List<Task>> getAllTasks();
     
     @GET
+    @Path("/api/tasks/graph")
+    Uni<TaskGraphResponse> getTaskGraph(@QueryParam("statuses") String statuses);
+    
+    @GET
+    @Path("/api/tasks/{id}/neighbors")
+    Uni<Response> getTaskNeighbors(@PathParam("id") String id, 
+                                  @QueryParam("depth") int depth, 
+                                  @QueryParam("includePlaceholders") boolean includePlaceholders);
+    
+    @GET
     @Path("/api/tasks/{id}")
     Uni<Response> getTask(@PathParam("id") String id);
     
     @POST
     @Path("/api/tasks")
-    Uni<Response> createTask(Task task);
+    Uni<Response> createTask(TaskRequest taskRequest);
     
     @PUT
     @Path("/api/tasks/{id}")
-    Uni<Response> updateTask(@PathParam("id") String id, Task updates);
+    Uni<Response> updateTask(@PathParam("id") String id, TaskRequest taskRequest);
     
     @DELETE
     @Path("/api/tasks/{id}")
     Uni<Response> deleteTask(@PathParam("id") String id);
     
-    @POST
-    @Path("/api/tasks/{id}/start")
-    Uni<Response> startTask(@PathParam("id") String id);
+    @DELETE
+    @Path("/api/tasks")
+    Uni<Response> deleteAllTasks();
+    
+    // ===== NEW TASK LINKING ENDPOINTS =====
+    
+    @GET
+    @Path("/api/tasks/{id}/dependencies")
+    Uni<List<Task>> getTaskDependencies(@PathParam("id") String id);
+    
+    @GET
+    @Path("/api/tasks/{id}/dependents")
+    Uni<List<Task>> getTaskDependents(@PathParam("id") String id);
     
     @POST
-    @Path("/api/tasks/{id}/stop")
-    Uni<Response> stopTask(@PathParam("id") String id);
+    @Path("/api/tasks/{id}/link/{dependencyId}")
+    Uni<Response> linkTasks(@PathParam("id") String taskId, @PathParam("dependencyId") String dependencyId);
     
-    @POST
-    @Path("/api/tasks/{id}/done")
-    Uni<Response> markTaskDone(@PathParam("id") String id);
+    @DELETE
+    @Path("/api/tasks/{id}/link/{dependencyId}")
+    Uni<Response> unlinkTasks(@PathParam("id") String taskId, @PathParam("dependencyId") String dependencyId);
+    
+    // ===== RESTORED STATUS-BASED ENDPOINTS =====
     
     @GET
     @Path("/api/tasks/pending")
@@ -67,13 +90,29 @@ public interface SynaptikApiClient {
     @Path("/api/tasks/completed")
     Uni<List<Task>> getCompletedTasks();
     
+    // ===== TASK STATUS MANAGEMENT =====
+    
+    @PUT
+    @Path("/api/tasks/{id}/status")
+    Uni<Response> updateTaskStatus(@PathParam("id") String id, TaskStatus status);
+    
     @GET
     @Path("/api/tasks/overdue")
-    Uni<List<Task>> getOverdueTasks();
+    Uni<List<Task>> getOverdueTasks(@QueryParam("tz") String timezone);
     
     @GET
     @Path("/api/tasks/today")
-    Uni<List<Task>> getTodayTasks();
+    Uni<List<Task>> getTodayTasks(@QueryParam("tz") String timezone);
+    
+    @GET
+    @Path("/api/tasks/search")
+    Uni<List<Task>> searchTasks(@QueryParam("assignee") String assignee,
+                                @QueryParam("dateFrom") String dateFrom,
+                                @QueryParam("dateTo") String dateTo,
+                                @QueryParam("projectId") String projectId,
+                                @QueryParam("status") List<String> status,
+                                @QueryParam("title") String title,
+                                @QueryParam("tz") String timezone);
     
     // ===== PROJECT ENDPOINTS =====
     
@@ -91,23 +130,23 @@ public interface SynaptikApiClient {
     
     @PUT
     @Path("/api/projects/{id}")
-    Uni<Response> updateProject(@PathParam("id") String id, Project updates);
+    Uni<Response> updateProject(@PathParam("id") String id, org.dukeroyahl.synaptik.dto.UpdateProject updates);
     
     @DELETE
     @Path("/api/projects/{id}")
     Uni<Response> deleteProject(@PathParam("id") String id);
     
-    @POST
-    @Path("/api/projects/{id}/activate")
-    Uni<Response> activateProject(@PathParam("id") String id);
+    @DELETE
+    @Path("/api/projects")
+    Uni<Response> deleteAllProjects();
     
-    @POST
+    @PUT
+    @Path("/api/projects/{id}/start")
+    Uni<Response> startProject(@PathParam("id") String id);
+    
+    @PUT
     @Path("/api/projects/{id}/complete")
     Uni<Response> completeProject(@PathParam("id") String id);
-    
-    @POST
-    @Path("/api/projects/{id}/hold")
-    Uni<Response> putProjectOnHold(@PathParam("id") String id);
     
     @PUT
     @Path("/api/projects/{id}/progress")
@@ -133,80 +172,4 @@ public interface SynaptikApiClient {
     @Path("/api/projects/tag/{tag}")
     Uni<List<Project>> getProjectsByTag(@PathParam("tag") String tag);
     
-    // ===== MINDMAP ENDPOINTS =====
-    
-    @GET
-    @Path("/api/mindmaps")
-    Uni<List<Mindmap>> getAllMindmaps();
-    
-    @GET
-    @Path("/api/mindmaps/{id}")
-    Uni<Response> getMindmap(@PathParam("id") String id);
-    
-    @POST
-    @Path("/api/mindmaps")
-    Uni<Response> createMindmap(Mindmap mindmap);
-    
-    @PUT
-    @Path("/api/mindmaps/{id}")
-    Uni<Response> updateMindmap(@PathParam("id") String id, Mindmap updates);
-    
-    @DELETE
-    @Path("/api/mindmaps/{id}")
-    Uni<Response> deleteMindmap(@PathParam("id") String id);
-    
-    @GET
-    @Path("/api/mindmaps/owner/{owner}")
-    Uni<List<Mindmap>> getMindmapsByOwner(@PathParam("owner") String owner);
-    
-    @GET
-    @Path("/api/mindmaps/accessible/{userId}")
-    Uni<List<Mindmap>> getAccessibleMindmaps(@PathParam("userId") String userId);
-    
-    @GET
-    @Path("/api/mindmaps/public")
-    Uni<List<Mindmap>> getPublicMindmaps();
-    
-    @GET
-    @Path("/api/mindmaps/templates")
-    Uni<List<Mindmap>> getTemplates();
-    
-    @GET
-    @Path("/api/mindmaps/templates/{category}")
-    Uni<List<Mindmap>> getTemplatesByCategory(@PathParam("category") String category);
-    
-    @GET
-    @Path("/api/mindmaps/project/{projectId}")
-    Uni<List<Mindmap>> getMindmapsByProjectId(@PathParam("projectId") String projectId);
-    
-    @POST
-    @Path("/api/mindmaps/{id}/collaborators")
-    Uni<Response> addCollaborator(@PathParam("id") String id, @QueryParam("collaborator") String collaborator);
-    
-    @DELETE
-    @Path("/api/mindmaps/{id}/collaborators")
-    Uni<Response> removeCollaborator(@PathParam("id") String id, @QueryParam("collaborator") String collaborator);
-    
-    @POST
-    @Path("/api/mindmaps/{id}/nodes")
-    Uni<Response> addNode(@PathParam("id") String id, @QueryParam("parentId") String parentId, MindmapNode node);
-    
-    @DELETE
-    @Path("/api/mindmaps/{id}/nodes/{nodeId}")
-    Uni<Response> removeNode(@PathParam("id") String id, @PathParam("nodeId") String nodeId);
-    
-    @PUT
-    @Path("/api/mindmaps/{id}/canvas")
-    Uni<Response> updateCanvasSettings(@PathParam("id") String id, 
-                                     @QueryParam("width") Double width,
-                                     @QueryParam("height") Double height,
-                                     @QueryParam("zoom") Double zoom,
-                                     @QueryParam("panX") Double panX,
-                                     @QueryParam("panY") Double panY);
-    
-    @POST
-    @Path("/api/mindmaps/{id}/duplicate")
-    Uni<Response> duplicateMindmap(@PathParam("id") String id, 
-                                 @QueryParam("title") String newTitle,
-                                 @QueryParam("owner") String newOwner);
 }

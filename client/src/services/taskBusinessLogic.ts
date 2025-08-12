@@ -2,7 +2,6 @@ import { Task } from '../types'
 import { getTimeRemaining } from '../utils/dateUtils'
 import { isTaskOverdue } from '../utils/taskUtils'
 
-export type UrgencyLevel = 'critical' | 'high' | 'medium' | 'low' | 'none'
 export type EisenhowerQuadrant = 'urgent-important' | 'not-urgent-important' | 'urgent-not-important' | 'not-urgent-not-important'
 
 export interface TaskDisplayProperties {
@@ -11,15 +10,11 @@ export interface TaskDisplayProperties {
   isDueTomorrow: boolean
   daysUntilDue: number | null
   timeRemaining: string
-  urgencyLevel: UrgencyLevel
-  urgencyColor: string
   quadrant: EisenhowerQuadrant
   canStart: boolean
   canStop: boolean
   canComplete: boolean
   canDelete: boolean
-  statusColor: string
-  priorityColor: string
 }
 
 export interface TaskAction {
@@ -47,43 +42,11 @@ export class TaskBusinessLogic {
       isDueTomorrow,
       daysUntilDue,
       timeRemaining,
-      urgencyLevel: this.getUrgencyLevel(task.urgency),
-      urgencyColor: this.getUrgencyColor(task.urgency),
       quadrant: this.getEisenhowerQuadrant(task),
       canStart: this.canPerformAction(task, 'start'),
       canStop: this.canPerformAction(task, 'stop'),
       canComplete: this.canPerformAction(task, 'complete'),
       canDelete: this.canPerformAction(task, 'delete'),
-      statusColor: this.getStatusColor(task.status),
-      priorityColor: this.getPriorityColor(task.priority),
-    }
-  }
-
-  /**
-   * Get urgency level based on urgency score
-   */
-  static getUrgencyLevel(urgency?: number): UrgencyLevel {
-    if (!urgency) return 'none'
-    
-    if (urgency >= 15) return 'critical'
-    if (urgency >= 10) return 'high'
-    if (urgency >= 6) return 'medium'
-    if (urgency >= 3) return 'low'
-    return 'none'
-  }
-
-  /**
-   * Get color for urgency level
-   */
-  static getUrgencyColor(urgency?: number): string {
-    const level = this.getUrgencyLevel(urgency)
-    
-    switch (level) {
-      case 'critical': return '#d32f2f'
-      case 'high': return '#f57c00'
-      case 'medium': return '#fbc02d'
-      case 'low': return '#388e3c'
-      default: return '#666666'
     }
   }
 
@@ -132,13 +95,13 @@ export class TaskBusinessLogic {
   static canPerformAction(task: Task, action: 'start' | 'stop' | 'complete' | 'delete'): boolean {
     switch (action) {
       case 'start':
-        return ['PENDING', 'WAITING'].includes(task.status)
+        return ['PENDING'].includes(task.status)
       
       case 'stop':
         return task.status === 'ACTIVE'
       
       case 'complete':
-        return ['PENDING', 'ACTIVE', 'WAITING'].includes(task.status)
+        return ['PENDING', 'ACTIVE'].includes(task.status)
 
       case 'delete':
         return task.status !== 'DELETED'
@@ -205,40 +168,13 @@ export class TaskBusinessLogic {
    */
   static validateStatusTransition(from: Task['status'], to: Task['status']): boolean {
     const validTransitions: Record<Task['status'], Task['status'][]> = {
-      PENDING: ['ACTIVE', 'WAITING', 'COMPLETED', 'DELETED'],
-      WAITING: ['PENDING', 'ACTIVE', 'COMPLETED', 'DELETED'],
+      PENDING: ['ACTIVE', 'COMPLETED', 'DELETED'],
       ACTIVE: ['PENDING', 'COMPLETED', 'DELETED'],
       COMPLETED: ['PENDING', 'DELETED'],
       DELETED: ['PENDING']
     }
 
     return validTransitions[from]?.includes(to) ?? false
-  }
-
-  /**
-   * Get color for task status
-   */
-  static getStatusColor(status: Task['status']): string {
-    switch (status) {
-      case 'PENDING': return '#1976d2'
-      case 'ACTIVE': return '#388e3c'
-      case 'WAITING': return '#f57c00'
-      case 'COMPLETED': return '#666666'
-      case 'DELETED': return '#d32f2f'
-      default: return '#666666'
-    }
-  }
-
-  /**
-   * Get color for task priority
-   */
-  static getPriorityColor(priority: Task['priority']): string {
-    switch (priority) {
-      case 'HIGH': return '#d32f2f'
-      case 'MEDIUM': return '#f57c00'
-      case 'LOW': return '#388e3c'
-      default: return '#666666'
-    }
   }
 
   /**
@@ -266,13 +202,14 @@ export class TaskBusinessLogic {
   }
 
   /**
-   * Sort tasks by urgency and due date
+   * Sort tasks by priority and due date
    */
   static sortTasksByPriority(tasks: Task[]): Task[] {
     return [...tasks].sort((a, b) => {
-      // First sort by urgency (higher urgency first)
-      const urgencyDiff = (b.urgency || 0) - (a.urgency || 0)
-      if (urgencyDiff !== 0) return urgencyDiff
+      // First sort by priority (HIGH > MEDIUM > LOW > NONE)
+      const priorityOrder = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1, 'NONE': 0 }
+      const priorityDiff = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0)
+      if (priorityDiff !== 0) return priorityDiff
       
       // Then by due date (earlier due date first)
       const aDate = a.dueDate

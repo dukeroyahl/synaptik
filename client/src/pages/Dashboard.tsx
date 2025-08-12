@@ -1,55 +1,26 @@
 import { useState, useEffect, useCallback, useMemo, memo } from 'react'
-import {
-  Box,
-  Grid,
-  Card,
-  CardContent,
-  Tabs,
-  Tab,
-  useTheme,
-  Typography,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Chip,
-  Stack,
-  IconButton,
-  alpha,
-  Button,
-} from '@mui/material'
-import {
-  FilterList as FilterIcon,
-  Person as PersonIcon,
-  Clear as ClearIcon,
-  FolderOutlined as ProjectIcon,
-  CalendarToday as CalendarIcon,
-  ClearAll as ClearAllIcon,
-  AccountTree as DependencyIcon
-} from '@mui/icons-material'
+import { Box, Card, useTheme } from '@mui/material'
 import TaskList from '../components/TaskList'
+import DashboardInsights from '../components/DashboardInsights'
+import TaskTrendChart from '../components/TaskTrendChart'
 import { taskService } from '../services/taskService'
 import DailyGlance from '../components/DailyGlance'
 import TaskCapture from '../components/TaskCapture'
-import UnifiedDependencyView from '../components/UnifiedDependencyView'
+import UnifiedFilter from '../components/UnifiedFilter'
+import { useFilterStore } from '../stores/filterStore'
 
 const Dashboard = memo(() => {
   const theme = useTheme();
-  const [activeTab, setActiveTab] = useState(0)
-  const [assigneeFilter, setAssigneeFilter] = useState<string>('')
   const [availableAssignees, setAvailableAssignees] = useState<string[]>([])
-  const [showFilters, setShowFilters] = useState(false)
-  const [statusFilter, setStatusFilter] = useState<'pending' | 'completed' | 'overdue' | 'today' | 'all'>('pending')
   const [refreshCounter, setRefreshCounter] = useState(0)
-  
-  // Quick filters state
-  const [projectFilter, setProjectFilter] = useState<string>('')
-  const [dueDateFilter, setDueDateFilter] = useState<string>('')
   const [availableProjects, setAvailableProjects] = useState<string[]>([])
-  const [quickAssigneeFilter, setQuickAssigneeFilter] = useState<string>('')
   
-  // Dependency view state
-  const [dependencyViewOpen, setDependencyViewOpen] = useState(false)
+  // Use only store state - single source of truth
+  const status = useFilterStore(s => s.status)
+  const setStatus = useFilterStore(s => s.setStatus)
+  const overviewMode = useFilterStore(s => s.overviewMode)
+  const dueDate = useFilterStore(s => s.dueDate)
+  const setDueDate = useFilterStore(s => s.setDueDate)
 
   const fetchAssignees = useCallback(async () => {
     try {
@@ -62,15 +33,16 @@ const Dashboard = memo(() => {
       
       // Extract unique projects from tasks
       const projects = tasks
-        .filter((task: any) => task.project)
-        .map((task: any) => task.project as string);
+        .filter((task: any) => task.projectName)
+        .map((task: any) => task.projectName as string);
       
       // Remove duplicates
       const uniqueAssignees = [...new Set(assignees)] as string[];
       const uniqueProjects = [...new Set(projects)] as string[];
       
-      setAvailableAssignees(uniqueAssignees);
-      setAvailableProjects(uniqueProjects);
+      // Add special "No" options to the beginning of each list
+      setAvailableAssignees(['(No Assignee)', ...uniqueAssignees]);
+      setAvailableProjects(['(No Project)', ...uniqueProjects]);
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Failed to fetch assignees and projects:', error);
@@ -84,328 +56,147 @@ const Dashboard = memo(() => {
     setRefreshCounter(prev => prev + 1);
   }, [fetchAssignees]);
 
-  const clearAllQuickFilters = useCallback(() => {
-    setProjectFilter('');
-    setQuickAssigneeFilter('');
-    setDueDateFilter('');
-  }, []);
-
   // Fetch assignees when component mounts
   useEffect(() => {
     fetchAssignees();
   }, []); // Remove fetchAssignees dependency to prevent re-renders
 
-  const handleClearFilter = useCallback(() => {
-    setAssigneeFilter('');
-  }, []);
+  const handleStatusFilterChange = useCallback((filter: 'pending' | 'active' | 'completed' | 'overdue' | 'all') => {
+    setStatus(filter)
+  }, [setStatus]);
 
-  const handleStatusFilterChange = useCallback((filter: 'pending' | 'completed' | 'overdue' | 'today' | 'all') => {
-    setStatusFilter(filter);
-    // Also update the tab if switching between pending/completed
-    if (filter === 'completed') {
-      setActiveTab(1);
-    } else if (filter === 'pending' || filter === 'overdue' || filter === 'today') {
-      setActiveTab(0);
-    }
-  }, []);
-
-  const handleTabChange = useCallback((newValue: number) => {
-    setActiveTab(newValue);
-    // Update status filter based on tab
-    if (newValue === 0) {
-      setStatusFilter('pending');
-    } else if (newValue === 1) {
-      setStatusFilter('completed');
-    }
-  }, []);
-
-  // Memoize active filter calculation
+  // Simplified active filter calculation using store state
   const activeFilter = useMemo(() => {
-    if (activeTab === 1) return 'COMPLETED';
-    if (statusFilter === 'all') return 'PENDING';
-    if (statusFilter === 'pending') return 'PENDING';
-    if (statusFilter === 'completed') return 'COMPLETED';
-    return statusFilter; // overdue, today
-  }, [activeTab, statusFilter]);
-
-  // Memoize combined assignee filter
-  const combinedAssigneeFilter = useMemo(() => 
-    assigneeFilter || quickAssigneeFilter, 
-    [assigneeFilter, quickAssigneeFilter]
-  );
-
-  // Memoize filter check for UI state
-  const hasActiveFilters = useMemo(() => 
-    assigneeFilter || projectFilter || dueDateFilter, 
-    [assigneeFilter, projectFilter, dueDateFilter]
-  );
+    // Overview mode takes precedence
+    if (overviewMode === 'open') {
+      return 'all';
+    }
+    if (overviewMode === 'closed') {
+      return 'COMPLETED';
+    }
+    
+    // Default to showing all open tasks when no specific filter is selected
+    switch (status) {
+      case 'pending':
+        return 'PENDING';
+      case 'completed':
+        return 'COMPLETED';
+      case 'active':
+        return 'ACTIVE';
+      case 'overdue':
+        return 'overdue';
+      case 'all':
+      default:
+        return 'all'; // Show all open tasks (pending + active) by default
+    }
+  }, [status, overviewMode]);
 
   return (
-    <Box>
-      {/* Compact Top Section: Today's Overview and Right Column */}
-      <Grid container spacing={2}>
-        {/* Today's Overview - Left Column */}
-        <Grid item xs={12} md={4} lg={3.6}>
-          <DailyGlance 
-            onFilterChange={handleStatusFilterChange}
-            activeFilter={statusFilter}
+    <Box sx={{ 
+      display: 'grid',
+      gap: { xs: 1, sm: 1.5 },
+      gridTemplateRows: { 
+        xs: 'auto auto auto auto', // Stack vertically on mobile
+        md: 'minmax(260px, auto) 1fr' // Charts row + content row on desktop
+      },
+      gridTemplateColumns: {
+        xs: '1fr', // Single column on mobile
+        md: 'minmax(320px, 1fr) 2fr', // Flexible sidebar + main content on desktop
+        lg: 'minmax(340px, 1fr) 3fr' // Wider main content on large screens
+      },
+      minHeight: '100vh'
+    }}>
+      {/* Row 1 - Overview aligned with sidebar, Charts aligned with main content */}
+      <Box sx={{ 
+        gridColumn: { xs: '1', md: '1' },
+        gridRow: { xs: 'auto', md: '1' },
+        width: '100%',
+        maxWidth: { xs: '100%', md: '100%' }
+      }}>
+        <DailyGlance 
+          onFilterChange={handleStatusFilterChange}
+          activeFilter={status}
+          onDueDateChange={(d) => setDueDate(d ?? undefined)}
+          activeDueDate={dueDate || null}
+          fullHeight
+          refreshCounter={refreshCounter}
+        />
+      </Box>
+
+      {/* Charts spanning the main content area */}
+      <Box sx={{ 
+        gridColumn: { xs: '1', md: '2' },
+        gridRow: { xs: 'auto', md: '1' },
+        display: 'grid',
+        gap: 1,
+        gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+        minHeight: { xs: 'auto', md: 260 }
+      }}>
+        <TaskTrendChart />
+        <DashboardInsights />
+      </Box>
+
+      {/* Row 2 - Task Capture and Filters */}
+      <Box sx={{ 
+        gridColumn: { xs: '1', md: '1' },
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: 1,
+        minWidth: 0,
+        width: '100%',
+        maxWidth: { xs: '100%', md: '100%' }
+      }}>
+        {/* Quick Task Capture */}
+        <Card 
+          elevation={theme.palette.mode === 'dark' ? 3 : 1} 
+          sx={{ 
+            p: { xs: 1, sm: 1.5 },
+            width: '100%',
+            boxSizing: 'border-box'
+          }} 
+          className="glass-task-container"
+        >
+          <TaskCapture onTaskCaptured={handleTaskCaptured} />
+        </Card>
+        
+        {/* Search & Filters */}
+        <Card 
+          elevation={theme.palette.mode === 'dark' ? 2 : 1} 
+          sx={{ 
+            p: { xs: 1, sm: 1.25 }, 
+            flex: 1,
+            width: '100%',
+            boxSizing: 'border-box'
+          }} 
+          className="glass-task-container"
+        >
+          <UnifiedFilter 
+            layout="inline"
+            projects={availableProjects}
+            assignees={availableAssignees}
           />
-        </Grid>
+        </Card>
+      </Box>
 
-        {/* Right Column - Task Capture and Quick Filters */}
-        <Grid item xs={12} md={8} lg={8.4}>
-          <Stack spacing={2}>
-            {/* Quick Task Capture */}
-            <TaskCapture onTaskCaptured={handleTaskCaptured} />
-            
-            {/* Quick Filters */}
-            <Card 
-              elevation={theme.palette.mode === 'dark' ? 1 : 0} 
-              className="custom-card glass-task-container"
-              sx={{
-                background: theme.palette.mode === 'dark' 
-                  ? `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.6)} 0%, ${alpha(theme.palette.background.default, 0.8)} 100%)`
-                  : alpha(theme.palette.background.paper, 0.6),
-                backdropFilter: 'blur(8px)',
-                WebkitBackdropFilter: 'blur(8px)',
-              }}
-            >
-              <CardContent sx={{ py: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-                  <FilterIcon sx={{ mr: 1, color: theme.palette.primary.main, fontSize: '1.2rem' }} />
-                  <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>Quick Filters</Typography>
-                  <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
-                    <Button
-                      size="small"
-                      startIcon={<DependencyIcon />}
-                      onClick={() => setDependencyViewOpen(true)}
-                      variant="outlined"
-                      sx={{ py: 0.5, px: 1.5 }}
-                    >
-                      Dependencies
-                    </Button>
-                    <Button
-                      size="small"
-                      startIcon={<ClearAllIcon />}
-                      onClick={clearAllQuickFilters}
-                      sx={{ py: 0.5, px: 1 }}
-                      disabled={!hasActiveFilters}
-                    >
-                      Clear
-                    </Button>
-                  </Box>
-                </Box>
-                
-                <Grid container spacing={1.5}>
-                  <Grid item xs={12} sm={4}>
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Project</InputLabel>
-                      <Select
-                        value={projectFilter}
-                        onChange={(e) => setProjectFilter(e.target.value as string)}
-                        label="Project"
-                      >
-                        <MenuItem value="">All Projects</MenuItem>
-                        {availableProjects.map((project) => (
-                          <MenuItem key={project} value={project}>{project}</MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  
-                  <Grid item xs={12} sm={4}>
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Assignee</InputLabel>
-                      <Select
-                        value={quickAssigneeFilter}
-                        onChange={(e) => setQuickAssigneeFilter(e.target.value as string)}
-                        label="Assignee"
-                      >
-                        <MenuItem value="">All Assignees</MenuItem>
-                        {availableAssignees.map((assignee) => (
-                          <MenuItem key={assignee} value={assignee}>{assignee}</MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  
-                  <Grid item xs={12} sm={4}>
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Due Date</InputLabel>
-                      <Select
-                        value={dueDateFilter}
-                        onChange={(e) => setDueDateFilter(e.target.value as string)}
-                        label="Due Date"
-                      >
-                        <MenuItem value="">All Dates</MenuItem>
-                        <MenuItem value="today">Due Today</MenuItem>
-                        <MenuItem value="tomorrow">Due Tomorrow</MenuItem>
-                        <MenuItem value="this-week">This Week</MenuItem>
-                        <MenuItem value="next-week">Next Week</MenuItem>
-                        <MenuItem value="this-month">This Month</MenuItem>
-                        <MenuItem value="overdue">Overdue</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                </Grid>
-                
-                {/* Active Quick Filters Display */}
-                {hasActiveFilters && (
-                  <Box sx={{ mt: 1.5 }}>
-                    <Stack direction="row" spacing={1} flexWrap="wrap">
-                      {projectFilter && (
-                        <Chip 
-                          size="small" 
-                          label={`${projectFilter}`} 
-                          onDelete={() => setProjectFilter('')}
-                          icon={<ProjectIcon fontSize="small" />}
-                          color="primary"
-                          variant="outlined"
-                          sx={{ height: '24px' }}
-                        />
-                      )}
-                      {quickAssigneeFilter && (
-                        <Chip 
-                          size="small" 
-                          label={`${quickAssigneeFilter}`} 
-                          onDelete={() => setQuickAssigneeFilter('')}
-                          icon={<PersonIcon fontSize="small" />}
-                          color="secondary"
-                          variant="outlined"
-                          sx={{ height: '24px' }}
-                        />
-                      )}
-                      {dueDateFilter && (
-                        <Chip 
-                          size="small" 
-                          label={`${dueDateFilter.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}`} 
-                          onDelete={() => setDueDateFilter('')}
-                          icon={<CalendarIcon fontSize="small" />}
-                          color="info"
-                          variant="outlined"
-                          sx={{ height: '24px' }}
-                        />
-                      )}
-                    </Stack>
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Stack>
-        </Grid>
-
-        {/* Task Lists with Tabs */}
-        <Grid item xs={12} sx={{ mt: 1 }}>
-          <Card elevation={theme.palette.mode === 'dark' ? 2 : 1} className="custom-card glass-task-container">
-            <CardContent>
-              <Box sx={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                mb: 2
-              }}>
-                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                  <Tabs value={activeTab} onChange={(_, newValue) => handleTabChange(newValue)}>
-                    <Tab label="Not Done" />
-                    <Tab label="Completed" />
-                  </Tabs>
-                </Box>
-                
-                <IconButton 
-                  onClick={() => setShowFilters(!showFilters)}
-                  color={showFilters ? "primary" : "default"}
-                >
-                  <FilterIcon />
-                </IconButton>
-              </Box>
-
-              {showFilters && (
-                <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Filters
-                  </Typography>
-                  
-                  <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={4}>
-                      <FormControl fullWidth size="small">
-                        <InputLabel>Assignee</InputLabel>
-                        <Select
-                          value={assigneeFilter}
-                          onChange={(e) => setAssigneeFilter(e.target.value as string)}
-                          label="Assignee"
-                        >
-                          <MenuItem value="">All</MenuItem>
-                          {availableAssignees.map((assignee) => (
-                            <MenuItem key={assignee} value={assignee}>{assignee}</MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                    
-                    <Grid item>
-                      {assigneeFilter && (
-                        <IconButton size="small" onClick={handleClearFilter}>
-                          <ClearIcon fontSize="small" />
-                        </IconButton>
-                      )}
-                    </Grid>
-                  </Grid>
-                  
-                  {(assigneeFilter || (statusFilter !== 'pending' && statusFilter !== 'completed')) && (
-                    <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-                      <Typography variant="body2">Active filters:</Typography>
-                      {assigneeFilter && (
-                        <Chip 
-                          size="small" 
-                          label={assigneeFilter} 
-                          onDelete={handleClearFilter}
-                          icon={<PersonIcon fontSize="small" />}
-                        />
-                      )}
-                      {statusFilter !== 'pending' && statusFilter !== 'completed' && (
-                        <Chip 
-                          size="small" 
-                          label={statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} 
-                          onDelete={() => setStatusFilter(activeTab === 0 ? 'pending' : 'completed')}
-                          color="primary"
-                          variant="outlined"
-                        />
-                      )}
-                    </Stack>
-                  )}
-                </Box>
-              )}
-
-              {activeTab === 0 && (
-                <TaskList 
-                  key={`active-${refreshCounter}`}
-                  filter={activeFilter as 'PENDING' | 'ACTIVE' | 'overdue' | 'today' | 'COMPLETED' | 'all'} 
-                  onTaskUpdate={handleTaskCaptured}
-                  assigneeFilter={combinedAssigneeFilter}
-                  projectFilter={projectFilter}
-                  dueDateFilter={dueDateFilter}
-                />
-              )}
-              {activeTab === 1 && (
-                <TaskList 
-                  key={`completed-${refreshCounter}`}
-                  filter="COMPLETED" 
-                  onTaskUpdate={handleTaskCaptured}
-                  assigneeFilter={combinedAssigneeFilter}
-                  projectFilter={projectFilter}
-                  dueDateFilter={dueDateFilter}
-                />
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-      
-      {/* Unified Dependency View Dialog */}
-      <UnifiedDependencyView
-        open={dependencyViewOpen}
-        onClose={() => setDependencyViewOpen(false)}
-      />
+      {/* Row 3 - Task List */}
+      <Box sx={{ 
+        gridColumn: { xs: '1', md: '2' },
+        gridRow: { xs: 'auto', md: '2' },
+        minWidth: 0,
+        minHeight: { xs: '400px', md: 0 }
+      }}>
+        <Card 
+          elevation={theme.palette.mode === 'dark' ? 2 : 1} 
+          className="custom-card glass-task-container" 
+          sx={{ p: { xs: 1.5, sm: 2 }, height: '100%' }}
+        >
+          <TaskList 
+            key={`${status}-${refreshCounter}-${dueDate || 'none'}`}
+            filter={activeFilter as 'PENDING' | 'ACTIVE' | 'overdue' | 'COMPLETED' | 'all'} 
+            onTaskUpdate={handleTaskCaptured}
+          />
+        </Card>
+      </Box>
     </Box>
   )
 });

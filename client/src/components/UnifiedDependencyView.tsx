@@ -27,10 +27,11 @@ import {
   Task as TaskIcon,
   Person as PersonIcon
 } from '@mui/icons-material';
-import { Task } from '../types';
+import { TaskDTO } from '../types';
 import TaskEditDialog from './TaskEditDialog';
 import UnifiedTaskGraph from './UnifiedTaskGraph';
-import { formatTaskDate, getPriorityColor, toSentenceCase } from '../utils/taskUtils';
+import { formatTaskDate, toSentenceCase } from '../utils/taskUtils';
+import PriorityDisplay from './PriorityDisplay';
 
 interface UnifiedDependencyViewProps {
   open: boolean;
@@ -38,12 +39,12 @@ interface UnifiedDependencyViewProps {
 }
 
 const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onClose }) => {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [newTaskDialogOpen, setNewTaskDialogOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editingTask, setEditingTask] = useState<TaskDTO | null>(null);
   const [showGraph, setShowGraph] = useState(false);
 
   useEffect(() => {
@@ -57,13 +58,15 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
     setError(null);
     
     try {
-      const response = await fetch('/api/tasks?status=pending&status=active&status=waiting');
+      // Fetch open statuses (pending, started)
+      const response = await fetch('/api/tasks?status=pending&status=started');
       if (!response.ok) {
         throw new Error('Failed to fetch tasks');
       }
       
       const result = await response.json();
-      setTasks(result.data || []);
+      const list = Array.isArray(result) ? result : (result.data || []);
+      setTasks(list);
     } catch (error) {
       console.error('Error fetching tasks:', error);
       setError('Failed to load tasks');
@@ -72,7 +75,7 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
     }
   };
 
-  const handleTaskUpdate = (updatedTask: Task) => {
+  const handleTaskUpdate = (updatedTask: TaskDTO) => {
     setTasks(prevTasks => 
       prevTasks.map(task => 
         task.id === updatedTask.id ? updatedTask : task
@@ -80,7 +83,7 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
     );
   };
 
-  const handleNewTask = (newTask: Task) => {
+  const handleNewTask = (newTask: TaskDTO) => {
     setTasks(prevTasks => [newTask, ...prevTasks]);
   };
 
@@ -96,7 +99,7 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
     });
   };
 
-  const getTaskById = (taskId: string): Task | undefined => {
+  const getTaskById = (taskId: string): TaskDTO | undefined => {
     return tasks.find(task => task.id === taskId);
   };
 
@@ -108,7 +111,7 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
     return tasks.filter(task => task.depends && task.depends.includes(taskId));
   };
 
-  const renderTaskCard = (task: Task, isDependent = false) => (
+  const renderTaskCard = (task: TaskDTO, isDependent = false) => (
     <Card 
       key={task.id} 
       variant="outlined" 
@@ -123,11 +126,10 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <TaskIcon color="primary" />
             {task.priority && (
-              <Chip
-                label={task.priority}
+              <PriorityDisplay 
+                priority={task.priority}
+                variant="chip"
                 size="small"
-                color={getPriorityColor(task.priority)}
-                sx={{ fontSize: '0.7rem', height: 20 }}
               />
             )}
           </Box>
@@ -139,12 +141,18 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
         }
         subheader={
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            <Chip
-              label={task.status.toUpperCase()}
-              size="small"
-              color={task.status === 'COMPLETED' ? 'success' : task.status === 'ACTIVE' ? 'primary' : 'default'}
-              sx={{ fontSize: '0.65rem' }}
-            />
+            {(() => {
+              const theme: any = (globalThis as any).muiTheme || undefined;
+              const statusKey = task.status as keyof any;
+              const style = theme?.semanticStyles?.status[statusKey] || theme?.semanticStyles?.status.PENDING;
+              return (
+                <Chip
+                  label={task.status.toUpperCase()}
+                  size="small"
+                  sx={{ fontSize: '0.65rem', ...(style ? { background: style.gradient, border: `1px solid ${style.border}`, color: style.color } : {}) }}
+                />
+              );
+            })()}
             {task.assignee && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <PersonIcon sx={{ fontSize: '0.8rem', color: 'text.secondary' }} />
@@ -276,7 +284,7 @@ const UnifiedDependencyView: React.FC<UnifiedDependencyViewProps> = ({ open, onC
                           <Typography variant="subtitle2" sx={{ fontWeight: 'medium', mt: 1, mb: 1, display: 'block' }}>
                             Depends on:
                           </Typography>
-                          {task.depends?.map((depId) => {
+                          {task.depends?.map((depId: string) => {
                             const depTask = getTaskById(depId);
                             return depTask ? renderTaskCard(depTask, true) : (
                               <Alert key={depId} severity="warning" sx={{ mb: 1 }}>

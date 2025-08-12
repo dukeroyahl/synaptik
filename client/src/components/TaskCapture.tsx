@@ -8,7 +8,6 @@ import {
   Chip,
   Alert,
   Collapse,
-  Grid,
   useTheme
 } from '@mui/material'
 import {
@@ -20,9 +19,10 @@ import { taskService } from '../services/taskService'
 
 interface TaskCaptureProps {
   onTaskCaptured?: (task: any) => void
+  projectName?: string
 }
 
-const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
+const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured, projectName }) => {
   const theme = useTheme();
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -32,17 +32,13 @@ const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim()) return
-
     setLoading(true)
     setMessage(null)
-
     try {
-      const task = await taskService.captureTask(input.trim())
+      const task = await taskService.captureTask(input.trim(), projectName)
       setMessage({ type: 'success', text: 'Task captured successfully!' })
       setInput('')
-      if (onTaskCaptured) {
-        onTaskCaptured(task)
-      }
+      onTaskCaptured?.(task)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to capture task'
       setMessage({ type: 'error', text: errorMessage })
@@ -65,63 +61,45 @@ const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
   ]
 
   return (
-    <Paper 
-      elevation={theme.palette.mode === 'dark' ? 2 : 1} 
-      sx={{ p: 2.5 }}
+    <Paper
+      elevation={theme.palette.mode === 'dark' ? 2 : 1}
+      sx={{ p: 1 }}
       className="custom-card"
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-        <Typography variant="h6" sx={{ flexGrow: 1, fontSize: '1.1rem' }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1 }}>
+        <Typography variant="h6" sx={{ flexGrow: 1, lineHeight: 1.2 }}>
           Quick Task Capture
         </Typography>
-        <IconButton
-          size="small"
-          onClick={() => setShowHelp(!showHelp)}
-          sx={{ ml: 1 }}
-        >
-          <HelpIcon />
+        <IconButton size="small" onClick={() => setShowHelp(v => !v)} aria-label="Help" sx={{ mt: -0.25 }}>
+          <HelpIcon fontSize="small" />
         </IconButton>
       </Box>
 
       <Collapse in={showHelp}>
-        <Alert 
-          severity="info" 
-          sx={{ mb: 1.5, py: 1 }}
+        <Alert
+          severity="info"
+          sx={{ mb: 1.2, py: 1 }}
           action={
             <IconButton size="small" onClick={() => setShowHelp(false)}>
-              <CloseIcon />
+              <CloseIcon fontSize="small" />
             </IconButton>
           }
         >
-          <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.875rem' }}>
-            Simple task creation:
+          <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.8rem' }}>
+            Simple task creation
           </Typography>
-          <Typography variant="body2" component="div" sx={{ fontSize: '0.8rem' }}>
-            Just describe your task in plain text. Each task will be created with:
-            <br/>
-            • <strong>Priority:</strong> Medium (default)<br/>
-            • <strong>Status:</strong> Pending (ready to work on)<br/>
-            • <strong>Due date:</strong> None (you can set this later)<br/>
-            <br/>
-            You can always edit the task details after creation to add more information, change priority, set due dates, or assign to specific people.
+          <Typography variant="body2" component="div" sx={{ fontSize: '0.72rem', lineHeight: 1.35 }}>
+            Describe your task. It will default to Medium priority, Pending status, and no due date. You can edit later.
           </Typography>
-          <Box sx={{ mt: 1 }}>
-            <Typography variant="caption" color="text.secondary">
-              Examples:
-            </Typography>
-            {examples.map((example, index) => (
+          <Box sx={{ mt: 0.75, display: 'flex', flexWrap: 'wrap' }}>
+            {examples.map(e => (
               <Chip
-                key={index}
-                label={example}
+                key={e}
+                label={e}
                 size="small"
                 variant="outlined"
-                sx={{ 
-                  m: 0.25, 
-                  fontSize: '0.7rem',
-                  height: '20px',
-                  cursor: 'pointer' 
-                }}
-                onClick={() => setInput(example)}
+                onClick={() => setInput(e)}
+                sx={{ m: 0.25, fontSize: '0.6rem', height: 18, cursor: 'pointer' }}
               />
             ))}
           </Box>
@@ -129,47 +107,43 @@ const TaskCapture: React.FC<TaskCaptureProps> = ({ onTaskCaptured }) => {
       </Collapse>
 
       {message && (
-        <Alert 
-          severity={message.type} 
-          sx={{ mb: 1.5, py: 0.5 }}
+        <Alert
+          severity={message.type}
+          sx={{ mb: 1.1, py: 0.5 }}
           onClose={() => setMessage(null)}
         >
           {message.text}
         </Alert>
       )}
 
-      <Box component="form" onSubmit={handleSubmit}>
-        <Grid container spacing={1} alignItems="center">
-          <Grid item xs>
-            <TextField
-              fullWidth
-              placeholder="Enter your task description..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              disabled={loading}
-              variant="outlined"
-              size="small"
-              helperText="Tasks created with Medium priority and no due date"
-              sx={{
-                '& .MuiFormHelperText-root': {
-                  fontSize: '0.75rem',
-                  mt: 0.5
-                }
-              }}
-            />
-          </Grid>
-          <Grid item>
-            <IconButton
-              type="submit"
-              disabled={!input.trim() || loading}
-              color="primary"
-              size="medium"
-            >
-              <SendIcon />
-            </IconButton>
-          </Grid>
-        </Grid>
-      </Box>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8 }}>
+        <TextField
+          fullWidth
+          placeholder={"Enter your task description...\n(Medium priority, no due date by default)"}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          disabled={loading}
+          variant="outlined"
+          size="small"
+          multiline
+          minRows={2}
+          maxRows={6}
+          sx={{
+            '& textarea::placeholder': { whiteSpace: 'pre-line', opacity: 0.6 },
+            '& textarea': { fontSize: '0.8rem', lineHeight: 1.35 }
+          }}
+        />
+        <IconButton
+          type="submit"
+          disabled={!input.trim() || loading}
+          color="primary"
+          size="medium"
+          sx={{ alignSelf: 'flex-start', mt: 0.25 }}
+          aria-label="Create task"
+        >
+          <SendIcon />
+        </IconButton>
+      </form>
     </Paper>
   )
 }

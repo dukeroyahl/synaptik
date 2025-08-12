@@ -1,605 +1,524 @@
 import React, { memo, useMemo, useCallback } from 'react';
+import { useTheme, Box, Card, CardContent, Typography, IconButton, Tooltip } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Chip,
-  useTheme
-} from '@mui/material';
-import {
-  Flag as PriorityIcon,
-  Assignment as ProjectIcon,
-  CalendarToday as DueIcon,
   AccountTree as DependencyIcon,
-  Tag as TagIcon,
+  Folder as ProjectIcon,
   Person as PersonIcon,
+  PlayArrow as StartIcon,
+  Pause as PauseIcon,
+  CheckCircle as CompleteIcon,
+  Link as LinkIcon,
+  Delete as DeleteIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
-import { Task } from '../types';
+import { TaskDTO } from '../types';
+import { TaskActionCallbacks, BaseComponentProps, SelectableProps, CompactModeProps } from '../types/common';
 import { 
-  generateTaskId,
-  getTaskCardClass,
   isTaskOverdue,
-  getPriorityColor,
-  getStatusColor,
-  formatTag,
-  toSentenceCase
+  toSentenceCase,
+  getTaskColorCategory
 } from '../utils/taskUtils';
-import { getTimeRemaining, parseBackendDate } from '../utils/dateUtils';
-import TaskActions from './TaskActions';
+import { parseBackendDate, getTimeRemaining } from '../utils/dateUtils';
+import PriorityDisplay from './PriorityDisplay';
 
-interface TaskCardProps {
-  task: Task;
-  onViewDependencies?: (task: Task) => void;
-  onMarkDone?: (task: Task) => void;
-  onUnmarkDone?: (task: Task) => void;
-  onEdit?: (task: Task) => void;
-  onEditDate?: (task: Task) => void;
-  onDelete?: (task: Task) => void;
-  onStop?: (task: Task) => void;
-  onLinkTask?: (task: Task) => void;
+interface TaskCardProps extends TaskActionCallbacks, BaseComponentProps, SelectableProps, CompactModeProps {
+  task: TaskDTO;
+  onPause?: (task: TaskDTO) => void;
+  onStop?: (task: TaskDTO) => void;
   draggable?: boolean;
-  compact?: boolean;
 }
 
 const TaskCard: React.FC<TaskCardProps> = memo(({
   task,
-  onViewDependencies,
+  selected = false,
+  onSelect,
   onMarkDone,
   onUnmarkDone,
   onEdit,
-  onEditDate,
   onDelete,
+  onPause,
+  onStart,
   onStop,
   onLinkTask,
-  draggable = false
+  onViewDependencies,
+  compact = false,
+  className,
+  'data-testid': dataTestId
 }) => {
+  // Suppress unused variable warnings for optional props
+  void onStop;
+  void onViewDependencies;
+  void compact;
   const theme = useTheme();
-  
-  // Memoize taskId calculation
-  const taskId = useMemo(() => {
-    try {
-      return generateTaskId(task);
-    } catch (error) {
-      console.error('Error generating task ID for task', task.id, error);
-      return `TASK-${task.id.slice(0, 8)}`;
-    }
-  }, [task.id, task.title]);
-  
-  // Memoize glass color calculation to prevent recalculating on every render
-  const glassColor = useMemo(() => {
-    // Priority-based colors (high contrast)
-    if (task.priority === 'HIGH') {
-      return 'linear-gradient(135deg, rgba(255,107,107,0.12) 0%, rgba(255,107,107,0.06) 50%, rgba(255,255,255,0.04) 100%)';
-    } else if (task.priority === 'MEDIUM') {
-      return 'linear-gradient(135deg, rgba(249,194,60,0.12) 0%, rgba(249,194,60,0.06) 50%, rgba(255,255,255,0.04) 100%)';
-    }
-    
-    // Status-based colors (high contrast)
-    if (task.status === 'COMPLETED') {
-      return 'linear-gradient(135deg, rgba(86,211,100,0.12) 0%, rgba(86,211,100,0.06) 50%, rgba(255,255,255,0.04) 100%)';
-    } else if (task.status === 'ACTIVE') {
-      return 'linear-gradient(135deg, rgba(88,166,255,0.12) 0%, rgba(88,166,255,0.06) 50%, rgba(255,255,255,0.04) 100%)';
-    }
-    
-    // Default glass effect (high contrast)
-    return 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0.06) 100%)';
-  }, [task.priority, task.status]);
-  
-  // Memoize border color calculation
-  const borderColor = useMemo(() => {
-    if (task.priority === 'HIGH') {
-      return 'rgba(255,107,107,0.25)';
-    } else if (task.priority === 'MEDIUM') {
-      return 'rgba(249,194,60,0.25)';
-    } else if (task.status === 'COMPLETED') {
-      return 'rgba(86,211,100,0.25)';
-    } else if (task.status === 'ACTIVE') {
-      return 'rgba(88,166,255,0.25)';
-    }
-    
-    return 'rgba(255,255,255,0.15)';
-  }, [task.priority, task.status]);
+  const colorCategory = getTaskColorCategory(task);
 
-  // Memoize time remaining calculation
-  const timeRemaining = useMemo(() => {
-    try {
-      return task.dueDate ? getTimeRemaining(task.dueDate) : null;
-    } catch (error) {
-      console.error('Error calculating time remaining for task', task.id, error);
-      return null;
+  // Simplified category styles
+  const categoryStyles: Record<string, { ring: string; chip: string; text: string }> = {
+    overdue: {
+      ring: theme.palette.error.main,
+      chip: theme.palette.error.main,
+      text: theme.palette.error.contrastText || '#fff'
+    },
+    dueToday: {
+      ring: theme.palette.info.main,
+      chip: theme.palette.info.main,
+      text: theme.palette.info.contrastText || '#fff'
+    },
+    completed: {
+      ring: theme.palette.success.main,
+      chip: theme.palette.success.main,
+      text: theme.palette.success.contrastText || '#fff'
+    },
+    pending: {
+      ring: theme.palette.grey[400],
+      chip: theme.palette.grey[400],
+      text: '#000'
+    },
+    open: {
+      ring: theme.palette.warning.main,
+      chip: theme.palette.warning.main,
+      text: theme.palette.warning.contrastText || '#000'
     }
-  }, [task.dueDate, task.id]);
+  };
+  const cat = categoryStyles[colorCategory];
 
-  // Memoize overdue status check
+  // Memoize overdue status and date formatting
   const isOverdue = useMemo(() => {
-    try {
-      return task.dueDate ? isTaskOverdue(task.dueDate) : false;
-    } catch (error) {
-      console.error('Error checking overdue status for task', task.id, error);
-      return false;
-    }
-  }, [task.dueDate, task.id]);
+    return task.dueDate ? isTaskOverdue(task.dueDate) : false;
+  }, [task.dueDate]);
 
-  // Memoize actual date (always shows the calendar date, not relative time)
+  const timeRemaining = useMemo(() => {
+    return task.dueDate ? getTimeRemaining(task.dueDate) : null;
+  }, [task.dueDate]);
+
   const actualDate = useMemo(() => {
     if (!task.dueDate) return null;
-    
     try {
-      // Use the proper date parsing function to handle timezone issues
       const date = parseBackendDate(task.dueDate);
-      // Always format as actual date regardless of how close it is
       return date.toLocaleDateString(undefined, {
-        year: 'numeric',
+        weekday: 'short',
         month: 'short',
-        day: '2-digit',
-        weekday: 'short'
+        day: 'numeric',
+        year: 'numeric'
       });
     } catch (error) {
-      console.error('Error formatting actual date for task', task.id, error);
       return task.dueDate;
     }
-  }, [task.dueDate, task.id]);
+  }, [task.dueDate]);
 
-  // Memoize event handlers to prevent child re-renders
-  const handleEditDate = useCallback(() => {
-    if (onEditDate) onEditDate(task);
-  }, [onEditDate, task]);
-
-  const handleViewDependencies = useCallback(() => {
-    if (onViewDependencies) onViewDependencies(task);
-  }, [onViewDependencies, task]);
-
-  const handleEdit = useCallback(() => {
-    if (onEdit) onEdit(task);
+  // Memoize event handlers
+  const handleEdit = useCallback((e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (onEdit) {
+      onEdit(task);
+    } else {
+    }
   }, [onEdit, task]);
 
-  const handleMarkDone = useCallback(() => {
+  const handleMarkDone = useCallback((e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (onMarkDone) onMarkDone(task);
   }, [onMarkDone, task]);
 
-  const handleUnmarkDone = useCallback(() => {
+  const handleUnmarkDone = useCallback((e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (onUnmarkDone) onUnmarkDone(task);
   }, [onUnmarkDone, task]);
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback((e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (onDelete) onDelete(task);
   }, [onDelete, task]);
 
-  const handleStop = useCallback(() => {
-    if (onStop) onStop(task);
-  }, [onStop, task]);
+  const handlePause = useCallback((e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (onPause) onPause(task);
+  }, [onPause, task]);
 
-  const handleLinkTask = useCallback(() => {
+  const handleLinkTask = useCallback((e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (onLinkTask) onLinkTask(task);
   }, [onLinkTask, task]);
+
+  const handleStart = useCallback((e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (onStart) onStart(task);
+  }, [onStart, task]);
+
+  // Keyboard navigation handler
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // Don't interfere with typing in nested inputs
+    if ((e.target as HTMLElement).tagName === 'INPUT') return;
+    
+    switch (e.key) {
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        if (onSelect) onSelect(task);
+        break;
+      case 'e':
+      case 'E':
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          if (onEdit) onEdit(task);
+        }
+        break;
+      case 'd':
+      case 'D':
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          if (onDelete) onDelete(task);
+        }
+        break;
+      case 'c':
+      case 'C':
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          if (task.status === 'COMPLETED' && onUnmarkDone) {
+            onUnmarkDone(task);
+          } else if (onMarkDone) {
+            onMarkDone(task);
+          }
+        }
+        break;
+      case 's':
+      case 'S':
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          if (task.status === 'ACTIVE' && onPause) {
+            onPause(task);
+          } else if (onStart) {
+            onStart(task);
+          }
+        }
+        break;
+      default:
+        break;
+    }
+  }, [task, onSelect, onEdit, onDelete, onMarkDone, onUnmarkDone, onPause, onStart]);
   
   return (
-    <Card 
-      sx={{ 
-        mb: 0.5,
-        position: 'relative',
-        opacity: task.status === 'COMPLETED' ? 0.85 : 1,
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        cursor: draggable ? 'grab' : 'default',
-        background: glassColor,
-        backdropFilter: 'blur(20px) saturate(1.8)',
-        WebkitBackdropFilter: 'blur(20px) saturate(1.8)',
-        border: `1px solid ${borderColor}`,
+    <Tooltip 
+      title={onEdit ? "Keyboard shortcuts: Enter/Space=Select, E=Edit, C=Complete, S=Start/Pause, D=Delete" : "Press Enter or Space to select"} 
+      placement="top"
+      arrow
+    >
+      <Card
+        onClick={() => onSelect && onSelect(task)}
+        onDoubleClick={() => onEdit && onEdit(task)}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        className={className}
+        data-testid={dataTestId}
+        sx={{
+        mb: 1,
+        p: 0,
         borderRadius: 2,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
+        cursor: onSelect ? 'pointer' : 'default',
+        border: `1px solid ${cat.ring}40`,
+        borderBottom: `1px solid ${cat.ring}40`,
+        background: selected 
+          ? alpha(cat.ring, 0.08)
+          : theme.palette.background.paper,
         '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: '0 12px 48px rgba(0,0,0,0.7), 0 6px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.25)',
-          border: `1px solid ${borderColor.replace(/0\.\d+/, '0.4')}`,
-          backdropFilter: 'blur(24px) saturate(2)',
-          WebkitBackdropFilter: 'blur(24px) saturate(2)',
+          background: alpha(cat.ring, 0.20),
+          borderBottom: `4px solid ${cat.ring}`,
+          borderTop: `1px solid ${cat.ring}40`,
+          borderLeft: `1px solid ${cat.ring}40`,
+          borderRight: `1px solid ${cat.ring}40`,
         },
-        '&:active': draggable ? {
-          cursor: 'grabbing',
-          transform: 'translateY(0px)',
-        } : {},
-        // Add subtle shimmer effect
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: '-100%',
-          width: '100%',
-          height: '100%',
-          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
-          transition: 'left 0.5s',
-          pointerEvents: 'none',
-        },
-        '&:hover::before': {
-          left: '100%',
-        }
+        ...(selected && {
+          borderColor: cat.ring,
+          boxShadow: theme.shadows[2]
+        })
       }}
-      className={`glass-card task-card-glass ${getTaskCardClass(task)}`}
     >
       <CardContent sx={{ py: 1, px: 2, '&:last-child': { pb: 1 } }}>
-        {/* Header Row: Status, Task ID, Urgency, Assignee, Actions */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box
-              sx={{
-                fontSize: '0.7rem',
-                fontWeight: 'bold',
-                color: theme.palette.primary.main,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-                backgroundColor: theme.palette.mode === 'dark' 
-                  ? 'rgba(25,118,210,0.15)' 
-                  : 'rgba(25,118,210,0.1)',
-                borderRadius: '8px',
-                padding: '2px 6px',
-                border: `1px solid ${theme.palette.primary.main}30`,
+        {/* First Row: Task Title and Key Status */}
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1 }}>
+          <Box sx={{ flex: 1, minWidth: 0, mr: 1 }}>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                fontWeight: task.status === 'ACTIVE' ? 700 : 600,
+                textDecoration: task.status === 'COMPLETED' ? 'line-through' : 'none',
+                fontSize: { xs: '1rem', sm: '1.1rem' },
+                color: task.status === 'COMPLETED' ? 'text.secondary' : 'text.primary',
+                lineHeight: 1.3,
+                wordBreak: 'break-word'
               }}
             >
-              <TagIcon sx={{ fontSize: 10 }} />
-              {taskId}
+              {task.title}
+            </Typography>
+            
+            {/* Description - only show if compact mode is off */}
+            {!compact && task.description && (
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                sx={{ 
+                  fontSize: '0.85rem',
+                  lineHeight: 1.4,
+                  mt: 0.5,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden'
+                }}
+              >
+                {task.description}
+              </Typography>
+            )}
+          </Box>
+          
+          {/* Priority visual indicator and time remaining */}
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flexShrink: 0 }}>
+            {/* Priority indicator */}
+            <Box sx={{ mt: 0.75 }}>
+              <PriorityDisplay 
+                priority={task.priority}
+                context="card"
+                size="medium"
+              />
             </Box>
             
-            <Chip
-              label={task.status}
-              size="small"
-              color={getStatusColor(task.status)}
-              sx={{ 
-                fontSize: '0.7rem',
-                height: 20,
-                fontWeight: 'medium'
-              }}
-            />
+            {timeRemaining && (
+              <Typography 
+                variant="caption" 
+                color={isOverdue ? 'error.main' : 'text.secondary'}
+                sx={{ 
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  textAlign: 'right',
+                  lineHeight: 1.2
+                }}
+              >
+                {timeRemaining}
+                {actualDate && (
+                  <Box component="span" sx={{ display: 'block', fontSize: '0.7rem', opacity: 0.8 }}>
+                    {actualDate}
+                  </Box>
+                )}
+              </Typography>
+            )}
+          </Box>
+        </Box>
 
-            {/* Project - displayed next to status */}
-            {task.project && (
+        {/* Second Row: Project, Assignee and Status Badge */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', minWidth: 0 }}>
+            {task.projectName && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <ProjectIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
+                <ProjectIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
                 <Typography 
                   variant="caption" 
                   sx={{ 
                     fontSize: '0.75rem', 
                     color: 'text.secondary',
-                    fontWeight: 'medium',
-                    backgroundColor: 'action.hover',
-                    padding: '2px 6px',
-                    borderRadius: '6px',
-                    border: '1px solid',
-                    borderColor: 'divider'
+                    fontWeight: 'medium'
                   }}
                 >
-                  {task.project.toUpperCase()}
+                  {task.projectName}
                 </Typography>
               </Box>
             )}
-
-            {task.urgency && task.urgency > 0 && (
-              <Chip
-                label={`${task.urgency.toFixed(1)}`}
-                size="small"
-                variant="outlined"
-                sx={{ 
-                  fontSize: '0.7rem',
-                  height: 20,
-                  borderColor: 'warning.main',
-                  color: 'warning.main',
-                  fontWeight: 'bold'
-                }}
-              />
-            )}
-          </Box>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {task.assignee && (
+            
+            {task.assignee && task.assignee.trim() && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <PersonIcon sx={{ 
-                  fontSize: '0.9rem', 
-                  color: 'text.secondary',
-                  opacity: 0.8
-                }} />
+                <PersonIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
                 <Typography 
-                  variant="body2" 
+                  variant="caption" 
                   sx={{ 
-                    fontSize: '0.8rem',
-                    fontWeight: 'medium',
-                    color: 'text.secondary'
+                    fontSize: '0.75rem', 
+                    color: 'text.secondary',
+                    fontWeight: 'medium'
                   }}
                 >
                   {toSentenceCase(task.assignee)}
                 </Typography>
               </Box>
             )}
-            
-            <TaskActions
-              task={task}
-              onEdit={handleEdit}
-              onMarkDone={handleMarkDone}
-              onUnmarkDone={handleUnmarkDone}
-              onDelete={handleDelete}
-              onViewDependencies={handleViewDependencies}
-              onStop={handleStop}
-              onLinkTask={handleLinkTask}
-              compact={true}
-            />
           </Box>
+          
+          {/* Status badge - more prominent */}
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              color: cat.text,
+              backgroundColor: cat.chip,
+              padding: '3px 8px',
+              borderRadius: '12px',
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+              flexShrink: 0
+            }}
+          >
+            {toSentenceCase(task.status)}
+          </Typography>
         </Box>
 
-        {/* Main Content Area with Time Remaining Spanning Vertically (Including Tags) */}
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-          {/* Left Content: Priority, Title, Description, and Tags */}
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.3 }}>
-            {/* Title and Priority Row */}
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-              {task.priority && task.priority !== 'NONE' && (
-                <Chip
-                  label={task.priority}
-                  size="small"
-                  color={getPriorityColor(task.priority)}
-                  icon={<PriorityIcon sx={{ fontSize: 12 }} />}
-                  sx={{ 
-                    fontSize: '0.7rem',
-                    height: 20,
-                    fontWeight: 'bold',
-                    mt: 0.1,
-                    flexShrink: 0
-                  }}
-                />
-              )}
-              
-              <Typography 
-                variant="h6" 
-                sx={{ 
-                  fontWeight: task.status === 'ACTIVE' ? 700 : 600,
-                  textDecoration: task.status === 'COMPLETED' ? 'line-through' : 'none',
-                  fontSize: '1.15rem',
-                  lineHeight: 1.3,
-                  flex: 1,
-                  color: task.status === 'COMPLETED' ? 'text.secondary' : 'text.primary',
-                  letterSpacing: '0.01em',
-                }}
-              >
-                {task.title}
-              </Typography>
-            </Box>
-            
-            {/* Original Input - shown if different from title */}
-            {task.originalInput && task.originalInput !== task.title && (
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  fontSize: '0.75rem',
-                  color: 'text.secondary',
-                  opacity: 0.7,
-                  fontStyle: 'italic',
-                  mt: 0.2,
-                  lineHeight: 1.2,
-                }}
-              >
-                "{task.originalInput}"
-              </Typography>
-            )}
-            
-            {/* Description */}
-            {task.description && (
-              <Typography 
-                variant="body2" 
-                color="text.secondary" 
-                sx={{ 
-                  fontSize: '0.85rem', 
-                  lineHeight: 1.4,
-                  fontStyle: 'italic',
-                  ml: (task.priority && task.priority !== 'NONE') ? 4 : 0
-                }}
-              >
-                {task.description}
-              </Typography>
-            )}
-
-            {/* Tags - Moved from bottom info row */}
-            {task.tags && task.tags.length > 0 && (
-              <Box sx={{ display: 'flex', gap: 0.5, ml: (task.priority && task.priority !== 'NONE') ? 4 : 0, mt: 0.1 }}>
-                {task.tags.slice(0, 3).map((tag) => (
-                  <Chip
-                    key={tag}
-                    label={`+${formatTag(tag).toUpperCase()}`}
-                    size="small"
-                    variant="outlined"
-                    sx={{ 
-                      fontSize: '0.7rem', 
-                      height: 18,
-                      borderRadius: 2,
-                      margin: 0
-                    }}
-                  />
-                ))}
-                {task.tags.length > 3 && (
-                  <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary', alignSelf: 'center' }}>
-                    +{task.tags.length - 3} more
-                  </Typography>
-                )}
-              </Box>
-            )}
-          </Box>
-
-          {/* Right Side: Due Date - Spanning Vertically (Including Tags) */}
-          {task.dueDate ? (
-            <Box 
-              onClick={handleEditDate}
-              sx={{ 
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.125em',
-                backgroundColor: isOverdue ? 'rgba(255,107,107,0.15)' : 
-                                timeRemaining?.includes('today') ? 'rgba(249,194,60,0.15)' : 
-                                timeRemaining?.includes('1 day left') ? 'rgba(249,194,60,0.15)' : 
-                                'rgba(255,255,255,0.08)',
-                padding: '0.25em 0.5em',
-                borderRadius: '0.375em',
-                flexShrink: 0,
-                minHeight: task.description || (task.tags && task.tags.length > 0) ? '4.5em' : task.description ? '3.5em' : '2.5em', // Reduced height for 2 lines
-                border: `1px solid ${
-                  isOverdue ? 'rgba(255,107,107,0.3)' : 
-                  timeRemaining?.includes('today') ? 'rgba(249,194,60,0.3)' : 
-                  timeRemaining?.includes('1 day left') ? 'rgba(249,194,60,0.3)' : 
-                  'rgba(255,255,255,0.15)'
-                }`,
-                boxShadow: '0 0.0625em 0.1875em rgba(0,0,0,0.1)',
-                cursor: onEditDate ? 'pointer' : 'default',
-                transition: 'all 0.2s ease',
-                '&:hover': onEditDate ? {
-                  backgroundColor: isOverdue ? 'rgba(255,107,107,0.2)' : 
-                                  timeRemaining?.includes('today') ? 'rgba(249,194,60,0.2)' : 
-                                  timeRemaining?.includes('1 day left') ? 'rgba(249,194,60,0.2)' : 
-                                  'rgba(255,255,255,0.12)',
-                  border: `1px solid ${
-                    isOverdue ? 'rgba(255,107,107,0.4)' : 
-                    timeRemaining?.includes('today') ? 'rgba(249,194,60,0.4)' : 
-                    timeRemaining?.includes('1 day left') ? 'rgba(249,194,60,0.4)' : 
-                    'rgba(255,255,255,0.25)'
-                  }`,
-                  transform: 'scale(1.02)',
-                } : {}
-              }}
-            >
-              {/* Time Remaining - Primary Display */}
-              <Typography 
-                variant="h6" 
-                sx={{ 
-                  fontSize: '0.9em',
-                  fontWeight: 700,
-                  color: isOverdue ? '#ff6b6b' : 
-                         timeRemaining?.includes('today') ? '#f9c23c' : 
-                         timeRemaining?.includes('1 day left') ? '#f9c23c' : 
-                         '#f0f6fc',
-                  textAlign: 'center',
-                  lineHeight: 1.1,
-                  whiteSpace: 'nowrap',
-                  mb: 0.5,
-                }}
-              >
-                {timeRemaining || 'Due Soon'}
-              </Typography>
-              
-              {/* Full Date Display - Always Show Actual Date */}
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  fontSize: '0.75em',
-                  fontWeight: 500,
-                  color: isOverdue ? '#ff6b6b' : '#e6edf3',
-                  textAlign: 'center',
-                  lineHeight: 1.1,
-                  whiteSpace: 'nowrap',
-                  opacity: 0.9,
-                }}
-              >
-                 {actualDate}
-              </Typography>
-            </Box>
-          ) : (
-            /* Add Due Date Chip - Only show if onEditDate is available */
-            onEditDate && (
-              <Box 
-                onClick={handleEditDate}
-                sx={{ 
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.125em',
-                  backgroundColor: 'rgba(88,166,255,0.08)',
-                  padding: '0.25em 0.5em',
-                  borderRadius: '0.375em',
-                  flexShrink: 0,
-                  minHeight: task.description || (task.tags && task.tags.length > 0) ? '4.5em' : task.description ? '3.5em' : '2.5em',
-                  border: '1px dashed rgba(88,166,255,0.3)',
-                  boxShadow: '0 0.0625em 0.1875em rgba(0,0,0,0.1)',
-                  cursor: 'pointer',
-                  transition: 'all 0.1s ease',
-                  '&:hover': {
-                    backgroundColor: 'rgba(88,166,255,0.12)',
-                    border: '1px dashed rgba(88,166,255,0.5)',
-                    transform: 'scale(1.02)',
-                  }
-                }}
-              >
-                {/* Add Due Date Text */}
-                <Typography 
-                  variant="h6" 
-                  sx={{ 
-                    fontSize: '0.8em',
-                    fontWeight: 500,
-                    color: '#58a6ff',
-                    textAlign: 'center',
-                    lineHeight: 1.1,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  No Due Date
-                </Typography>
-                
-                {/* Calendar Icon */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.125em' }}>
-                  <DueIcon sx={{ 
-                    fontSize: '0.75em', 
-                    color: '#58a6ff',
-                    opacity: 0.8
-                  }} />
-                  <Typography 
-                    variant="caption" 
-                    sx={{ 
-                      fontSize: '0.7em',
-                      fontWeight: 400,
-                      color: '#58a6ff',
-                      textAlign: 'center',
-                      lineHeight: 1,
-                      opacity: 0.8,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    Click to set
-                  </Typography>
-                </Box>
-              </Box>
-            )
-          )}
-        </Box>
-
-        {/* Compact Info Row: Dependencies Only - Only show if content exists */}
-        {(task.depends && Array.isArray(task.depends) && task.depends.length > 0) && (
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.6, alignItems: 'center', mt: 0.3 }}>
-            {/* Dependencies */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <DependencyIcon sx={{ fontSize: 14, color: 'warning.main' }} />
-              <Typography 
-                variant="caption" 
-                sx={{ fontSize: '0.75rem', color: 'warning.main', fontWeight: 'medium' }}
-              >
+        {/* Third Row: Action Buttons and Additional Info */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: compact ? 0 : 0.5 }}>
+          {/* Left side: Additional metadata (only show if not compact) */}
+          {/* Dependencies indicator - only show if not compact */}
+          {!compact && (task.depends && task.depends.length > 0) && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+              <DependencyIcon sx={{ fontSize: 12, color: 'warning.main' }} />
+              <Typography variant="caption" sx={{ color: 'warning.main', fontSize: '0.7rem' }}>
                 {task.depends.length} dep{task.depends.length !== 1 ? 's' : ''}
               </Typography>
-              {onViewDependencies && (
-                <Chip
-                  label="View"
-                  size="small"
-                  variant="outlined"
-                  color="warning"
-                  sx={{ 
-                    fontSize: '0.65rem', 
-                    height: 16,
-                    cursor: 'pointer',
-                    ml: 0.5
-                  }}
-                  onClick={handleViewDependencies}
-                />
-              )}
             </Box>
+          )}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+            {/* Reserved for future metadata display */}
           </Box>
-        )}
+          
+          {/* Right side: Action buttons */}
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 0.5, // Reduced gap
+            backgroundColor: alpha(theme.palette.background.paper, 0.7),
+            borderRadius: 1,
+            p: 0.25, // Reduced padding
+            backdropFilter: 'blur(2px)'
+          }}>
+            {/* Edit button */}
+            <IconButton 
+              size="small" 
+              onClick={handleEdit}
+              sx={{ 
+                color: 'text.secondary',
+                backgroundColor: 'transparent',
+                width: { xs: 32, sm: 24 },
+                height: { xs: 32, sm: 24 },
+                minWidth: { xs: 32, sm: 'auto' },
+                minHeight: { xs: 32, sm: 'auto' },
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                  color: 'primary.main'
+                }
+              }}
+              title="Edit Task"
+            >
+              <EditIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+            
+            {/* Start/Pause button - conditional based on status */}
+            {task.status === 'ACTIVE' ? (
+              <IconButton 
+                size="small" 
+                onClick={handlePause}
+                sx={{ 
+                  color: 'text.secondary',
+                  backgroundColor: 'transparent',
+                  width: { xs: 32, sm: 24 },
+                  height: { xs: 32, sm: 24 },
+                  minWidth: { xs: 32, sm: 'auto' },
+                  minHeight: { xs: 32, sm: 'auto' },
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                    color: 'warning.main'
+                  }
+                }}
+                title="Pause"
+              >
+                <PauseIcon sx={{ fontSize: 14 }} />
+              </IconButton>
+            ) : (
+              <IconButton 
+                size="small" 
+                onClick={handleStart}
+                sx={{ 
+                  color: 'text.secondary',
+                  backgroundColor: 'transparent',
+                  width: { xs: 32, sm: 24 },
+                  height: { xs: 32, sm: 24 },
+                  minWidth: { xs: 32, sm: 'auto' },
+                  minHeight: { xs: 32, sm: 'auto' },
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                    color: 'success.main'
+                  }
+                }}
+                title="Start"
+              >
+                <StartIcon sx={{ fontSize: 14 }} />
+              </IconButton>
+            )}
+            
+            {/* Complete button */}
+            <IconButton 
+              size="small" 
+              onClick={task.status === 'COMPLETED' ? handleUnmarkDone : handleMarkDone}
+              sx={{ 
+                color: task.status === 'COMPLETED' ? 'success.main' : 'text.secondary',
+                backgroundColor: 'transparent',
+                width: { xs: 32, sm: 24 },
+                height: { xs: 32, sm: 24 },
+                minWidth: { xs: 32, sm: 'auto' },
+                minHeight: { xs: 32, sm: 'auto' },
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                  color: 'success.main'
+                }
+              }}
+              title={task.status === 'COMPLETED' ? 'Mark Incomplete' : 'Complete'}
+            >
+              <CompleteIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+            
+            {/* Link button */}
+            {onLinkTask && (
+              <IconButton 
+                size="small" 
+                onClick={handleLinkTask}
+                sx={{ 
+                  color: 'text.secondary',
+                  backgroundColor: 'transparent',
+                  width: { xs: 32, sm: 24 },
+                  height: { xs: 32, sm: 24 },
+                  minWidth: { xs: 32, sm: 'auto' },
+                  minHeight: { xs: 32, sm: 'auto' },
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                    color: 'info.main'
+                  }
+                }}
+                title="Link Task"
+              >
+                <LinkIcon sx={{ fontSize: 14 }} />
+              </IconButton>
+            )}
+            
+            {/* Delete button */}
+            <IconButton 
+              size="small" 
+              onClick={handleDelete}
+              sx={{ 
+                color: 'text.secondary',
+                backgroundColor: 'transparent',
+                width: { xs: 32, sm: 24 },
+                height: { xs: 32, sm: 24 },
+                minWidth: { xs: 32, sm: 'auto' },
+                minHeight: { xs: 32, sm: 'auto' },
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                  color: 'error.main'
+                }
+              }}
+              title="Delete"
+            >
+              <DeleteIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+          </Box>
+        </Box>
       </CardContent>
     </Card>
+    </Tooltip>
   );
 });
 

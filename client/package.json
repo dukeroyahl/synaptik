@@ -1,7 +1,7 @@
 {
   "name": "synaptik-client",
   "private": true,
-  "version": "0.0.5",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,8 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "test": "echo 'No tests specified' && exit 0",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "analyze": "cross-env ANALYZE=true npm run build && source-map-explorer 'dist/assets/*.js' --html dist/bundle-report.html"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -29,9 +30,11 @@
     "axios": "^1.6.2",
     "d3": "^7.8.5",
     "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.7.1",
+    "recharts": "^2.15.4",
     "zustand": "^4.4.7"
   },
   "devDependencies": {
@@ -42,9 +45,12 @@
     "@typescript-eslint/eslint-plugin": "^8.38.0",
     "@typescript-eslint/parser": "^8.38.0",
     "@vitejs/plugin-react": "^4.1.1",
+    "cross-env": "^10.0.0",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.4",
+    "rollup-plugin-visualizer": "^6.0.3",
+    "source-map-explorer": "^2.5.3",
     "typescript": "^5.8.4",
     "vite": "^7.0.0"
   }

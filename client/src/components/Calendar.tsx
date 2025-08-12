@@ -4,7 +4,7 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { Task } from '../types';
+import { TaskDTO } from '../types';
 import { taskService } from '../services/taskService';
 import { parseBackendDate } from '../utils/dateUtils';
 
@@ -14,22 +14,19 @@ interface CalendarProps {
 
 const Calendar: React.FC<CalendarProps> = ({ onTaskSelect }) => {
   const theme = useTheme();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('Calendar useEffect triggered');
     fetchTasks();
   }, []);
 
   const fetchTasks = async () => {
-    console.log('fetchTasks called');
     try {
       setLoading(true);
       setError(null);
       const tasks = await taskService.getTasks();
-      console.log('Tasks received:', tasks?.length || 0, tasks);
       
       if (!tasks) {
         console.warn('No tasks returned from service');
@@ -44,11 +41,10 @@ const Calendar: React.FC<CalendarProps> = ({ onTaskSelect }) => {
       setTasks([]); // Clear tasks on error
     } finally {
       setLoading(false);
-      console.log('fetchTasks completed, loading set to false');
     }
   };
     // Get CSS class based on task priority and status
-  const getTaskClass = (task: Task) => {
+  const getTaskClass = (task: TaskDTO) => {
     if (task.status === 'COMPLETED') return 'task-completed';
     
     switch (task.priority) {
@@ -94,7 +90,6 @@ const Calendar: React.FC<CalendarProps> = ({ onTaskSelect }) => {
   const handleEventClick = (info: any) => {
     try {
       if (onTaskSelect && info.event && info.event.id) {
-        console.log('Calendar event clicked:', info.event.id, info.event.title);
         onTaskSelect(info.event.id);
       }
     } catch (error) {
@@ -102,97 +97,96 @@ const Calendar: React.FC<CalendarProps> = ({ onTaskSelect }) => {
     }
   };
 
-  console.log('Calendar render - loading:', loading, 'error:', error, 'tasks:', tasks.length, 'events:', events.length);
 
   return (
-    <Card elevation={theme.palette.mode === 'dark' ? 2 : 1} className="custom-card">
-      <CardContent>
-        <Typography variant="h6" gutterBottom>
-          Task Calendar
-        </Typography>
-        {loading && (
-          <Typography variant="body2" color="text.secondary">
-            Loading tasks...
+      <Card elevation={theme.palette.mode === 'dark' ? 2 : 1} className="custom-card">
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Task Calendar
           </Typography>
-        )}
-        {error && (
-          <Box>
-            <Typography variant="body2" color="error" gutterBottom>
-              Error: {error}
+          {loading && (
+            <Typography variant="body2" color="text.secondary">
+              Loading tasks...
             </Typography>
-            <Typography 
-              variant="body2" 
-              color="primary" 
-              sx={{ cursor: 'pointer', textDecoration: 'underline' }}
-              onClick={fetchTasks}
+          )}
+          {error && (
+            <Box>
+              <Typography variant="body2" color="error" gutterBottom>
+                Error: {error}
+              </Typography>
+              <Typography 
+                variant="body2" 
+                color="primary" 
+                sx={{ cursor: 'pointer', textDecoration: 'underline' }}
+                onClick={fetchTasks}
+              >
+                Click to retry
+              </Typography>
+            </Box>
+          )}
+          {!loading && !error && tasks.length === 0 && (
+            <Typography variant="body2" color="text.secondary">
+              No tasks found.
+            </Typography>
+          )}
+          {!loading && !error && tasks.length > 0 && (
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Showing {tasks.length} tasks ({events.length} with due dates)
+            </Typography>
+          )}
+          {!loading && !error && (
+            <Box 
+              sx={{ 
+                height: 600, 
+                '& .fc': { height: '100%' },
+                '& .fc-event': {
+                  borderRadius: '4px',
+                  border: 'none',
+                  padding: '2px 4px',
+                  fontSize: '0.85rem',
+                  fontWeight: 500,
+                },
+                '& .priority-high': {
+                  backgroundColor: theme.palette.mode === 'dark' ? '#d32f2f' : '#ff5722',
+                  color: 'white',
+                },
+                '& .priority-medium': {
+                  backgroundColor: theme.palette.mode === 'dark' ? '#f57c00' : '#ff9800',
+                  color: 'white',
+                },
+                '& .priority-low': {
+                  backgroundColor: theme.palette.mode === 'dark' ? '#388e3c' : '#4caf50',
+                  color: 'white',
+                },
+                '& .task-completed': {
+                  backgroundColor: theme.palette.mode === 'dark' ? '#666' : '#9e9e9e',
+                  color: 'white',
+                  opacity: 0.7,
+                  textDecoration: 'line-through',
+                },
+              }}
             >
-              Click to retry
-            </Typography>
-          </Box>
-        )}
-        {!loading && !error && tasks.length === 0 && (
-          <Typography variant="body2" color="text.secondary">
-            No tasks found.
-          </Typography>
-        )}
-        {!loading && !error && tasks.length > 0 && (
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Showing {tasks.length} tasks ({events.length} with due dates)
-          </Typography>
-        )}
-        {!loading && !error && (
-          <Box 
-            sx={{ 
-              height: 600, 
-              '& .fc': { height: '100%' },
-              '& .fc-event': {
-                borderRadius: '4px',
-                border: 'none',
-                padding: '2px 4px',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-              },
-              '& .priority-high': {
-                backgroundColor: theme.palette.mode === 'dark' ? '#d32f2f' : '#ff5722',
-                color: 'white',
-              },
-              '& .priority-medium': {
-                backgroundColor: theme.palette.mode === 'dark' ? '#f57c00' : '#ff9800',
-                color: 'white',
-              },
-              '& .priority-low': {
-                backgroundColor: theme.palette.mode === 'dark' ? '#388e3c' : '#4caf50',
-                color: 'white',
-              },
-              '& .task-completed': {
-                backgroundColor: theme.palette.mode === 'dark' ? '#666' : '#9e9e9e',
-                color: 'white',
-                opacity: 0.7,
-                textDecoration: 'line-through',
-              },
-            }}
-          >
-            <FullCalendar
-              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-              initialView="dayGridMonth"
-              headerToolbar={{
-                left: 'prev,next today',
-                center: 'title',
-                right: 'dayGridMonth,timeGridWeek'
-              }}
-              events={events}
-              eventClick={handleEventClick}
-              height="100%"
-              eventTimeFormat={{
-                hour: '2-digit',
-                minute: '2-digit',
-                meridiem: false
-              }}
-            />
-          </Box>
-        )}
-      </CardContent>
-    </Card>
+              <FullCalendar
+                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                initialView="dayGridMonth"
+                headerToolbar={{
+                  left: 'prev,next today',
+                  center: 'title',
+                  right: 'dayGridMonth,timeGridWeek'
+                }}
+                events={events}
+                eventClick={handleEventClick}
+                height="100%"
+                eventTimeFormat={{
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  meridiem: false
+                }}
+              />
+            </Box>
+          )}
+        </CardContent>
+      </Card>
   );
 };
 

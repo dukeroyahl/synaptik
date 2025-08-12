@@ -2,15 +2,16 @@ package org.dukeroyahl.synaptik.domain;
 
 import io.quarkus.mongodb.panache.common.MongoEntity;
 import jakarta.validation.constraints.*;
-import org.bson.types.ObjectId;
-import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.ToString;
 
 import java.time.ZonedDateTime;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @MongoEntity(collection = "tasks")
+@ToString
 public class Task extends BaseEntity {
     
     @NotBlank
@@ -30,19 +31,21 @@ public class Task extends BaseEntity {
     @DecimalMax("100.0")
     public Double urgency;
     
-    public String project;
     public String assignee;
     
-    // Store as string to avoid MongoDB serialization issues
-    public String dueDate;
-    public String waitUntil;
+    // Store as ISO 8601 string with timezone information embedded
+    public String dueDate;       // ISO 8601 with timezone: "2025-12-31T23:59:59-05:00" or "2025-12-31T23:59:59Z"
+    public String waitUntil;     // ISO 8601 with timezone: "2025-11-30T10:00:00+01:00" or "2025-11-30T10:00:00Z"
     
     public List<String> tags = new ArrayList<>();
     public List<TaskAnnotation> annotations = new ArrayList<>();
-    public List<ObjectId> depends = new ArrayList<>();
+    public List<UUID> depends = new ArrayList<>();
     
     // Store the original user input for reference
     public String originalInput;
+    
+    // Store project ID as UUID instead of project name
+    public UUID projectId;
     
     public void start() {
         this.status = TaskStatus.ACTIVE;
@@ -52,7 +55,7 @@ public class Task extends BaseEntity {
     public void stop() {
         if (this.status == TaskStatus.ACTIVE) {
             this.status = TaskStatus.PENDING;
-            addAnnotation("Task stopped");
+            addAnnotation("Task paused");
         }
     }
     
@@ -77,6 +80,7 @@ public class Task extends BaseEntity {
             case HIGH -> urgency += 6.0;
             case MEDIUM -> urgency += 3.9;
             case LOW -> urgency += 1.8;
+            case NONE -> { /* no base urgency */ }
         }
         
         if (dueDate != null && !dueDate.trim().isEmpty()) {
@@ -97,16 +101,21 @@ public class Task extends BaseEntity {
             }
         }
         
-        if (createdAt != null) {
-            long ageInDays = java.time.temporal.ChronoUnit.DAYS.between(createdAt, LocalDateTime.now());
-            urgency += ageInDays * 0.01;
+        if (createdAt != null && !createdAt.trim().isEmpty()) {
+            try {
+                ZonedDateTime created = ZonedDateTime.parse(createdAt);
+                ZonedDateTime now = ZonedDateTime.now();
+                long ageInDays = java.time.temporal.ChronoUnit.DAYS.between(created.toLocalDate(), now.toLocalDate());
+                urgency += ageInDays * 0.01;
+            } catch (Exception e) {
+                // Invalid date format, skip age-based urgency calculation
+            }
         }
         
         if (status == TaskStatus.ACTIVE) urgency += 4;
-        if (status == TaskStatus.WAITING) urgency -= 3;
         
-        if (tags.contains("urgent")) urgency += 5;
-        if (tags.contains("important")) urgency += 3;
+        if (tags != null && tags.contains("urgent")) urgency += 5;
+        if (tags != null && tags.contains("important")) urgency += 3;
         
         return Math.min(100.0, Math.max(0.0, urgency));
     }

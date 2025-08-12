@@ -15,11 +15,9 @@ import {
   Paper
 } from '@mui/material';
 import {
-  Search as SearchIcon,
-  Link as LinkIcon
+  Search as SearchIcon
 } from '@mui/icons-material';
-import { Task } from '../types';
-import { generateTaskId } from '../utils/taskUtils';
+import { TaskDTO } from '../types';
 
 interface TaskDependencySelectorProps {
   taskId: string;
@@ -32,8 +30,9 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
   dependencies,
   onChange
 }) => {
-  const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
+  const [availableTasks, setAvailableTasks] = useState<TaskDTO[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTasks, setSelectedTasks] = useState<string[]>(dependencies || []);
 
@@ -43,19 +42,35 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
 
   const fetchAvailableTasks = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const response = await fetch('/api/tasks');
+      // Limit to non-completed tasks to reduce noise
+      const response = await fetch('/api/tasks?status=pending&status=started');
       const result = await response.json();
-      
-      if (response.ok) {
-        // Filter out the current task and completed tasks
-        const filteredTasks = result.data.filter((task: Task) => 
-          task.id !== taskId && task.status !== 'COMPLETED'
-        );
-        setAvailableTasks(filteredTasks);
+
+      if (!response.ok) {
+        throw new Error(result?.message || 'Request failed');
       }
-    } catch (error) {
-      console.error('Failed to fetch available tasks:', error);
+
+      const list = Array.isArray(result)
+        ? result
+        : Array.isArray(result?.data)
+          ? result.data
+          : [];
+
+      if (!Array.isArray(list)) {
+        throw new Error('Unexpected tasks response shape');
+      }
+
+      // Filter out the current task and any completed just in case
+      const filteredTasks = list.filter((task: TaskDTO) =>
+        task && task.id !== taskId && task.status !== 'COMPLETED'
+      );
+      setAvailableTasks(filteredTasks);
+    } catch (err: any) {
+      console.error('Failed to fetch available tasks:', err);
+      setError(err.message || 'Failed to load tasks');
+      setAvailableTasks([]);
     } finally {
       setLoading(false);
     }
@@ -75,7 +90,7 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
     return (
       task.title.toLowerCase().includes(searchLower) ||
       (task.description && task.description.toLowerCase().includes(searchLower)) ||
-      (task.project && task.project.toLowerCase().includes(searchLower))
+      (task.projectName && task.projectName.toLowerCase().includes(searchLower))
     );
   });
 
@@ -107,6 +122,13 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
             <CircularProgress size={24} />
           </Box>
+        ) : error ? (
+          <Box sx={{ p: 2, textAlign: 'center' }}>
+            <Typography color="error" variant="body2">{error}</Typography>
+            <Button onClick={fetchAvailableTasks} size="small" sx={{ mt: 1 }}>
+              Retry
+            </Button>
+          </Box>
         ) : filteredTasks.length === 0 ? (
           <Box sx={{ p: 2, textAlign: 'center' }}>
             <Typography color="text.secondary">
@@ -117,8 +139,8 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
           <List dense>
             {filteredTasks.map((task) => (
               <React.Fragment key={task.id}>
-                <ListItem 
-                  button 
+                <ListItem
+                  button
                   onClick={() => handleToggleTask(task.id)}
                   selected={selectedTasks.includes(task.id)}
                 >
@@ -130,31 +152,32 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
                       disableRipple
                     />
                   </ListItemIcon>
-                  <ListItemText 
+                  <ListItemText
                     primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="body2" fontWeight="medium">
-                          {generateTaskId(task)}
-                        </Typography>
-                        <Typography variant="body2">
-                          {task.title}
-                        </Typography>
-                      </Box>
+                      <Typography variant="body2" fontWeight="medium">
+                        {task.title}
+                      </Typography>
                     }
                     secondary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
-                        {task.project && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', mt: 0.5 }}>
+                        {task.assignee && (
                           <Typography variant="caption" color="text.secondary">
-                            Project: {task.project.toUpperCase()}
+                            Owner: {task.assignee}
                           </Typography>
                         )}
-                        {task.priority && (
+                        {task.projectName && (
                           <Typography variant="caption" color="text.secondary">
-                            Priority: {task.priority}
+                            Project: {task.projectName}
+                          </Typography>
+                        )}
+                        {task.dueDate && (
+                          <Typography variant="caption" color="text.secondary">
+                            Due: {new Date(task.dueDate).toLocaleDateString()}
                           </Typography>
                         )}
                       </Box>
                     }
+                    secondaryTypographyProps={{ component: 'div' }}
                   />
                 </ListItem>
                 <Divider component="li" />
@@ -164,20 +187,10 @@ const TaskDependencySelector: React.FC<TaskDependencySelectorProps> = ({
         )}
       </Paper>
       
-      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ mt: 2 }}>
         <Typography variant="caption" color="text.secondary">
           {selectedTasks.length} task{selectedTasks.length !== 1 ? 's' : ''} selected
         </Typography>
-        
-        <Button 
-          startIcon={<LinkIcon />}
-          variant="outlined"
-          size="small"
-          disabled={selectedTasks.length === 0}
-          onClick={() => onChange(selectedTasks)}
-        >
-          Link Selected Tasks
-        </Button>
       </Box>
     </Box>
   );
