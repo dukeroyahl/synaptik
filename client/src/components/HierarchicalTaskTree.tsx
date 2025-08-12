@@ -50,8 +50,8 @@ type TreeType = 'tree' | 'cluster';
 
 const HierarchicalTaskTree: React.FC<HierarchicalTaskTreeProps> = ({ 
   tasks, 
-  width = 900, 
-  height = 600 
+  width: baseWidth = 900, 
+  height: baseHeight = 600 
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const theme = useTheme();
@@ -64,6 +64,115 @@ const HierarchicalTaskTree: React.FC<HierarchicalTaskTreeProps> = ({
   const [levelSeparation, setLevelSeparation] = useState(150);
   const [nodeSeparation, setNodeSeparation] = useState(120);
   const [showOrphans, setShowOrphans] = useState(true);
+
+  // Calculate dynamic canvas dimensions based on tree structure
+  const { width, height } = useMemo(() => {
+    if (tasks.length === 0) return { width: baseWidth, height: baseHeight };
+
+    // Calculate tree metrics
+    const taskMap = new Map(tasks.map(task => [task.id, task]));
+    const levels = new Map<string, number>();
+    const visited = new Set<string>();
+    const visiting = new Set<string>();
+    
+    const calculateLevel = (taskId: string): number => {
+      if (levels.has(taskId)) return levels.get(taskId)!;
+      if (visiting.has(taskId)) return 0;
+      
+      visiting.add(taskId);
+      const task = taskMap.get(taskId);
+      
+      if (!task || !task.depends || task.depends.length === 0) {
+        levels.set(taskId, 0);
+        visiting.delete(taskId);
+        visited.add(taskId);
+        return 0;
+      }
+      
+      const maxDepLevel = Math.max(...task.depends.map(calculateLevel));
+      const level = maxDepLevel + 1;
+      levels.set(taskId, level);
+      visiting.delete(taskId);
+      visited.add(taskId);
+      return level;
+    };
+
+    // Calculate levels for all tasks
+    tasks.forEach(task => calculateLevel(task.id));
+
+    // Group tasks by level
+    const tasksByLevel = new Map<number, TaskDTO[]>();
+    tasks.forEach(task => {
+      const level = levels.get(task.id) || 0;
+      if (!tasksByLevel.has(level)) {
+        tasksByLevel.set(level, []);
+      }
+      tasksByLevel.get(level)!.push(task);
+    });
+
+    const maxLevel = Math.max(...Array.from(tasksByLevel.keys()));
+    const maxNodesPerLevel = Math.max(...Array.from(tasksByLevel.values()).map(tasks => tasks.length));
+
+    // Calculate average node dimensions
+    const avgNodeWidth = tasks.reduce((sum, task) => {
+      const textLength = task.title.length;
+      const nodeWidth = Math.max(nodeSize * 2, Math.min(textLength * 7 + 30, nodeSize * 5));
+      return sum + nodeWidth;
+    }, 0) / tasks.length;
+
+    const avgNodeHeight = nodeSize + 10;
+
+    // Calculate required dimensions based on layout
+    let requiredWidth, requiredHeight;
+
+    if (layoutType === 'vertical') {
+      // Width: accommodate widest level with proper spacing
+      const horizontalSpacing = Math.max(avgNodeWidth + 40, nodeSeparation);
+      requiredWidth = Math.max(
+        baseWidth,
+        maxNodesPerLevel * horizontalSpacing + 200 // 200px margins
+      );
+      
+      // Height: accommodate all levels with proper spacing
+      const verticalSpacing = Math.max(levelSeparation, avgNodeHeight + 60);
+      requiredHeight = Math.max(
+        baseHeight,
+        (maxLevel + 2) * verticalSpacing + 200 // +2 for root and margins
+      );
+    } else if (layoutType === 'horizontal') {
+      // Width: accommodate all levels with proper spacing
+      const horizontalSpacing = Math.max(levelSeparation, avgNodeWidth + 60);
+      requiredWidth = Math.max(
+        baseWidth,
+        (maxLevel + 2) * horizontalSpacing + 200
+      );
+      
+      // Height: accommodate widest level with proper spacing
+      const verticalSpacing = Math.max(avgNodeHeight + 50, nodeSeparation);
+      requiredHeight = Math.max(
+        baseHeight,
+        maxNodesPerLevel * verticalSpacing + 200
+      );
+    } else { // radial
+      // For radial layout, use circular area calculation
+      const radius = Math.max(
+        200,
+        Math.sqrt(tasks.length) * avgNodeWidth * 0.8
+      );
+      const diameter = radius * 2 + 200; // 200px margins
+      
+      requiredWidth = Math.max(baseWidth, diameter);
+      requiredHeight = Math.max(baseHeight, diameter);
+    }
+
+    // Apply scaling factor for dense layouts
+    const densityFactor = Math.min(2.0, Math.max(1.0, tasks.length / 20));
+    
+    return {
+      width: Math.ceil(requiredWidth * densityFactor),
+      height: Math.ceil(requiredHeight * densityFactor)
+    };
+  }, [tasks, layoutType, nodeSize, levelSeparation, nodeSeparation, baseWidth, baseHeight]);
   
   // Calculate dependency levels and build tree structure
   const treeData = useMemo(() => {
@@ -223,19 +332,49 @@ const HierarchicalTaskTree: React.FC<HierarchicalTaskTreeProps> = ({
       layout = d3.tree<TaskTreeData>();
     }
 
-    // Configure layout based on orientation
+    // Configure layout based on orientation with improved separation
     const margin = { top: 40, right: 40, bottom: 40, left: 40 };
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
 
+    // Calculate node dimensions for proper spacing
+    const getNodeDimensions = (d: any) => {
+      const textLength = d.data.title.length;
+      const nodeWidth = Math.max(nodeSize * 2, Math.min(textLength * 8 + 20, nodeSize * 4));
+      const nodeHeight = nodeSize;
+      return { width: nodeWidth, height: nodeHeight };
+    };
+
     if (layoutType === 'vertical') {
       layout.size([innerWidth, innerHeight]);
-      layout.separation((a, b) => (a.parent === b.parent ? 1 : 1.2) * (nodeSeparation / 100));
+      layout.separation((a, b) => {
+        // Calculate required separation based on actual node widths
+        const nodeA = getNodeDimensions(a);
+        const nodeB = getNodeDimensions(b);
+        const minSeparation = (nodeA.width + nodeB.width) / 2 + 50; // Increased padding to 50px
+        const baseSeparation = (a.parent === b.parent ? 1.5 : 2.0) * (nodeSeparation / 100); // Increased base separation
+        
+        // Use the larger of calculated separation or base separation
+        return Math.max(baseSeparation, minSeparation / 80); // Adjusted scaling factor
+      });
     } else if (layoutType === 'horizontal') {
       layout.size([innerHeight, innerWidth]);
-      layout.separation((a, b) => (a.parent === b.parent ? 1 : 1.2) * (nodeSeparation / 100));
+      layout.separation((a, b) => {
+        // For horizontal layout, consider node heights
+        const nodeA = getNodeDimensions(a);
+        const nodeB = getNodeDimensions(b);
+        const minSeparation = (nodeA.height + nodeB.height) / 2 + 60; // Increased padding to 60px
+        const baseSeparation = (a.parent === b.parent ? 1.5 : 2.0) * (nodeSeparation / 100); // Increased base separation
+        
+        return Math.max(baseSeparation, minSeparation / 60); // Adjusted scaling factor
+      });
     } else { // radial
       layout.size([2 * Math.PI, Math.min(innerWidth, innerHeight) / 2 - nodeSize]);
+      layout.separation((a, b) => {
+        // For radial layout, use angular separation
+        const baseSeparation = (a.parent === b.parent ? 1.5 : 2.0) * (nodeSeparation / 100); // Increased base separation
+        return Math.max(baseSeparation, 0.5); // Increased minimum angular separation
+      });
     }
 
     const treeNodes = layout(hierarchy);
@@ -260,10 +399,112 @@ const HierarchicalTaskTree: React.FC<HierarchicalTaskTreeProps> = ({
       return { ...d, x, y };
     });
 
+    // Apply collision detection and adjustment for overlapping nodes
+    const adjustNodePositions = (nodes: any[]) => {
+      const maxIterations = 20; // Increased iterations
+      let iteration = 0;
+      
+      while (iteration < maxIterations) {
+        let hasOverlap = false;
+        let adjustmentsMade = 0;
+        
+        // Check each pair of nodes for overlap
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const nodeA = nodes[i];
+            const nodeB = nodes[j];
+            
+            // Skip if nodes are on different levels (for vertical/horizontal layouts)
+            if (layoutType !== 'radial' && Math.abs(nodeA.depth - nodeB.depth) > 0) {
+              continue;
+            }
+            
+            const dimA = getNodeDimensions(nodeA);
+            const dimB = getNodeDimensions(nodeB);
+            
+            const dx = nodeB.x - nodeA.x;
+            const dy = nodeB.y - nodeA.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Calculate minimum required distance with increased buffer
+            const minDistance = layoutType === 'vertical' 
+              ? (dimA.width + dimB.width) / 2 + 60  // Increased buffer from 25 to 60
+              : layoutType === 'horizontal'
+              ? (dimA.height + dimB.height) / 2 + 70  // Increased buffer from 35 to 70
+              : Math.max(dimA.width, dimA.height) / 2 + Math.max(dimB.width, dimB.height) / 2 + 50; // Increased buffer from 30 to 50
+            
+            if (distance < minDistance && distance > 0) {
+              hasOverlap = true;
+              adjustmentsMade++;
+              
+              // Calculate separation vector
+              const separationDistance = minDistance - distance;
+              const unitX = dx / distance;
+              const unitY = dy / distance;
+              
+              // More aggressive movement with increased force
+              const force = 0.8; // Increased from 0.5
+              
+              if (layoutType === 'vertical') {
+                // Only adjust horizontally for vertical layout
+                nodeA.x -= unitX * separationDistance * force;
+                nodeB.x += unitX * separationDistance * force;
+              } else if (layoutType === 'horizontal') {
+                // Only adjust vertically for horizontal layout
+                nodeA.y -= unitY * separationDistance * force;
+                nodeB.y += unitY * separationDistance * force;
+              } else {
+                // Adjust both directions for radial layout
+                nodeA.x -= unitX * separationDistance * force;
+                nodeA.y -= unitY * separationDistance * force;
+                nodeB.x += unitX * separationDistance * force;
+                nodeB.y += unitY * separationDistance * force;
+              }
+            }
+          }
+        }
+        
+        // Early exit if no overlaps found
+        if (!hasOverlap) {
+          console.log(`Collision detection completed in ${iteration + 1} iterations`);
+          break;
+        }
+        
+        // If we're making very few adjustments, we might be stuck in a local minimum
+        if (adjustmentsMade < nodes.length * 0.1 && iteration > 5) {
+          // Apply some random jitter to escape local minimum
+          nodes.forEach(node => {
+            if (Math.random() < 0.3) { // 30% chance to jitter each node
+              const jitterAmount = 10;
+              if (layoutType === 'vertical') {
+                node.x += (Math.random() - 0.5) * jitterAmount;
+              } else if (layoutType === 'horizontal') {
+                node.y += (Math.random() - 0.5) * jitterAmount;
+              } else {
+                node.x += (Math.random() - 0.5) * jitterAmount;
+                node.y += (Math.random() - 0.5) * jitterAmount;
+              }
+            }
+          });
+        }
+        
+        iteration++;
+      }
+      
+      if (iteration >= maxIterations) {
+        console.warn(`Collision detection reached maximum iterations (${maxIterations}). Some overlaps may remain.`);
+      }
+      
+      return nodes;
+    };
+
+    // Apply collision detection
+    const adjustedNodes = adjustNodePositions(nodes);
+
     const links = treeNodes.links().map(d => {
-      // Find the corresponding nodes with coordinates
-      const sourceNode = nodes.find(n => n.data === d.source.data);
-      const targetNode = nodes.find(n => n.data === d.target.data);
+      // Find the corresponding nodes with adjusted coordinates
+      const sourceNode = adjustedNodes.find(n => n.data === d.source.data);
+      const targetNode = adjustedNodes.find(n => n.data === d.target.data);
       
       if (!sourceNode || !targetNode) {
         console.warn('Could not find source or target node for link');
@@ -328,29 +569,29 @@ const HierarchicalTaskTree: React.FC<HierarchicalTaskTreeProps> = ({
     const nodeGroup = mainGroup.append('g').attr('class', 'nodes');
     
     const node = nodeGroup.selectAll('.node')
-      .data(nodes)
+      .data(adjustedNodes)
       .enter()
       .append('g')
       .attr('class', 'node')
       .attr('transform', d => `translate(${d.x},${d.y})`)
       .style('cursor', 'pointer');
 
-    // Add node backgrounds
+    // Add node backgrounds with improved sizing
     node.append('rect')
       .attr('width', d => {
-        // Dynamic width based on text length
+        // Dynamic width based on text length with better calculation
         const textLength = d.data.title.length;
-        return Math.max(nodeSize * 2, Math.min(textLength * 8 + 20, nodeSize * 4));
+        return Math.max(nodeSize * 2, Math.min(textLength * 7 + 30, nodeSize * 5));
       })
-      .attr('height', nodeSize)
+      .attr('height', nodeSize + 10) // Slightly taller for better readability
       .attr('x', d => {
         const textLength = d.data.title.length;
-        const width = Math.max(nodeSize * 2, Math.min(textLength * 8 + 20, nodeSize * 4));
+        const width = Math.max(nodeSize * 2, Math.min(textLength * 7 + 30, nodeSize * 5));
         return -width / 2;
       })
-      .attr('y', -nodeSize / 2)
-      .attr('rx', 6)
-      .attr('ry', 6)
+      .attr('y', -(nodeSize + 10) / 2)
+      .attr('rx', 8)
+      .attr('ry', 8)
       .style('fill', d => {
         if (d.data.id === 'virtual-root') return theme.palette.action.hover;
         
@@ -368,36 +609,39 @@ const HierarchicalTaskTree: React.FC<HierarchicalTaskTreeProps> = ({
         return priorityConfig.color;
       })
       .style('stroke-width', d => d.data.priority === 'HIGH' ? 3 : 1.5)
-      .style('opacity', 0.9);
+      .style('opacity', 0.9)
+      .style('filter', 'drop-shadow(0px 2px 4px rgba(0,0,0,0.1))'); // Add subtle shadow
 
-    // Add node text
+    // Add node text with better positioning
     node.append('text')
       .attr('dy', '0.31em')
       .attr('text-anchor', 'middle')
-      .style('font-size', '11px')
+      .style('font-size', '12px')
       .style('font-weight', '600')
       .style('fill', theme.palette.text.primary)
       .style('pointer-events', 'none')
       .text(d => {
         if (d.data.id === 'virtual-root') return d.data.title;
-        // Truncate long titles
-        return d.data.title.length > 20 ? d.data.title.substring(0, 17) + '...' : d.data.title;
+        // Truncate long titles with better logic
+        return d.data.title.length > 25 ? d.data.title.substring(0, 22) + '...' : d.data.title;
       });
 
-    // Add priority indicators
+    // Add priority indicators with better positioning
     node.filter(d => d.data.id !== 'virtual-root' && d.data.priority && d.data.priority !== 'NONE' && d.data.priority !== false)
       .append('circle')
       .attr('cx', d => {
         const textLength = d.data.title.length;
-        const width = Math.max(nodeSize * 2, Math.min(textLength * 8 + 20, nodeSize * 4));
-        return width / 2 - 8;
+        const width = Math.max(nodeSize * 2, Math.min(textLength * 7 + 30, nodeSize * 5));
+        return width / 2 - 10;
       })
-      .attr('cy', -nodeSize / 2 + 8)
-      .attr('r', 4)
+      .attr('cy', -(nodeSize + 10) / 2 + 10)
+      .attr('r', 5)
       .style('fill', d => {
         const priorityConfig = getPriorityConfig(d.data.priority as any, theme);
         return priorityConfig.color;
-      });
+      })
+      .style('stroke', 'white')
+      .style('stroke-width', 1);
 
     // Add tooltips
     node.append('title')
@@ -406,11 +650,12 @@ const HierarchicalTaskTree: React.FC<HierarchicalTaskTreeProps> = ({
         return `${d.data.title}\nStatus: ${d.data.status}\nPriority: ${d.data.priority}\nLevel: ${d.data.level}\nProject: ${d.data.projectName || 'None'}`;
       });
 
-    // Add level indicators for debugging
+    // Add level indicators for debugging (only for vertical layout)
     if (layoutType === 'vertical') {
       const levelGroup = mainGroup.append('g').attr('class', 'levels');
       
-      const levels = Array.from(new Set(nodes.map(d => d.data.level))).sort((a, b) => a - b);
+      // Get unique levels from adjusted nodes
+      const levels = Array.from(new Set(adjustedNodes.map(d => d.data.level))).sort((a, b) => a - b);
       
       levelGroup.selectAll('.level-line')
         .data(levels.filter(l => l >= 0))
@@ -419,12 +664,23 @@ const HierarchicalTaskTree: React.FC<HierarchicalTaskTreeProps> = ({
         .attr('class', 'level-line')
         .attr('x1', margin.left)
         .attr('x2', width - margin.right)
-        .attr('y1', d => margin.top + d * levelSeparation)
-        .attr('y2', d => margin.top + d * levelSeparation)
+        .attr('y1', d => {
+          // Calculate average y position for nodes at this level
+          const nodesAtLevel = adjustedNodes.filter(n => n.data.level === d);
+          if (nodesAtLevel.length === 0) return margin.top + d * levelSeparation;
+          const avgY = nodesAtLevel.reduce((sum, n) => sum + n.y, 0) / nodesAtLevel.length;
+          return avgY;
+        })
+        .attr('y2', d => {
+          const nodesAtLevel = adjustedNodes.filter(n => n.data.level === d);
+          if (nodesAtLevel.length === 0) return margin.top + d * levelSeparation;
+          const avgY = nodesAtLevel.reduce((sum, n) => sum + n.y, 0) / nodesAtLevel.length;
+          return avgY;
+        })
         .style('stroke', theme.palette.action.disabled)
         .style('stroke-width', 1)
         .style('stroke-dasharray', '3,3')
-        .style('opacity', 0.3);
+        .style('opacity', 0.2);
 
       levelGroup.selectAll('.level-label')
         .data(levels.filter(l => l >= 0))
@@ -432,7 +688,12 @@ const HierarchicalTaskTree: React.FC<HierarchicalTaskTreeProps> = ({
         .append('text')
         .attr('class', 'level-label')
         .attr('x', margin.left - 10)
-        .attr('y', d => margin.top + d * levelSeparation)
+        .attr('y', d => {
+          const nodesAtLevel = adjustedNodes.filter(n => n.data.level === d);
+          if (nodesAtLevel.length === 0) return margin.top + d * levelSeparation;
+          const avgY = nodesAtLevel.reduce((sum, n) => sum + n.y, 0) / nodesAtLevel.length;
+          return avgY;
+        })
         .attr('dy', '0.31em')
         .style('font-size', '10px')
         .style('fill', theme.palette.text.secondary)
@@ -636,15 +897,40 @@ const HierarchicalTaskTree: React.FC<HierarchicalTaskTreeProps> = ({
         />
       </Box>
 
-      {/* SVG Container */}
-      <Box sx={{ flex: 1, overflow: 'hidden', border: `1px solid ${theme.palette.divider}`, borderRadius: 1 }}>
+      {/* SVG Container with Dynamic Sizing */}
+      <Box sx={{ 
+        flex: 1, 
+        overflow: 'auto', // Enable scrolling for large trees
+        border: `1px solid ${theme.palette.divider}`, 
+        borderRadius: 1,
+        backgroundColor: theme.palette.background.paper,
+        position: 'relative'
+      }}>
+        {/* Canvas size indicator */}
+        <Box sx={{ 
+          position: 'absolute', 
+          top: 8, 
+          right: 8, 
+          zIndex: 1,
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          color: 'white',
+          px: 1,
+          py: 0.5,
+          borderRadius: 1,
+          fontSize: '0.75rem'
+        }}>
+          {width} × {height}px
+        </Box>
+        
         <svg 
           ref={svgRef} 
           style={{ 
-            width: '100%', 
-            height: '100%', 
+            width: `${width}px`, 
+            height: `${height}px`, 
             display: 'block',
-            backgroundColor: theme.palette.background.paper
+            backgroundColor: theme.palette.background.paper,
+            minWidth: '100%',
+            minHeight: '100%'
           }} 
         />
       </Box>
@@ -667,7 +953,7 @@ const HierarchicalTaskTree: React.FC<HierarchicalTaskTreeProps> = ({
           <Typography variant="caption">Pending</Typography>
         </Box>
         <Typography variant="caption" color="text.secondary">
-          • Border thickness = Priority • Dot = High Priority • Drag to pan, wheel to zoom
+          • Border thickness = Priority • Dot = High Priority • Canvas auto-sizes for {tasks.length} tasks • Drag to pan, wheel to zoom
         </Typography>
       </Box>
     </Paper>

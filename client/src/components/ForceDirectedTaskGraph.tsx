@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { Box, Typography, Paper, useTheme, FormControlLabel, Switch, Slider, Collapse, IconButton } from '@mui/material';
-import { Settings } from '@mui/icons-material';
+import { Box, Typography, Paper, useTheme, FormControlLabel, Switch, Slider, Collapse, IconButton, ButtonGroup } from '@mui/material';
+import { Settings, ZoomIn, ZoomOut, CenterFocusStrong } from '@mui/icons-material';
 import * as d3 from 'd3';
 import { TaskDTO } from '../types';
 import { getPriorityConfig } from '../utils/priorityUtils';
@@ -36,9 +36,9 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
   const theme = useTheme();
   const [clusterByProject, setClusterByProject] = useState(true);
   const [simulation, setSimulation] = useState<d3.Simulation<GraphNode, GraphLink> | null>(null);
-  const [linkDistance, setLinkDistance] = useState(150);
-  const [chargeStrength, setChargeStrength] = useState(-600);
-  const [boundaryStrength, setBoundaryStrength] = useState(0.01);
+  const [linkDistance, setLinkDistance] = useState(200); // Increased from 150 to 200
+  const [chargeStrength, setChargeStrength] = useState(-800); // Increased from -600 to -800 (stronger repulsion)
+  const [boundaryStrength, setBoundaryStrength] = useState(0.005); // Reduced from 0.01 to allow more spreading
   const [showProjectContainers, setShowProjectContainers] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -58,10 +58,10 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
     const cols = Math.ceil(Math.sqrt(projectCount));
     const rows = Math.ceil(projectCount / cols);
     
-    // Minimum container size per project
-    const minContainerWidth = 350;  // Increased from 280
-    const minContainerHeight = 250; // Increased from 180
-    const spacing = 100; // Space between containers
+    // Reduced container size per project for tighter fit
+    const minContainerWidth = 250;  // Reduced for tighter fit
+    const minContainerHeight = 200; // Reduced for tighter fit
+    const spacing = 80; // Reduced spacing
     
     // Calculate required dimensions
     const requiredWidth = Math.max(
@@ -90,6 +90,102 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
     [projects]
   );
 
+  // Simple project clustering force
+  const forceProjectClustering = useCallback(() => {
+    let nodes: GraphNode[];
+
+    function force(alpha: number) {
+      if (!clusterByProject) return;
+
+      // Group nodes by project
+      const projectGroups = new Map<string, GraphNode[]>();
+      nodes.forEach(node => {
+        if (node.project) {
+          if (!projectGroups.has(node.project)) {
+            projectGroups.set(node.project, []);
+          }
+          projectGroups.get(node.project)!.push(node);
+        }
+      });
+
+      // Apply clustering within projects and separation between projects
+      projectGroups.forEach((projectNodes, projectName) => {
+        // Calculate project centroid
+        let centerX = 0, centerY = 0;
+        projectNodes.forEach(node => {
+          centerX += node.x!;
+          centerY += node.y!;
+        });
+        centerX /= projectNodes.length;
+        centerY /= projectNodes.length;
+
+        // Apply gentle clustering force within project
+        projectNodes.forEach(node => {
+          const dx = centerX - node.x!;
+          const dy = centerY - node.y!;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance > 0) {
+            const clusterStrength = 0.08; // Reduced from 0.1 to allow more spreading within projects
+            node.vx! += (dx / distance) * clusterStrength * alpha;
+            node.vy! += (dy / distance) * clusterStrength * alpha;
+          }
+        });
+      });
+
+      // Apply separation between different projects
+      const projectCentroids = Array.from(projectGroups.entries()).map(([name, nodes]) => {
+        let centerX = 0, centerY = 0;
+        nodes.forEach(node => {
+          centerX += node.x!;
+          centerY += node.y!;
+        });
+        return {
+          name,
+          nodes,
+          centerX: centerX / nodes.length,
+          centerY: centerY / nodes.length
+        };
+      });
+
+      // Separate project centroids with increased minimum distance
+      for (let i = 0; i < projectCentroids.length; i++) {
+        for (let j = i + 1; j < projectCentroids.length; j++) {
+          const projectA = projectCentroids[i];
+          const projectB = projectCentroids[j];
+
+          const dx = projectB.centerX - projectA.centerX;
+          const dy = projectB.centerY - projectA.centerY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const minDistance = 300; // Increased from 200 to 300 for more project separation
+
+          if (distance < minDistance && distance > 0) {
+            const separationForce = (minDistance - distance) * 0.15 * alpha; // Increased from 0.1 to 0.15
+            const unitX = dx / distance;
+            const unitY = dy / distance;
+
+            // Apply separation to all nodes in each project
+            projectA.nodes.forEach(node => {
+              node.vx! -= unitX * separationForce / projectA.nodes.length;
+              node.vy! -= unitY * separationForce / projectA.nodes.length;
+            });
+
+            projectB.nodes.forEach(node => {
+              node.vx! += unitX * separationForce / projectB.nodes.length;
+              node.vy! += unitY * separationForce / projectB.nodes.length;
+            });
+          }
+        }
+      }
+    }
+
+    force.initialize = function(_nodes: GraphNode[]) {
+      nodes = _nodes;
+    };
+
+    return force;
+  }, [clusterByProject]);
+
   // Prepare graph data
   const graphData = useMemo(() => {
     const getTasksDependingOn = (taskId: string) => {
@@ -113,11 +209,11 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
         const col = projectIndex % cols;
         const row = Math.floor(projectIndex / cols);
         
-        // Calculate spacing based on dynamic dimensions
-        const containerWidth = 350;
-        const containerHeight = 250;
-        const spacingX = 100;
-        const spacingY = 100;
+        // Calculate spacing based on reduced dynamic dimensions
+        const containerWidth = 250;  // Reduced from 400px
+        const containerHeight = 200; // Reduced from 300px
+        const spacingX = 80;         // Reduced from 120px
+        const spacingY = 80;         // Reduced from 120px
         
         // Calculate total grid dimensions
         const totalGridWidth = cols * containerWidth + (cols - 1) * spacingX;
@@ -131,8 +227,8 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
         initialY = gridStartY + row * (containerHeight + spacingY);
         
         // Add small randomization within the project area
-        initialX += (Math.random() - 0.5) * 30;
-        initialY += (Math.random() - 0.5) * 30;
+        initialX += (Math.random() - 0.5) * 50;
+        initialY += (Math.random() - 0.5) * 50;
       }
       
       return {
@@ -190,7 +286,7 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
     const nodeGroup = mainGroup.append('g').attr('class', 'nodes');
 
     // Text wrapping configuration
-    const maxWidth = 120;
+    const maxWidth = 140;
     const fontSize = 10;
     const lineHeight = 12;
     const textPadding = 8;
@@ -228,7 +324,7 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
 
     const nodeData = nodes.map(d => {
       const lines = wrapText(d.title, maxWidth);
-      const width = Math.min(maxWidth, Math.max(60, lines.reduce((max, line) => {
+      const width = Math.min(maxWidth, Math.max(80, lines.reduce((max, line) => {
         return Math.max(max, line.length * 6 + textPadding * 2);
       }, 0)));
       const height = lines.length * lineHeight + textPadding * 2;
@@ -241,10 +337,49 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
       };
     });
 
-    // Add enhanced arrowhead markers with different sizes
+    // Simple function to calculate project boundary for display
+    const calculateProjectBoundary = (projectName: string) => {
+      const projectNodes = nodes.filter(n => n.project === projectName);
+      if (projectNodes.length === 0) return null;
+
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      
+      projectNodes.forEach(node => {
+        const nodeIndex = nodes.findIndex(n => n.id === node.id);
+        const data = nodeData[nodeIndex];
+        if (data) {
+          const nodeLeft = (node.x || 0) - data.width / 2;
+          const nodeRight = (node.x || 0) + data.width / 2;
+          const nodeTop = (node.y || 0) - data.height / 2;
+          const nodeBottom = (node.y || 0) + data.height / 2;
+          
+          minX = Math.min(minX, nodeLeft);
+          maxX = Math.max(maxX, nodeRight);
+          minY = Math.min(minY, nodeTop);
+          maxY = Math.max(maxY, nodeBottom);
+        }
+      });
+
+      const padding = 40;
+      const headerHeight = 35;
+      const rectWidth = Math.max(maxX - minX + padding * 2, 200);
+      const rectHeight = Math.max(maxY - minY + padding * 2 + headerHeight, 150);
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+
+      return {
+        x: centerX - rectWidth / 2,
+        y: centerY - rectHeight / 2 - headerHeight / 2,
+        width: rectWidth,
+        height: rectHeight,
+        centerX: centerX,
+        centerY: centerY
+      };
+    };
+
+    // Add enhanced arrowhead markers
     const defs = svg.append('defs');
     
-    // Large arrowhead for prominent relationships
     defs.append('marker')
       .attr('id', 'arrowhead-large')
       .attr('viewBox', '0 -8 12 16')
@@ -255,11 +390,8 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
       .attr('orient', 'auto')
       .append('path')
       .attr('d', 'M0,-8L12,0L0,8')
-      .style('fill', theme.palette.primary.main)
-      .style('stroke', theme.palette.primary.main)
-      .style('stroke-width', 1);
+      .style('fill', theme.palette.primary.main);
 
-    // Medium arrowhead for normal relationships
     defs.append('marker')
       .attr('id', 'arrowhead-medium')
       .attr('viewBox', '0 -6 10 12')
@@ -270,168 +402,40 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
       .attr('orient', 'auto')
       .append('path')
       .attr('d', 'M0,-6L10,0L0,6')
-      .style('fill', theme.palette.text.secondary)
-      .style('stroke', theme.palette.text.secondary);
+      .style('fill', theme.palette.text.secondary);
 
-    // Animated flow indicators (moving dots)
-    const flowGradient = defs.append('linearGradient')
-      .attr('id', 'flow-gradient')
-      .attr('gradientUnits', 'userSpaceOnUse');
-    
-    flowGradient.append('stop')
-      .attr('offset', '0%')
-      .attr('stop-color', theme.palette.primary.main)
-      .attr('stop-opacity', 0);
-    
-    flowGradient.append('stop')
-      .attr('offset', '50%')
-      .attr('stop-color', theme.palette.primary.main)
-      .attr('stop-opacity', 1);
-    
-    flowGradient.append('stop')
-      .attr('offset', '100%')
-      .attr('stop-color', theme.palette.primary.main)
-      .attr('stop-opacity', 0);
-
-    // Create enhanced links with different styles based on relationship strength
+    // Create enhanced links
     const link = linkGroup.selectAll('.link')
       .data(links)
       .enter().append('g')
       .attr('class', 'link-group');
 
-    // Background link (thicker, lighter)
+    // Background link
     link.append('line')
       .attr('class', 'link-bg')
       .style('stroke', theme.palette.divider)
-      .style('stroke-width', d => {
-        // Thicker lines for critical path or high-priority dependencies
-        const sourceNode = nodes.find(n => n.id === (typeof d.source === 'string' ? d.source : d.source.id));
-        const targetNode = nodes.find(n => n.id === (typeof d.target === 'string' ? d.target : d.target.id));
-        
-        if (sourceNode?.priority === 'HIGH' || targetNode?.priority === 'HIGH') {
-          return 6; // Thick for high priority
-        } else if (sourceNode?.priority === 'MEDIUM' || targetNode?.priority === 'MEDIUM') {
-          return 4; // Medium thickness
-        }
-        return 3; // Default thickness
-      })
+      .style('stroke-width', 4)
       .style('stroke-opacity', 0.3)
       .style('stroke-linecap', 'round');
 
-    // Main link (colored, animated)
-    const mainLinks = link.append('line')
+    // Main link
+    link.append('line')
       .attr('class', 'link-main')
       .style('stroke', d => {
         const sourceNode = nodes.find(n => n.id === (typeof d.source === 'string' ? d.source : d.source.id));
         const targetNode = nodes.find(n => n.id === (typeof d.target === 'string' ? d.target : d.target.id));
         
-        // Color based on priority or project
         if (sourceNode?.priority === 'HIGH' || targetNode?.priority === 'HIGH') {
           return theme.palette.error.main;
         } else if (sourceNode?.priority === 'MEDIUM' || targetNode?.priority === 'MEDIUM') {
           return theme.palette.warning.main;
-        } else if (clusterByProject && sourceNode?.project && targetNode?.project && sourceNode.project === targetNode.project) {
-          return projectColorScale(sourceNode.project); // Same project color
         }
         return theme.palette.primary.main;
       })
-      .style('stroke-width', d => {
-        const sourceNode = nodes.find(n => n.id === (typeof d.source === 'string' ? d.source : d.source.id));
-        const targetNode = nodes.find(n => n.id === (typeof d.target === 'string' ? d.target : d.target.id));
-        
-        if (sourceNode?.priority === 'HIGH' || targetNode?.priority === 'HIGH') {
-          return 3;
-        } else if (sourceNode?.priority === 'MEDIUM' || targetNode?.priority === 'MEDIUM') {
-          return 2.5;
-        }
-        return 2;
-      })
+      .style('stroke-width', 2)
       .style('stroke-opacity', 0.8)
       .style('stroke-linecap', 'round')
-      .attr('marker-end', d => {
-        const sourceNode = nodes.find(n => n.id === (typeof d.source === 'string' ? d.source : d.source.id));
-        const targetNode = nodes.find(n => n.id === (typeof d.target === 'string' ? d.target : d.target.id));
-        
-        if (sourceNode?.priority === 'HIGH' || targetNode?.priority === 'HIGH') {
-          return 'url(#arrowhead-large)';
-        }
-        return 'url(#arrowhead-medium)';
-      });
-
-    // Animated flow indicators (moving circles)
-    const flowIndicators = link.append('circle')
-      .attr('class', 'flow-indicator')
-      .attr('r', d => {
-        const sourceNode = nodes.find(n => n.id === (typeof d.source === 'string' ? d.source : d.source.id));
-        const targetNode = nodes.find(n => n.id === (typeof d.target === 'string' ? d.target : d.target.id));
-        
-        if (sourceNode?.priority === 'HIGH' || targetNode?.priority === 'HIGH') {
-          return 4; // Larger dots for high priority
-        }
-        return 2.5;
-      })
-      .style('fill', d => {
-        const sourceNode = nodes.find(n => n.id === (typeof d.source === 'string' ? d.source : d.source.id));
-        const targetNode = nodes.find(n => n.id === (typeof d.target === 'string' ? d.target : d.target.id));
-        
-        if (sourceNode?.priority === 'HIGH' || targetNode?.priority === 'HIGH') {
-          return theme.palette.error.main;
-        } else if (sourceNode?.priority === 'MEDIUM' || targetNode?.priority === 'MEDIUM') {
-          return theme.palette.warning.main;
-        }
-        return theme.palette.primary.main;
-      })
-      .style('opacity', 0.9)
-      .style('filter', 'drop-shadow(0px 1px 2px rgba(0,0,0,0.3))');
-
-    // Animate flow indicators
-    const animateFlow = () => {
-      flowIndicators
-        .transition()
-        .duration(d => {
-          const sourceNode = nodes.find(n => n.id === (typeof d.source === 'string' ? d.source : d.source.id));
-          const targetNode = nodes.find(n => n.id === (typeof d.target === 'string' ? d.target : d.target.id));
-          
-          // Faster animation for high priority
-          if (sourceNode?.priority === 'HIGH' || targetNode?.priority === 'HIGH') {
-            return 1500; // Fast
-          } else if (sourceNode?.priority === 'MEDIUM' || targetNode?.priority === 'MEDIUM') {
-            return 2000; // Medium
-          }
-          return 2500; // Slow
-        })
-        .ease(d3.easeLinear)
-        .attrTween('cx', function(d) {
-          const sourceNode = d.source as GraphNode;
-          const targetNode = d.target as GraphNode;
-          return d3.interpolate(sourceNode.x!, targetNode.x!);
-        })
-        .attrTween('cy', function(d) {
-          const sourceNode = d.source as GraphNode;
-          const targetNode = d.target as GraphNode;
-          return d3.interpolate(sourceNode.y!, targetNode.y!);
-        })
-        .on('end', function() {
-          // Reset position and restart animation
-          const d = d3.select(this).datum() as GraphLink;
-          const sourceNode = d.source as GraphNode;
-          d3.select(this)
-            .attr('cx', sourceNode.x!)
-            .attr('cy', sourceNode.y!);
-          
-          // Restart animation with random delay
-          setTimeout(() => {
-            if (d3.select(this).node()) {
-              animateFlow();
-            }
-          }, Math.random() * 1000);
-        });
-    };
-
-    // Start flow animation
-    setTimeout(() => {
-      animateFlow();
-    }, 1000);
+      .attr('marker-end', 'url(#arrowhead-medium)');
 
     // Create project containers if enabled
     if (clusterByProject && showProjectContainers) {
@@ -443,12 +447,11 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
         .attr('rx', 15)
         .attr('ry', 15)
         .style('fill', d => projectColorScale(d))
-        .style('fill-opacity', 0.12)
+        .style('fill-opacity', 0.08)
         .style('stroke', d => projectColorScale(d))
-        .style('stroke-width', 3)
-        .style('stroke-opacity', 0.8)
-        .style('stroke-dasharray', '10,5')
-        .style('filter', 'drop-shadow(0px 4px 8px rgba(0,0,0,0.2))')
+        .style('stroke-width', 2)
+        .style('stroke-opacity', 0.6)
+        .style('stroke-dasharray', '8,4')
         .style('pointer-events', 'none');
 
       const projectHeaders = clusterGroup.selectAll('.project-header')
@@ -470,17 +473,16 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
       headerGroup.append('text')
         .attr('class', 'project-title')
         .style('fill', 'white')
-        .style('font-size', '13px')
+        .style('font-size', '12px')
         .style('font-weight', 'bold')
         .style('text-anchor', 'start')
         .style('dominant-baseline', 'central')
         .style('pointer-events', 'none')
-        .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.7)')
         .text(d => d.toUpperCase());
 
       headerGroup.append('circle')
         .attr('class', 'task-count-bg')
-        .attr('r', 12)
+        .attr('r', 10)
         .style('fill', 'rgba(255,255,255,0.9)')
         .style('stroke', d => projectColorScale(d))
         .style('stroke-width', 2)
@@ -490,7 +492,7 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
         .attr('class', 'task-count')
         .text(d => nodes.filter(n => n.project === d).length)
         .style('fill', d => projectColorScale(d))
-        .style('font-size', '11px')
+        .style('font-size', '10px')
         .style('font-weight', 'bold')
         .style('text-anchor', 'middle')
         .style('dominant-baseline', 'central')
@@ -502,131 +504,10 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
       .data(nodes)
       .enter().append('g')
       .attr('class', 'node')
-      // Add hover effects
-      .on('mouseenter', function(event, d) {
-        d3.select(this)
-          .style('fill-opacity', 1)
-          .style('stroke-width', (d.priority === 'HIGH' ? 4 : d.priority === 'MEDIUM' ? 3 : 2))
-          .style('filter', 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))');
-        
-        // Highlight connected nodes and their relationships
-        const connectedNodeIds = new Set<string>();
-        const connectedLinks = new Set<GraphLink>();
-        
-        links.forEach(link => {
-          const source = typeof link.source === 'string' ? link.source : link.source.id;
-          const target = typeof link.target === 'string' ? link.target : link.target.id;
-          if (source === d.id) {
-            connectedNodeIds.add(target);
-            connectedLinks.add(link);
-          }
-          if (target === d.id) {
-            connectedNodeIds.add(source);
-            connectedLinks.add(link);
-          }
-        });
-        
-        // Dim non-connected nodes
-        nodeRects.style('fill-opacity', (otherD) => {
-          if (otherD.id === d.id || connectedNodeIds.has(otherD.id)) {
-            return 1;
-          }
-          return 0.3;
-        });
-        
-        // Highlight connected links with enhanced animation
-        link.selectAll('.link-main')
-          .style('stroke-opacity', (linkD) => {
-            const source = typeof linkD.source === 'string' ? linkD.source : linkD.source.id;
-            const target = typeof linkD.target === 'string' ? linkD.target : linkD.target.id;
-            return (source === d.id || target === d.id) ? 1 : 0.2;
-          })
-          .style('stroke-width', (linkD) => {
-            const source = typeof linkD.source === 'string' ? linkD.source : linkD.source.id;
-            const target = typeof linkD.target === 'string' ? linkD.target : linkD.target.id;
-            if (source === d.id || target === d.id) {
-              // Make connected links thicker
-              const sourceNode = nodes.find(n => n.id === source);
-              const targetNode = nodes.find(n => n.id === target);
-              if (sourceNode?.priority === 'HIGH' || targetNode?.priority === 'HIGH') {
-                return 4;
-              }
-              return 3;
-            }
-            return 1;
-          });
-
-        // Enhance flow indicators for connected links
-        link.selectAll('.flow-indicator')
-          .style('opacity', (linkD) => {
-            const source = typeof linkD.source === 'string' ? linkD.source : linkD.source.id;
-            const target = typeof linkD.target === 'string' ? linkD.target : linkD.target.id;
-            return (source === d.id || target === d.id) ? 1 : 0.3;
-          })
-          .attr('r', (linkD) => {
-            const source = typeof linkD.source === 'string' ? linkD.source : linkD.source.id;
-            const target = typeof linkD.target === 'string' ? linkD.target : linkD.target.id;
-            if (source === d.id || target === d.id) {
-              return 5; // Larger flow indicators for connected links
-            }
-            return 2.5;
-          });
-      })
-      .on('mouseleave', function(event, d) {
-        d3.select(this)
-          .style('fill-opacity', d => {
-            if (d.status === 'COMPLETED') return 0.6;
-            if (d.status === 'ACTIVE') return 0.9;
-            return clusterByProject && d.project ? 0.8 : 0.7;
-          })
-          .style('stroke-width', d => {
-            switch (d.priority) {
-              case 'HIGH': return 3;
-              case 'MEDIUM': return 2;
-              case 'LOW': return 1;
-              default: return 1;
-            }
-          })
-          .style('filter', 'none');
-        
-        // Reset all nodes and links
-        nodeRects.style('fill-opacity', d => {
-          if (d.status === 'COMPLETED') return 0.6;
-          if (d.status === 'ACTIVE') return 0.9;
-          return clusterByProject && d.project ? 0.8 : 0.7;
-        });
-        
-        // Reset link styles
-        link.selectAll('.link-main')
-          .style('stroke-opacity', 0.8)
-          .style('stroke-width', d => {
-            const sourceNode = nodes.find(n => n.id === (typeof d.source === 'string' ? d.source : d.source.id));
-            const targetNode = nodes.find(n => n.id === (typeof d.target === 'string' ? d.target : d.target.id));
-            
-            if (sourceNode?.priority === 'HIGH' || targetNode?.priority === 'HIGH') {
-              return 3;
-            } else if (sourceNode?.priority === 'MEDIUM' || targetNode?.priority === 'MEDIUM') {
-              return 2.5;
-            }
-            return 2;
-          });
-
-        // Reset flow indicators
-        link.selectAll('.flow-indicator')
-          .style('opacity', 0.9)
-          .attr('r', d => {
-            const sourceNode = nodes.find(n => n.id === (typeof d.source === 'string' ? d.source : d.source.id));
-            const targetNode = nodes.find(n => n.id === (typeof d.target === 'string' ? d.target : d.target.id));
-            
-            if (sourceNode?.priority === 'HIGH' || targetNode?.priority === 'HIGH') {
-              return 4;
-            }
-            return 2.5;
-          });
-      });
+      .style('cursor', 'pointer');
 
     // Add rectangles for nodes
-    const nodeRects = node.append('rect')
+    node.append('rect')
       .attr('width', (d, i) => nodeData[i].width)
       .attr('height', (d, i) => nodeData[i].height)
       .attr('x', (d, i) => -nodeData[i].width / 2)
@@ -682,83 +563,176 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
       });
     });
 
-    // Create force simulation
+    // Add zoom behavior to SVG
+    const zoom = d3.zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.1, 4])
+      .on('zoom', (event) => {
+        mainGroup.attr('transform', event.transform);
+      });
+
+    svg.call(zoom);
+
+    // Drag functions
+    const dragstarted = (event: d3.D3DragEvent<SVGGElement, GraphNode, GraphNode>, d: GraphNode) => {
+      if (!event.active) newSimulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    };
+
+    const dragged = (event: d3.D3DragEvent<SVGGElement, GraphNode, GraphNode>, d: GraphNode) => {
+      d.fx = event.x;
+      d.fy = event.y;
+    };
+
+    const dragended = (event: d3.D3DragEvent<SVGGElement, GraphNode, GraphNode>, d: GraphNode) => {
+      if (!event.active) newSimulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    };
+
+    // Add drag behavior to nodes
+    node.call(d3.drag<SVGGElement, GraphNode>()
+      .on('start', dragstarted)
+      .on('drag', dragged)
+      .on('end', dragended));
+
+    // Add hover effects for better interactivity
+    const nodeRects = node.select('rect');
+    
+    nodeRects
+      .on('mouseenter', function(event, d) {
+        d3.select(this)
+          .style('fill-opacity', 1)
+          .style('stroke-width', (d.priority === 'HIGH' ? 4 : d.priority === 'MEDIUM' ? 3 : 2))
+          .style('filter', 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))');
+        
+        // Highlight connected relationships
+        const connectedNodeIds = new Set<string>();
+        links.forEach(link => {
+          const source = typeof link.source === 'string' ? link.source : link.source.id;
+          const target = typeof link.target === 'string' ? link.target : link.target.id;
+          if (source === d.id) connectedNodeIds.add(target);
+          if (target === d.id) connectedNodeIds.add(source);
+        });
+        
+        // Dim non-connected nodes
+        nodeRects.style('fill-opacity', (otherD) => {
+          if (otherD.id === d.id || connectedNodeIds.has(otherD.id)) {
+            return 1;
+          }
+          return 0.3;
+        });
+        
+        // Highlight connected links
+        link.selectAll('.link-main')
+          .style('stroke-opacity', (linkD) => {
+            const source = typeof linkD.source === 'string' ? linkD.source : linkD.source.id;
+            const target = typeof linkD.target === 'string' ? linkD.target : linkD.target.id;
+            return (source === d.id || target === d.id) ? 1 : 0.2;
+          })
+          .style('stroke-width', (linkD) => {
+            const source = typeof linkD.source === 'string' ? linkD.source : linkD.source.id;
+            const target = typeof linkD.target === 'string' ? linkD.target : linkD.target.id;
+            if (source === d.id || target === d.id) {
+              return 3; // Thicker for connected links
+            }
+            return 2;
+          });
+      })
+      .on('mouseleave', function(event, d) {
+        d3.select(this)
+          .style('fill-opacity', d => {
+            if (d.status === 'COMPLETED') return 0.6;
+            if (d.status === 'ACTIVE') return 0.9;
+            return clusterByProject && d.project ? 0.8 : 0.7;
+          })
+          .style('stroke-width', d => {
+            switch (d.priority) {
+              case 'HIGH': return 3;
+              case 'MEDIUM': return 2;
+              case 'LOW': return 1;
+              default: return 1;
+            }
+          })
+          .style('filter', 'none');
+        
+        // Reset all nodes and links
+        nodeRects.style('fill-opacity', d => {
+          if (d.status === 'COMPLETED') return 0.6;
+          if (d.status === 'ACTIVE') return 0.9;
+          return clusterByProject && d.project ? 0.8 : 0.7;
+        });
+        
+        link.selectAll('.link-main')
+          .style('stroke-opacity', 0.8)
+          .style('stroke-width', 2);
+      });
+
+    // Custom charge force that reduces repulsion between tasks in the same project
+    const projectAwareCharge = () => {
+      let nodes: GraphNode[];
+      const strength = chargeStrength; // Use the global charge strength
+
+      function force(alpha: number) {
+        for (let i = 0; i < nodes.length; i++) {
+          const nodeA = nodes[i];
+          for (let j = i + 1; j < nodes.length; j++) {
+            const nodeB = nodes[j];
+            
+            const dx = nodeB.x! - nodeA.x!;
+            const dy = nodeB.y! - nodeA.y!;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance === 0) continue;
+            
+            let forceStrength = strength;
+            
+            // Reduce repulsion between tasks in the same project
+            if (clusterByProject && nodeA.project && nodeB.project && nodeA.project === nodeB.project) {
+              forceStrength = strength * 0.3; // Increased from 0.2 to 0.3 for slightly more repulsion within projects
+            }
+            
+            // Apply the force
+            const force = forceStrength * alpha / (distance * distance);
+            const fx = dx * force;
+            const fy = dy * force;
+            
+            nodeA.vx! -= fx;
+            nodeA.vy! -= fy;
+            nodeB.vx! += fx;
+            nodeB.vy! += fy;
+          }
+        }
+      }
+
+      force.initialize = function(_nodes: GraphNode[]) {
+        nodes = _nodes;
+      };
+
+      return force;
+    };
+
     const newSimulation = d3.forceSimulation<GraphNode>(nodes)
       .force('link', d3.forceLink<GraphNode, GraphLink>(links).id(d => d.id).distance(linkDistance))
-      .force('charge', d3.forceManyBody().strength(chargeStrength))
+      .force('charge', projectAwareCharge()) // Use custom charge with reduced same-project repulsion
       .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius(50))
+      .force('collision', d3.forceCollide().radius(40)) // Increased from 25 to 40 for more spacing
+      .force('clustering', forceProjectClustering()) // Simple project clustering
       .force('x', d3.forceX(width / 2).strength(boundaryStrength))
       .force('y', d3.forceY(height / 2).strength(boundaryStrength));
 
-    // Function to calculate project boundary
-    const calculateProjectBoundary = (projectName: string) => {
-      const projectNodes = nodes.filter(n => n.project === projectName);
-      if (projectNodes.length === 0) return null;
-
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-      
-      projectNodes.forEach(node => {
-        const nodeIndex = nodes.findIndex(n => n.id === node.id);
-        const data = nodeData[nodeIndex];
-        if (data) {
-          minX = Math.min(minX, (node.x || 0) - data.width / 2);
-          maxX = Math.max(maxX, (node.x || 0) + data.width / 2);
-          minY = Math.min(minY, (node.y || 0) - data.height / 2);
-          maxY = Math.max(maxY, (node.y || 0) + data.height / 2);
-        }
-      });
-
-      const padding = 80;
-      const headerHeight = 40;
-      const rectWidth = Math.max(maxX - minX + padding * 2, 280);
-      const rectHeight = Math.max(maxY - minY + padding * 2 + headerHeight, 180);
-      const centerX = (minX + maxX) / 2;
-      const centerY = (minY + maxY) / 2;
-
-      return {
-        x: centerX - rectWidth / 2,
-        y: centerY - rectHeight / 2,
-        width: rectWidth,
-        height: rectHeight,
-        centerX: centerX,
-        centerY: centerY
-      };
-    };
-
     // Update positions on tick
     newSimulation.on('tick', () => {
-      // Update background links
-      link.selectAll('.link-bg')
+      // Update links
+      link.selectAll('.link-bg, .link-main')
         .attr('x1', d => (d.source as GraphNode).x!)
         .attr('y1', d => (d.source as GraphNode).y!)
         .attr('x2', d => (d.target as GraphNode).x!)
         .attr('y2', d => (d.target as GraphNode).y!);
-
-      // Update main links
-      link.selectAll('.link-main')
-        .attr('x1', d => (d.source as GraphNode).x!)
-        .attr('y1', d => (d.source as GraphNode).y!)
-        .attr('x2', d => (d.target as GraphNode).x!)
-        .attr('y2', d => (d.target as GraphNode).y!);
-
-      // Update flow indicators (only their starting positions, animation handles movement)
-      link.selectAll('.flow-indicator')
-        .each(function(d) {
-          const sourceNode = d.source as GraphNode;
-          const element = d3.select(this);
-          
-          // Only update if not currently animating
-          if (!element.node()?.classList.contains('animating')) {
-            element
-              .attr('cx', sourceNode.x!)
-              .attr('cy', sourceNode.y!);
-          }
-        });
 
       node.attr('transform', d => `translate(${d.x},${d.y})`);
 
-      // Update project containers
+      // Update project containers using calculated boundaries
       if (clusterByProject && showProjectContainers) {
         clusterGroup.selectAll('.cluster')
           .attr('x', (d: string) => {
@@ -800,14 +774,14 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
         clusterGroup.selectAll('.task-count-bg')
           .attr('cx', (d: string) => {
             const boundary = calculateProjectBoundary(d);
-            return boundary ? boundary.width - 35 : 145;
+            return boundary ? boundary.width - 25 : 155;
           })
           .attr('cy', 12);
 
         clusterGroup.selectAll('.task-count')
           .attr('x', (d: string) => {
             const boundary = calculateProjectBoundary(d);
-            return boundary ? boundary.width - 35 : 145;
+            return boundary ? boundary.width - 25 : 155;
           })
           .attr('y', 12);
       }
@@ -823,21 +797,116 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
   // Update simulation forces when parameters change
   useEffect(() => {
     if (simulation) {
+      // Recreate the project-aware charge force with updated parameters
+      const projectAwareCharge = () => {
+        let nodes: GraphNode[];
+        const strength = chargeStrength;
+
+        function force(alpha: number) {
+          for (let i = 0; i < nodes.length; i++) {
+            const nodeA = nodes[i];
+            for (let j = i + 1; j < nodes.length; j++) {
+              const nodeB = nodes[j];
+              
+              const dx = nodeB.x! - nodeA.x!;
+              const dy = nodeB.y! - nodeA.y!;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              
+              if (distance === 0) continue;
+              
+              let forceStrength = strength;
+              
+              // Reduce repulsion between tasks in the same project
+              if (clusterByProject && nodeA.project && nodeB.project && nodeA.project === nodeB.project) {
+                forceStrength = strength * 0.2; // Only 20% of normal repulsion within same project
+              }
+              
+              // Apply the force
+              const force = forceStrength * alpha / (distance * distance);
+              const fx = dx * force;
+              const fy = dy * force;
+              
+              nodeA.vx! -= fx;
+              nodeA.vy! -= fy;
+              nodeB.vx! += fx;
+              nodeB.vy! += fy;
+            }
+          }
+        }
+
+        force.initialize = function(_nodes: GraphNode[]) {
+          nodes = _nodes;
+        };
+
+        return force;
+      };
+
       simulation
         .force('link', d3.forceLink<GraphNode, GraphLink>().id(d => d.id).distance(linkDistance))
-        .force('charge', d3.forceManyBody().strength(chargeStrength))
+        .force('charge', projectAwareCharge()) // Use updated custom charge
+        .force('clustering', forceProjectClustering()) // Simple project clustering
         .force('x', d3.forceX(width / 2).strength(boundaryStrength))
         .force('y', d3.forceY(height / 2).strength(boundaryStrength))
         .alpha(0.3)
         .restart();
     }
-  }, [simulation, linkDistance, chargeStrength, boundaryStrength, width, height]);
+  }, [simulation, linkDistance, chargeStrength, boundaryStrength, width, height, clusterByProject]);
 
   return (
     <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6">Task Dependency Graph</Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {/* Zoom Controls */}
+          <ButtonGroup size="small" variant="outlined">
+            <IconButton
+              onClick={() => {
+                if (svgRef.current) {
+                  const svg = d3.select(svgRef.current);
+                  const zoom = d3.zoom<SVGSVGElement, unknown>();
+                  svg.transition().duration(300).call(
+                    zoom.scaleBy, 1.5
+                  );
+                }
+              }}
+              size="small"
+              title="Zoom In"
+            >
+              <ZoomIn fontSize="small" />
+            </IconButton>
+            <IconButton
+              onClick={() => {
+                if (svgRef.current) {
+                  const svg = d3.select(svgRef.current);
+                  const zoom = d3.zoom<SVGSVGElement, unknown>();
+                  svg.transition().duration(300).call(
+                    zoom.scaleBy, 0.67
+                  );
+                }
+              }}
+              size="small"
+              title="Zoom Out"
+            >
+              <ZoomOut fontSize="small" />
+            </IconButton>
+            <IconButton
+              onClick={() => {
+                if (svgRef.current) {
+                  const svg = d3.select(svgRef.current);
+                  const zoom = d3.zoom<SVGSVGElement, unknown>();
+                  svg.transition().duration(500).call(
+                    zoom.transform,
+                    d3.zoomIdentity
+                  );
+                }
+              }}
+              size="small"
+              title="Reset View"
+            >
+              <CenterFocusStrong fontSize="small" />
+            </IconButton>
+          </ButtonGroup>
+          
           <FormControlLabel
             control={
               <Switch
@@ -885,8 +954,8 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
               <Slider
                 value={linkDistance}
                 onChange={(_, value) => setLinkDistance(value as number)}
-                min={50}
-                max={300}
+                min={100}
+                max={400}
                 step={10}
                 size="small"
               />
@@ -898,8 +967,8 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
               <Slider
                 value={Math.abs(chargeStrength)}
                 onChange={(_, value) => setChargeStrength(-(value as number))}
-                min={100}
-                max={1000}
+                min={200}
+                max={1200}
                 step={50}
                 size="small"
               />
@@ -923,7 +992,7 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
 
       <Box sx={{ 
         flex: 1, 
-        overflow: 'auto', // Changed from 'hidden' to 'auto' for scrolling
+        overflow: 'auto',
         width: '100%',
         border: `1px solid ${theme.palette.divider}`,
         borderRadius: 1,
@@ -950,7 +1019,7 @@ const ForceDirectedTaskGraph: React.FC<ForceDirectedTaskGraphProps> = ({
       </Box>
       
       <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-        📦 Box size adapts to task title length • 🎨 Border thickness indicates priority • 🖱️ Drag nodes to reposition
+        📦 Box size adapts to task title length • 🎨 Border thickness indicates priority • 🖱️ Drag nodes to reposition • 🔍 Mouse wheel to zoom • ✨ Hover to highlight connections • 🎯 Use zoom controls to navigate
         {clusterByProject && projects.length > 0 && (
           <span> • 📐 Canvas: {width}×{height}px ({projects.length} projects)</span>
         )}
