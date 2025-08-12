@@ -30,11 +30,11 @@ This major release represents a significant milestone in Synaptik's development,
   - Enhanced Dependencies page with better UX
   - Inline editing for task relationships
 
-- **🤖 Advanced MCP Server Integration**
+- **🤖 Enhanced MCP Server Integration**
   - New task linking operations for Claude Desktop
   - Comprehensive test coverage for MCP functionality
   - Enhanced API client with robust error handling
-  - Support for complex task relationship operations
+  - Support for complex task relationship operations through MCP protocol
 
 - **🗄️ Database Performance Optimizations**
   - MongoDB indexes for improved query performance
