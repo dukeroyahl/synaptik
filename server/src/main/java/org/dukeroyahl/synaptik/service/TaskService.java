@@ -44,6 +44,55 @@ public class TaskService {
         return Task.<Task>listAll();
     }
 
+    public Uni<Integer> importTasks(List<Task> tasks) {
+        if (tasks == null || tasks.isEmpty()) {
+            return Uni.createFrom().item(0);
+        }
+
+        Log.infof("Starting import of %d tasks", tasks.size());
+        
+        // Use reactive MongoDB operations to ensure proper async flow
+        return persistTasksReactively(tasks);
+    }
+    
+    private Uni<Integer> persistTasksReactively(List<Task> tasks) {
+        // Convert all tasks to reactive persist operations
+        List<Uni<Task>> persistOperations = tasks.stream()
+            .map(this::persistTaskForImport)
+            .collect(Collectors.toList());
+        
+        // Combine all operations and wait for all to complete
+        return Uni.combine().all().unis(persistOperations)
+            .with(results -> {
+                // Count successful persists (non-null results)
+                long successCount = results.stream()
+                    .filter(result -> result != null)
+                    .count();
+                Log.infof("Successfully imported %d out of %d tasks", successCount, tasks.size());
+                return (int) successCount;
+            });
+    }
+    
+    private Uni<Task> persistTaskForImport(Task task) {
+        // For imported tasks, we need to preserve their original timestamps and versions
+        // Set the task up for import (preserve existing data)
+        if (task.createdAt != null && task.updatedAt != null) {
+            // Task already has timestamps, preserve them
+            // Don't call prePersist as it would overwrite timestamps
+        } else {
+            // Task doesn't have timestamps, set them now
+            task.prePersist();
+        }
+        
+        // Use reactive persist operation
+        return task.persist()
+            .onItem().transform(persistedTask -> (Task) persistedTask)
+            .onFailure().recoverWithItem(throwable -> {
+                Log.warnf("Failed to import task %s: %s", task.title, throwable.getMessage());
+                return null; // Return null for failed imports
+            });
+    }
+    
     public Uni<List<TaskDTO>> getTasksByStatuses(List<TaskStatus> statuses) {
         if (statuses == null || statuses.isEmpty()) {
             return getAllTasks();
@@ -323,5 +372,131 @@ public class TaskService {
         // Execute database query with filters applied at DB level and enrich with projects
         return Task.<Task>find(query).list()
             .onItem().transformToUni(this::enrichTaskListWithProjects);
+    }
+
+    public Uni<Boolean> linkTasks(UUID taskId, UUID dependencyId) {
+        Log.infof("Linking task %s to depend on task %s", taskId, dependencyId);
+        
+        // Prevent self-dependency
+        if (taskId.equals(dependencyId)) {
+            throw new IllegalArgumentException("Task cannot depend on itself");
+        }
+        
+        return Task.<Task>find("_id", taskId).firstResult()
+            .onItem().transformToUni(task -> {
+                if (task == null) {
+                    return Uni.createFrom().item(false);
+                }
+                
+                // Check if dependency task exists
+                return Task.<Task>find("_id", dependencyId).firstResult()
+                    .onItem().transformToUni(depTask -> {
+                        if (depTask == null) {
+                            return Uni.createFrom().item(false);
+                        }
+                        
+                        // Check if link already exists
+                        if (task.depends.contains(dependencyId)) {
+                            Log.infof("Link already exists between tasks %s and %s", taskId, dependencyId);
+                            return Uni.createFrom().item(true);
+                        }
+                        
+                        // Check for circular dependencies
+                        return checkCircularDependency(dependencyId, taskId)
+                            .onItem().transformToUni(hasCircular -> {
+                                if (hasCircular) {
+                                    throw new IllegalArgumentException("Creating this link would cause a circular dependency");
+                                }
+                                
+                                // Add the dependency
+                                task.depends.add(dependencyId);
+                                return task.persistOrUpdate()
+                                    .onItem().transform(persistedTask -> true);
+                            });
+                    });
+            });
+    }
+    
+    public Uni<Boolean> unlinkTasks(UUID taskId, UUID dependencyId) {
+        Log.infof("Unlinking task %s from dependency %s", taskId, dependencyId);
+        
+        return Task.<Task>find("_id", taskId).firstResult()
+            .onItem().transformToUni(task -> {
+                if (task == null) {
+                    return Uni.createFrom().item(false);
+                }
+                
+                // Remove the dependency if it exists
+                boolean removed = task.depends.remove(dependencyId);
+                if (!removed) {
+                    Log.infof("No link found between tasks %s and %s", taskId, dependencyId);
+                    return Uni.createFrom().item(false);
+                }
+                
+                return task.persistOrUpdate()
+                    .onItem().transform(persistedTask -> true);
+            });
+    }
+    
+    public Uni<List<TaskDTO>> getTaskDependencies(UUID taskId) {
+        Log.infof("Getting dependencies for task %s", taskId);
+        
+        return Task.<Task>find("_id", taskId).firstResult()
+            .onItem().transformToUni(task -> {
+                if (task == null) {
+                    return Uni.createFrom().nullItem();
+                }
+                
+                if (task.depends.isEmpty()) {
+                    return Uni.createFrom().item(new ArrayList<>());
+                }
+                
+                // Find all dependency tasks
+                return Task.<Task>find("_id in ?1", task.depends).list()
+                    .onItem().transformToUni(this::enrichTaskListWithProjects);
+            });
+    }
+    
+    public Uni<List<TaskDTO>> getTaskDependents(UUID taskId) {
+        Log.infof("Getting dependents for task %s", taskId);
+        
+        // Find all tasks that have this task in their depends list
+        return Task.<Task>find("depends", taskId).list()
+            .onItem().transformToUni(this::enrichTaskListWithProjects);
+    }
+    
+    private Uni<Boolean> checkCircularDependency(UUID startTaskId, UUID targetTaskId) {
+        return checkCircularDependencyRecursive(startTaskId, targetTaskId, new HashSet<>());
+    }
+    
+    private Uni<Boolean> checkCircularDependencyRecursive(UUID currentTaskId, UUID targetTaskId, Set<UUID> visited) {
+        if (visited.contains(currentTaskId)) {
+            // Already visited this task, no circular dependency in this path
+            return Uni.createFrom().item(false);
+        }
+        
+        if (currentTaskId.equals(targetTaskId)) {
+            // Found the target task, circular dependency detected
+            return Uni.createFrom().item(true);
+        }
+        
+        visited.add(currentTaskId);
+        
+        return Task.<Task>find("_id", currentTaskId).firstResult()
+            .onItem().transformToUni(task -> {
+                if (task == null || task.depends.isEmpty()) {
+                    return Uni.createFrom().item(false);
+                }
+                
+                // Check all dependencies of current task
+                List<Uni<Boolean>> checks = task.depends.stream()
+                    .map(depId -> checkCircularDependencyRecursive(depId, targetTaskId, new HashSet<>(visited)))
+                    .collect(Collectors.toList());
+                
+                // If any check returns true, we have a circular dependency
+                return Uni.combine().all().unis(checks).with(results -> {
+                    return results.stream().anyMatch(result -> (Boolean) result);
+                });
+            });
     }
 }

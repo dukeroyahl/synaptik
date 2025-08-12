@@ -363,6 +363,15 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
         {/* Third Row: Action Buttons and Additional Info */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: compact ? 0 : 0.5 }}>
           {/* Left side: Additional metadata (only show if not compact) */}
+          {/* Dependencies indicator - only show if not compact */}
+          {!compact && (task.depends && task.depends.length > 0) && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+              <DependencyIcon sx={{ fontSize: 12, color: 'warning.main' }} />
+              <Typography variant="caption" sx={{ color: 'warning.main', fontSize: '0.7rem' }}>
+                {task.depends.length} dep{task.depends.length !== 1 ? 's' : ''}
+              </Typography>
+            </Box>
+          )}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
             {/* Reserved for future metadata display */}
           </Box>
@@ -507,16 +516,6 @@ const TaskCard: React.FC<TaskCardProps> = memo(({
             </IconButton>
           </Box>
         </Box>
-
-        {/* Dependencies indicator - only show if not compact */}
-        {!compact && (task.depends && task.depends.length > 0) && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-            <DependencyIcon sx={{ fontSize: 12, color: 'warning.main' }} />
-            <Typography variant="caption" sx={{ color: 'warning.main', fontSize: '0.7rem' }}>
-              {task.depends.length} dep{task.depends.length !== 1 ? 's' : ''}
-            </Typography>
-          </Box>
-        )}
       </CardContent>
     </Card>
     </Tooltip>

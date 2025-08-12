@@ -9,16 +9,21 @@ import {
   useTheme,
   alpha,
   TextField,
-  InputAdornment
+  InputAdornment,
+  ToggleButtonGroup,
+  ToggleButton
 } from '@mui/material';
 import {
   AccountTree as DependencyIcon,
   Task as TaskIcon,
   Search as SearchIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  BubbleChart as ForceIcon,
+  Timeline as HierarchyIcon
 } from '@mui/icons-material';
 import { TaskDTO } from '../types';
 import UnifiedTaskGraph from '../components/UnifiedTaskGraph';
+import ForceDirectedTaskGraph from '../components/ForceDirectedTaskGraph';
 import TaskList from '../components/TaskList';
 import TaskCapture from '../components/TaskCapture';
 import { taskService } from '../services/taskService';
@@ -29,6 +34,7 @@ const Dependencies: React.FC = () => {
   const [allTasks, setAllTasks] = useState<TaskDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [graphType, setGraphType] = useState<'force' | 'hierarchy'>('force');
   
   // Use filter store for search
   const search = useFilterStore(s => s.search);
@@ -65,12 +71,29 @@ const Dependencies: React.FC = () => {
 
   return (
     <Box sx={{ pt: 0.5, pb: 2, px: 2, maxWidth: '100%', mx: 'auto' }}>
-      {/* Header */}
-      <Box sx={{ textAlign: 'center', mb: 1 }}>
-        <Typography variant="h4" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+      {/* Header with Graph Type Toggle */}
+      <Box sx={{ textAlign: 'center', mb: 2 }}>
+        <Typography variant="h4" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
           <DependencyIcon />
           Task Dependencies
         </Typography>
+        
+        <ToggleButtonGroup
+          value={graphType}
+          exclusive
+          onChange={(_, newType) => newType && setGraphType(newType)}
+          size="small"
+          sx={{ mb: 1 }}
+        >
+          <ToggleButton value="force">
+            <ForceIcon sx={{ mr: 1 }} />
+            Force Directed
+          </ToggleButton>
+          <ToggleButton value="hierarchy">
+            <HierarchyIcon sx={{ mr: 1 }} />
+            Hierarchy
+          </ToggleButton>
+        </ToggleButtonGroup>
       </Box>
 
       {error && (
@@ -79,17 +102,25 @@ const Dependencies: React.FC = () => {
         </Alert>
       )}
 
-      {/* Force-Directed Graph - Full page width */}
+      {/* Graph Visualization - Full page width */}
       <Box sx={{ 
         justifyContent: 'center',
         width: '93vw',
         maxWidth: '95vw',
         mb: 2,
-        minHeight: 520, // Increased height
+        minHeight: 520,
       }}>
-        <UnifiedTaskGraph
-          tasks={allTasks}
-        />
+        {graphType === 'force' ? (
+          <ForceDirectedTaskGraph
+            tasks={allTasks}
+            width={window.innerWidth * 0.9}
+            height={520}
+          />
+        ) : (
+          <UnifiedTaskGraph
+            tasks={allTasks}
+          />
+        )}
       </Box>
 
       {/* Task Management Section */}

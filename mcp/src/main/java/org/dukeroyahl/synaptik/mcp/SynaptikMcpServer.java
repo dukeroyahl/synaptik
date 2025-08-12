@@ -1,16 +1,19 @@
 package org.dukeroyahl.synaptik.mcp;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import jakarta.inject.Singleton;
+import jakarta.ws.rs.core.Response;
 import org.dukeroyahl.synaptik.domain.Task;
 import org.dukeroyahl.synaptik.domain.Project;
 import org.dukeroyahl.synaptik.domain.TaskPriority;
 import org.dukeroyahl.synaptik.domain.TaskStatus;
 import org.dukeroyahl.synaptik.dto.TaskGraphResponse;
+import org.dukeroyahl.synaptik.dto.TaskRequest;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 import io.quarkiverse.mcp.server.Tool;
@@ -111,6 +114,56 @@ public class SynaptikMcpServer {
                     } else {
                         return "❌ Failed to create task: " + response.getStatusInfo().getReasonPhrase();
                     }
+                });
+    }
+
+    @Tool(description = "Link tasks together by creating dependencies")
+    public Uni<String> linkTasks(
+            @ToolArg(description = "Task ID that should depend on other tasks") String taskId,
+            @ToolArg(description = "Comma-separated list of task IDs that this task depends on") String dependsOnTaskIds) {
+        
+        if (taskId == null || taskId.trim().isEmpty()) {
+            return Uni.createFrom().item("❌ Task ID is required");
+        }
+        
+        if (dependsOnTaskIds == null || dependsOnTaskIds.trim().isEmpty()) {
+            return Uni.createFrom().item("❌ At least one dependency task ID is required");
+        }
+        
+        // Parse the dependency task IDs
+        String[] dependencyIds = dependsOnTaskIds.trim().split(",");
+        List<Uni<String>> linkOperations = new ArrayList<>();
+        
+        // Create link operations for each dependency
+        for (String depId : dependencyIds) {
+            String cleanDepId = depId.trim();
+            if (!cleanDepId.isEmpty()) {
+                Uni<String> linkOp = apiClient.linkTasks(taskId.trim(), cleanDepId)
+                        .map(response -> {
+                            if (response.getStatus() == 200) {
+                                return "✅ Linked to " + cleanDepId;
+                            } else {
+                                return "❌ Failed to link to " + cleanDepId;
+                            }
+                        })
+                        .onFailure().recoverWithItem("❌ Error linking to " + cleanDepId);
+                linkOperations.add(linkOp);
+            }
+        }
+        
+        // Execute all link operations and combine results
+        return Uni.combine().all().unis(linkOperations)
+                .combinedWith(results -> {
+                    StringBuilder result = new StringBuilder();
+                    result.append("🔗 Task linking results:\n\n");
+                    result.append("**Task ID:** ").append(taskId).append("\n");
+                    result.append("**Link Operations:**\n");
+                    
+                    for (Object linkResult : results) {
+                        result.append("  ").append(linkResult.toString()).append("\n");
+                    }
+                    
+                    return result.toString();
                 });
     }
 
@@ -711,5 +764,158 @@ public class SynaptikMcpServer {
         }
 
         return sb.toString();
+    }
+
+    @Tool(description = "Get tasks that this task depends on")
+    public Uni<String> getTaskDependencies(
+            @ToolArg(description = "Task ID") String taskId) {
+        
+        if (taskId == null || taskId.trim().isEmpty()) {
+            return Uni.createFrom().item("❌ Task ID is required");
+        }
+        
+        return apiClient.getTaskDependencies(taskId.trim())
+                .map(dependencies -> {
+                    StringBuilder result = new StringBuilder();
+                    result.append("📋 Task Dependencies\n\n");
+                    result.append("**Task ID:** ").append(taskId).append("\n");
+                    
+                    if (dependencies.isEmpty()) {
+                        result.append("**Dependencies:** None\n");
+                    } else {
+                        result.append("**Dependencies:** ").append(dependencies.size()).append(" task(s)\n\n");
+                        for (Task dep : dependencies) {
+                            result.append("🔗 **").append(dep.title).append("**\n");
+                            result.append("   ID: ").append(dep.id).append("\n");
+                            result.append("   Status: ").append(dep.status).append("\n");
+                            result.append("   Priority: ").append(dep.priority).append("\n");
+                            if (dep.description != null && !dep.description.trim().isEmpty()) {
+                                result.append("   Description: ").append(dep.description).append("\n");
+                            }
+                            result.append("\n");
+                        }
+                    }
+                    
+                    return result.toString();
+                })
+                .onFailure().recoverWithItem("❌ Failed to get task dependencies for: " + taskId);
+    }
+
+    @Tool(description = "Get tasks that depend on this task")
+    public Uni<String> getTaskDependents(
+            @ToolArg(description = "Task ID") String taskId) {
+        
+        if (taskId == null || taskId.trim().isEmpty()) {
+            return Uni.createFrom().item("❌ Task ID is required");
+        }
+        
+        return apiClient.getTaskDependents(taskId.trim())
+                .map(dependents -> {
+                    StringBuilder result = new StringBuilder();
+                    result.append("📋 Task Dependents\n\n");
+                    result.append("**Task ID:** ").append(taskId).append("\n");
+                    
+                    if (dependents.isEmpty()) {
+                        result.append("**Dependents:** None (no other tasks depend on this one)\n");
+                    } else {
+                        result.append("**Dependents:** ").append(dependents.size()).append(" task(s) depend on this one\n\n");
+                        for (Task dependent : dependents) {
+                            result.append("🔗 **").append(dependent.title).append("**\n");
+                            result.append("   ID: ").append(dependent.id).append("\n");
+                            result.append("   Status: ").append(dependent.status).append("\n");
+                            result.append("   Priority: ").append(dependent.priority).append("\n");
+                            if (dependent.description != null && !dependent.description.trim().isEmpty()) {
+                                result.append("   Description: ").append(dependent.description).append("\n");
+                            }
+                            result.append("\n");
+                        }
+                    }
+                    
+                    return result.toString();
+                })
+                .onFailure().recoverWithItem("❌ Failed to get task dependents for: " + taskId);
+    }
+
+    @Tool(description = "Unlink tasks by removing dependencies")
+    public Uni<String> unlinkTasks(
+            @ToolArg(description = "Task ID to remove dependencies from") String taskId,
+            @ToolArg(description = "Comma-separated list of dependency task IDs to remove (leave empty to remove all dependencies)") String dependencyIdsToRemove) {
+        
+        if (taskId == null || taskId.trim().isEmpty()) {
+            return Uni.createFrom().item("❌ Task ID is required");
+        }
+        
+        if (dependencyIdsToRemove == null || dependencyIdsToRemove.trim().isEmpty()) {
+            // Remove all dependencies - first get current dependencies
+            return apiClient.getTaskDependencies(taskId.trim())
+                    .chain(dependencies -> {
+                        if (dependencies.isEmpty()) {
+                            return Uni.createFrom().item("ℹ️ Task has no dependencies to remove");
+                        }
+                        
+                        // Create unlink operations for all dependencies
+                        List<Uni<String>> unlinkOperations = new ArrayList<>();
+                        for (Task dep : dependencies) {
+                            Uni<String> unlinkOp = apiClient.unlinkTasks(taskId.trim(), dep.id)
+                                    .map(response -> {
+                                        if (response.getStatus() == 200) {
+                                            return "✅ Unlinked from " + dep.title + " (" + dep.id + ")";
+                                        } else {
+                                            return "❌ Failed to unlink from " + dep.title + " (" + dep.id + ")";
+                                        }
+                                    })
+                                    .onFailure().recoverWithItem("❌ Error unlinking from " + dep.title);
+                            unlinkOperations.add(unlinkOp);
+                        }
+                        
+                        return Uni.combine().all().unis(unlinkOperations)
+                                .combinedWith(results -> {
+                                    StringBuilder result = new StringBuilder();
+                                    result.append("🔓 Removed all dependencies:\n\n");
+                                    result.append("**Task ID:** ").append(taskId).append("\n");
+                                    result.append("**Unlink Operations:**\n");
+                                    
+                                    for (Object unlinkResult : results) {
+                                        result.append("  ").append(unlinkResult.toString()).append("\n");
+                                    }
+                                    
+                                    return result.toString();
+                                });
+                    });
+        } else {
+            // Remove specific dependencies
+            String[] dependencyIds = dependencyIdsToRemove.trim().split(",");
+            List<Uni<String>> unlinkOperations = new ArrayList<>();
+            
+            for (String depId : dependencyIds) {
+                String cleanDepId = depId.trim();
+                if (!cleanDepId.isEmpty()) {
+                    Uni<String> unlinkOp = apiClient.unlinkTasks(taskId.trim(), cleanDepId)
+                            .map(response -> {
+                                if (response.getStatus() == 200) {
+                                    return "✅ Unlinked from " + cleanDepId;
+                                } else {
+                                    return "❌ Failed to unlink from " + cleanDepId;
+                                }
+                            })
+                            .onFailure().recoverWithItem("❌ Error unlinking from " + cleanDepId);
+                    unlinkOperations.add(unlinkOp);
+                }
+            }
+            
+            return Uni.combine().all().unis(unlinkOperations)
+                    .combinedWith(results -> {
+                        StringBuilder result = new StringBuilder();
+                        result.append("🔓 Task unlinking results:\n\n");
+                        result.append("**Task ID:** ").append(taskId).append("\n");
+                        result.append("**Unlink Operations:**\n");
+                        
+                        for (Object unlinkResult : results) {
+                            result.append("  ").append(unlinkResult.toString()).append("\n");
+                        }
+                        
+                        return result.toString();
+                    });
+        }
     }
 }

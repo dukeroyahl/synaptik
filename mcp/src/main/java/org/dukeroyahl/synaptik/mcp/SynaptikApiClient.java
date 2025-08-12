@@ -58,6 +58,24 @@ public interface SynaptikApiClient {
     @Path("/api/tasks")
     Uni<Response> deleteAllTasks();
     
+    // ===== NEW TASK LINKING ENDPOINTS =====
+    
+    @GET
+    @Path("/api/tasks/{id}/dependencies")
+    Uni<List<Task>> getTaskDependencies(@PathParam("id") String id);
+    
+    @GET
+    @Path("/api/tasks/{id}/dependents")
+    Uni<List<Task>> getTaskDependents(@PathParam("id") String id);
+    
+    @POST
+    @Path("/api/tasks/{id}/link/{dependencyId}")
+    Uni<Response> linkTasks(@PathParam("id") String taskId, @PathParam("dependencyId") String dependencyId);
+    
+    @DELETE
+    @Path("/api/tasks/{id}/link/{dependencyId}")
+    Uni<Response> unlinkTasks(@PathParam("id") String taskId, @PathParam("dependencyId") String dependencyId);
+    
     // ===== RESTORED STATUS-BASED ENDPOINTS =====
     
     @GET

@@ -24,6 +24,8 @@ public class TaskRequest {
     public String dueDate;
     public String waitUntil;
     public List<String> tags;
+    public List<String> depends;
+    public String projectId;
     
     /**
      * Convert this DTO to a Task entity.
@@ -40,6 +42,12 @@ public class TaskRequest {
         task.waitUntil = this.waitUntil;
         if (this.tags != null) {
             task.tags = this.tags;
+        }
+        if (this.depends != null) {
+            task.depends = this.depends;
+        }
+        if (this.projectId != null) {
+            task.projectId = this.projectId;
         }
         return task;
     }

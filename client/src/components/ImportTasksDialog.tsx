@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -12,9 +12,12 @@ import {
   Checkbox,
   CircularProgress,
   useTheme,
-  alpha
+  alpha,
+  Box,
+  Input
 } from '@mui/material';
-import { CloudDownload as ImportIcon } from '@mui/icons-material';
+import { CloudUpload as ImportIcon, AttachFile as FileIcon } from '@mui/icons-material';
+import { taskService } from '../services/taskService';
 
 interface ImportTasksDialogProps {
   open: boolean;
@@ -22,27 +25,49 @@ interface ImportTasksDialogProps {
   onImportComplete: () => void;
 }
 
-const ImportTasksDialog: React.FC<ImportTasksDialogProps> = ({ open, onClose }) => {
+const ImportTasksDialog: React.FC<ImportTasksDialogProps> = ({ 
+  open, 
+  onClose, 
+  onImportComplete 
+}) => {
   const theme = useTheme();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
-  const [forceImport, setForceImport] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [result, setResult] = useState<{
     success: boolean;
     message: string;
     count?: number;
   } | null>(null);
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setResult(null);
+    }
+  };
+
   const handleImport = async () => {
+    if (!selectedFile) {
+      setResult({
+        success: false,
+        message: 'Please select a file to import',
+        count: 0
+      });
+      return;
+    }
+
     setImporting(true);
     setResult(null);
     
     try {
-      // Backend doesn't support import functionality yet
-      setResult({
-        success: false,
-        message: 'Import functionality is not available - backend API does not support /api/import/taskwarrior endpoint',
-        count: 0
-      });
+      const response = await taskService.importTasks(selectedFile);
+      setResult(response);
+      
+      if (response.success) {
+        onImportComplete();
+      }
     } catch (error) {
       setResult({
         success: false,
@@ -56,8 +81,15 @@ const ImportTasksDialog: React.FC<ImportTasksDialogProps> = ({ open, onClose }) 
 
   const handleClose = () => {
     setResult(null);
-    setForceImport(false);
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
     onClose();
+  };
+
+  const handleSelectFile = () => {
+    fileInputRef.current?.click();
   };
 
   return (
@@ -69,9 +101,6 @@ const ImportTasksDialog: React.FC<ImportTasksDialogProps> = ({ open, onClose }) 
       PaperProps={{
         sx: {
           borderRadius: 2,
-          background: theme.palette.mode === 'dark' 
-            ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, transparent 100%)`
-            : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, transparent 100%)`,
         }
       }}
     >
@@ -83,29 +112,42 @@ const ImportTasksDialog: React.FC<ImportTasksDialogProps> = ({ open, onClose }) 
         pb: 2
       }}>
         <ImportIcon color="primary" />
-        Import Tasks from TaskWarrior
+        Import Tasks
       </DialogTitle>
       
       <DialogContent sx={{ py: 3 }}>
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          <AlertTitle>Import Not Available</AlertTitle>
-          The backend API does not currently support task import functionality.
-        </Alert>
-
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          This feature would import tasks from your TaskWarrior installation, but the required API endpoint is not implemented.
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Import tasks from a JSON file. The file should contain an array of task objects in the expected format.
         </Typography>
 
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={forceImport}
-              onChange={(e) => setForceImport(e.target.checked)}
-              disabled={true}
-            />
+        <Box sx={{ 
+          border: `2px dashed ${theme.palette.divider}`,
+          borderRadius: 2,
+          p: 3,
+          textAlign: 'center',
+          mb: 3,
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            borderColor: theme.palette.primary.main,
+            backgroundColor: alpha(theme.palette.primary.main, 0.05)
           }
-          label="Force import (overwrite existing tasks)"
-          disabled={true}
+        }} onClick={handleSelectFile}>
+          <FileIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            {selectedFile ? selectedFile.name : 'Click to select a file'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Supported format: JSON
+          </Typography>
+        </Box>
+
+        <Input
+          ref={fileInputRef}
+          type="file"
+          onChange={handleFileSelect}
+          accept=".json"
+          sx={{ display: 'none' }}
         />
 
         {result && (
@@ -137,7 +179,7 @@ const ImportTasksDialog: React.FC<ImportTasksDialogProps> = ({ open, onClose }) 
         <Button
           onClick={handleImport}
           variant="contained"
-          disabled={importing || true} // Always disabled since not supported
+          disabled={importing || !selectedFile}
           startIcon={importing ? <CircularProgress size={16} /> : <ImportIcon />}
           sx={{
             background: importing 

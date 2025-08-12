@@ -22,13 +22,15 @@ import {
   GridView as MatrixIcon,
   Folder as ProjectsIcon,
   MoreVert as MoreIcon,
-  CloudDownload as ImportIcon,
-  CloudUpload as ExportIcon,
+  CloudUpload as ImportIcon,
+  CloudDownload as ExportIcon,
   Settings as SettingsIcon,
-  AccountTree as DependencyIcon
+  AccountTree as DependencyIcon,
+  BubbleChart as ForceGraphIcon
 } from '@mui/icons-material';
 import { setTheme } from '../utils/themeUtils';
 import ImportTasksDialog from './ImportTasksDialog';
+import ExportTasksDialog from './ExportTasksDialog';
 import pkg from '../../package.json';
 
 interface NavbarProps {
@@ -42,6 +44,7 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
   const navigate = useNavigate();
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
   const handleThemeToggle = () => {
     toggleDarkMode();
@@ -61,9 +64,18 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
     setImportDialogOpen(true);
   };
 
+  const handleExportClick = () => {
+    handleMenuClose();
+    setExportDialogOpen(true);
+  };
+
   const handleDependencyViewClick = () => {
     handleMenuClose();
     navigate('/dependencies');
+  };
+
+  const handleForceGraphClick = () => {
+    navigate('/force-graph');
   };
 
   const handleImportComplete = () => {
@@ -260,6 +272,32 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
               Dependencies
             </Button>
             
+            <Button 
+              onClick={handleForceGraphClick}
+              startIcon={<ForceGraphIcon />}
+              sx={{ 
+                color: theme.palette.text.primary,
+                position: 'relative',
+                '&:after': {
+                  content: '""',
+                  position: 'absolute',
+                  left: theme.spacing(1),
+                  right: theme.spacing(1),
+                  bottom: 2,
+                  height: 3,
+                  borderRadius: 2,
+                  background: location.pathname === '/force-graph' ? theme.palette.primary.main : 'transparent',
+                  transition: `background ${theme.ds?.motion.duration.fast}ms ${theme.ds?.motion.easing.standard}`
+                },
+                '&:hover': {
+                  backgroundColor: 'transparent',
+                  '&:after': { background: theme.palette.primary.main }
+                }
+              }}
+            >
+              Force Graph
+            </Button>
+            
             <IconButton 
               onClick={handleThemeToggle} 
               color="inherit"
@@ -325,10 +363,10 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
           <ListItemIcon>
             <ImportIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Import from TaskWarrior</ListItemText>
+          <ListItemText>Import Tasks</ListItemText>
         </MenuItem>
         
-        <MenuItem onClick={handleMenuClose}>
+        <MenuItem onClick={handleExportClick}>
           <ListItemIcon>
             <ExportIcon fontSize="small" />
           </ListItemIcon>
@@ -348,6 +386,12 @@ const Navbar: React.FC<NavbarProps> = ({ darkMode, toggleDarkMode }) => {
         open={importDialogOpen}
         onClose={() => setImportDialogOpen(false)}
         onImportComplete={handleImportComplete}
+      />
+      
+      {/* Export Dialog */}
+      <ExportTasksDialog
+        open={exportDialogOpen}
+        onClose={() => setExportDialogOpen(false)}
       />
     </>
   );

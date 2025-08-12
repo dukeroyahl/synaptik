@@ -3,6 +3,8 @@ export const API_ENDPOINTS = {
   TASKS: '/api/tasks',
   TASKS_SEARCH: '/api/tasks/search',
   TASKS_GRAPH: '/api/tasks/graph',
+  TASKS_IMPORT: '/api/tasks/import',
+  TASKS_EXPORT: '/api/tasks/export',
   PROJECTS: '/api/projects',
   PROJECTS_ACTIVE: '/api/projects/active',
   PROJECTS_OVERDUE: '/api/projects/overdue',

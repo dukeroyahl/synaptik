@@ -46,8 +46,18 @@ export class TaskService {
   }
 
   async createTask(data: TaskRequest): Promise<TaskDTO> {
-    const response = await apiClient.post<TaskDTO>(this.basePath, data)
-    return response.data
+    console.log('TaskService.createTask - endpoint:', this.basePath);
+    console.log('TaskService.createTask - data:', data);
+    console.log('TaskService.createTask - data JSON:', JSON.stringify(data));
+    
+    try {
+      const response = await apiClient.post<TaskDTO>(this.basePath, data)
+      console.log('TaskService.createTask - response:', response);
+      return response.data
+    } catch (error) {
+      console.error('TaskService.createTask - error:', error);
+      throw error;
+    }
   }
 
   async updateTask(id: string, data: TaskRequest): Promise<TaskDTO> {
@@ -111,11 +121,17 @@ export class TaskService {
   async captureTask(text: string, projectName?: string, projectId?: string): Promise<TaskDTO> {
     const taskData: TaskRequest = {
       title: text.trim(),
+      description: '', // Provide empty string instead of undefined
       priority: 'MEDIUM',
+      status: 'PENDING', // Explicitly set status
       projectName,
-      projectId
+      projectId,
+      tags: [], // Provide empty array instead of undefined
+      depends: [], // Provide empty array for dependencies
     }
     
+    console.log('TaskService.captureTask - sending data:', taskData);
+    console.log('TaskService.captureTask - JSON stringified:', JSON.stringify(taskData));
     return this.createTask(taskData)
   }
 
@@ -200,6 +216,41 @@ export class TaskService {
   async getTasksLegacy(filters?: TaskSearchParams): Promise<Task[]> {
     const dtos = await this.getTasks(filters)
     return dtos.map(dto => this.convertTaskDTOToTask(dto))
+  }
+
+  // Import/Export methods
+  async importTasks(file: File): Promise<{ success: boolean; message: string; count?: number }> {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    try {
+      const response = await apiClient.post<{ success: boolean; message: string; count?: number }>(
+        API_ENDPOINTS.TASKS_IMPORT, 
+        formData
+      )
+      return response.data
+    } catch (error) {
+      throw new Error(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  async exportTasks(format: 'json' | 'csv' = 'json'): Promise<Blob> {
+    try {
+      const response = await fetch(`${apiClient.baseURL}${API_ENDPOINTS.TASKS_EXPORT}?format=${format}`, {
+        method: 'GET',
+        headers: {
+          'Accept': format === 'json' ? 'application/json' : 'text/csv',
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Export failed: ${response.statusText}`)
+      }
+      
+      return await response.blob()
+    } catch (error) {
+      throw new Error(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 }
 

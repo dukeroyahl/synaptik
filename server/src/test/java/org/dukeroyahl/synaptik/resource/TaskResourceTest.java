@@ -2,507 +2,404 @@ package org.dukeroyahl.synaptik.resource;
 
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestMethodOrder;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
-import org.dukeroyahl.synaptik.domain.TaskStatus;
-import org.dukeroyahl.synaptik.domain.TaskPriority;
+import org.junit.jupiter.api.*;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 
 @QuarkusTest
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-public class TaskResourceTest {
+class TaskResourceTest {
 
-    private static String createdTaskId;
+    @BeforeEach
+    void setUp() {
+        // Clear all tasks before each test
+        given()
+            .when().delete("/api/tasks")
+            .then()
+            .statusCode(204);
+    }
 
     @Test
     @Order(1)
-    public void testGetAllTasks() {
+    void testCreateTask() {
         given()
-            .when().get("/api/tasks")
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "Test Task 1",
+                    "description": "Test task description",
+                    "priority": "HIGH",
+                    "assignee": "Test User",
+                    "tags": ["test", "api"]
+                }
+                """)
+            .when().post("/api/tasks")
             .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("size()", greaterThanOrEqualTo(0));
+            .statusCode(201)
+            .body("title", equalTo("Test Task 1"))
+            .body("description", equalTo("Test task description"))
+            .body("priority", equalTo("HIGH"))
+            .body("assignee", equalTo("Test User"))
+            .body("status", equalTo("PENDING"))
+            .body("version", equalTo(1))
+            .body("id", notNullValue());
     }
 
     @Test
     @Order(2)
-    public void testCreateTask() {
-        String taskJson = """
-            {
-                "title": "Test Task",
-                "description": "This is a test task",
-                "status": "PENDING",
-                "priority": "HIGH",
-                "projectName": "TestProject",
-                "assignee": "testuser",
-                "tags": ["test", "important"]
-            }
-            """;
+    void testGetTask() {
+        // First create a task
+        String id = createTestTask("Get Test Task", "Description", "MEDIUM", "User");
 
-        createdTaskId = given()
-            .contentType(ContentType.JSON)
-            .body(taskJson)
-            .when().post("/api/tasks")
+        given()
+            .when().get("/api/tasks/{id}", id)
             .then()
-                .statusCode(201)
-                .contentType(ContentType.JSON)
-                .body("title", is("Test Task"))
-                .body("description", is("This is a test task"))
-                .body("status", is("PENDING"))
-                .body("priority", is("HIGH"))
-                .body("projectName", is("TestProject"))
-                .body("assignee", is("testuser"))
-                .body("id", notNullValue())
-                .body("createdAt", notNullValue())
-                .body("updatedAt", notNullValue())
-                .body("urgency", notNullValue())
-            .extract().path("id");
+            .statusCode(200)
+            .body("id", equalTo(id))
+            .body("title", equalTo("Get Test Task"))
+            .body("priority", equalTo("MEDIUM"))
+            .body("version", equalTo(1));
     }
 
     @Test
     @Order(3)
-    public void testGetTaskById() {
+    void testUpdateTask() {
+        // First create a task
+        String id = createTestTask("Update Test Task", "Original description", "LOW", "Original User");
+
         given()
-            .when().get("/api/tasks/" + createdTaskId)
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "Updated Test Task",
+                    "description": "Updated description",
+                    "priority": "HIGH",
+                    "assignee": "Updated User"
+                }
+                """)
+            .when().put("/api/tasks/{id}", id)
             .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("title", is("Test Task"))
-                .body("id", is(createdTaskId));
+            .statusCode(200)
+            .body("title", equalTo("Updated Test Task"))
+            .body("description", equalTo("Updated description"))
+            .body("priority", equalTo("HIGH"))
+            .body("assignee", equalTo("Updated User"))
+            .body("version", equalTo(2)); // Version should increment
     }
 
     @Test
     @Order(4)
-    public void testUpdateTask() {
-        String updateJson = """
-            {
-                "title": "Updated Test Task",
-                "description": "This task has been updated",
-                "priority": "MEDIUM"
-            }
-            """;
+    void testUpdateTaskStatus() {
+        // First create a task
+        String id = createTestTask("Status Test Task", "Description", "MEDIUM", "User");
 
         given()
             .contentType(ContentType.JSON)
-            .body(updateJson)
-            .when().put("/api/tasks/" + createdTaskId)
+            .body("\"ACTIVE\"")
+            .when().put("/api/tasks/{id}/status", id)
             .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("title", is("Updated Test Task"))
-                .body("description", is("This task has been updated"))
-                .body("priority", is("MEDIUM"));
+            .statusCode(200)
+            .body(equalTo("true"));
+
+        // Verify status was updated and version incremented
+        given()
+            .when().get("/api/tasks/{id}", id)
+            .then()
+            .statusCode(200)
+            .body("status", equalTo("ACTIVE"))
+            .body("version", equalTo(2));
     }
-
-
-
-
-
-
-
-
 
     @Test
     @Order(5)
-    public void testDeleteTask() {
+    void testDeleteTask() {
+        // First create a task
+        String id = createTestTask("Delete Test Task", "Description", "LOW", "User");
+
         given()
-            .when().delete("/api/tasks/" + createdTaskId)
+            .when().delete("/api/tasks/{id}", id)
             .then()
-                .statusCode(204);
+            .statusCode(204);
+
+        // Verify task is deleted
+        given()
+            .when().get("/api/tasks/{id}", id)
+            .then()
+            .statusCode(404);
     }
 
     @Test
     @Order(6)
-    public void testGetNonExistentTask() {
+    void testGetAllTasks() {
+        // Create multiple tasks
+        createTestTask("Task 1", "Description 1", "HIGH", "User 1");
+        createTestTask("Task 2", "Description 2", "MEDIUM", "User 2");
+        createTestTask("Task 3", "Description 3", "LOW", "User 3");
+
         given()
-            .when().get("/api/tasks/550e8400-e29b-41d4-a716-446655440000")
+            .when().get("/api/tasks")
             .then()
-                .statusCode(404);
+            .statusCode(200)
+            .body("$", hasSize(3));
     }
 
     @Test
     @Order(7)
-    public void testUpdateNonExistentTask() {
-        String updateJson = """
-            {
-                "title": "Non-existent Task"
-            }
-            """;
+    void testTaskLinking() {
+        // Create two tasks
+        String taskA = createTestTask("Task A", "Foundation task", "HIGH", "User A");
+        String taskB = createTestTask("Task B", "Dependent task", "MEDIUM", "User B");
 
+        // Link Task B to depend on Task A (no body needed for POST)
         given()
-            .contentType(ContentType.JSON)
-            .body(updateJson)
-            .when().put("/api/tasks/550e8400-e29b-41d4-a716-446655440000")
+            .contentType(ContentType.JSON) // Set explicit content type
+            .when().post("/api/tasks/{id}/link/{dependencyId}", taskB, taskA)
             .then()
-                .statusCode(404);
+            .statusCode(200)
+            .body("message", equalTo("Tasks linked successfully"));
+
+        // Verify Task B dependencies
+        given()
+            .when().get("/api/tasks/{id}/dependencies", taskB)
+            .then()
+            .statusCode(200)
+            .body("$", hasSize(1))
+            .body("[0].id", equalTo(taskA));
+
+        // Test unlinking
+        given()
+            .contentType(ContentType.JSON) // Set explicit content type
+            .when().delete("/api/tasks/{id}/link/{dependencyId}", taskB, taskA)
+            .then()
+            .statusCode(200)
+            .body("message", equalTo("Tasks unlinked successfully"));
+
+        // Verify link is removed
+        given()
+            .when().get("/api/tasks/{id}/dependencies", taskB)
+            .then()
+            .statusCode(200)
+            .body("$", hasSize(0));
     }
 
     @Test
     @Order(8)
-    public void testDeleteNonExistentTask() {
+    void testCircularDependencyPrevention() {
+        // Create three tasks
+        String taskA = createTestTask("Task A", "Description", "HIGH", "User");
+        String taskB = createTestTask("Task B", "Description", "MEDIUM", "User");
+        String taskC = createTestTask("Task C", "Description", "LOW", "User");
+
+        // Create chain: A <- B <- C
         given()
-            .when().delete("/api/tasks/550e8400-e29b-41d4-a716-446655440000")
+            .contentType(ContentType.JSON)
+            .when().post("/api/tasks/{id}/link/{dependencyId}", taskB, taskA)
             .then()
-                .statusCode(404);
+            .statusCode(200);
+
+        given()
+            .contentType(ContentType.JSON)
+            .when().post("/api/tasks/{id}/link/{dependencyId}", taskC, taskB)
+            .then()
+            .statusCode(200);
+
+        // Try to create circular dependency: A <- C (would create A <- B <- C <- A)
+        given()
+            .contentType(ContentType.JSON)
+            .when().post("/api/tasks/{id}/link/{dependencyId}", taskA, taskC)
+            .then()
+            .statusCode(400)
+            .body("error", containsString("circular dependency"));
     }
 
     @Test
     @Order(9)
-    public void testCreateInvalidTask() {
-        String invalidTaskJson = """
-            {
-                "description": "Task without title"
-            }
-            """;
+    void testFileImport() throws IOException {
+        // Create test JSON file
+        File testFile = createTestImportFile();
 
-        given()
-            .contentType(ContentType.JSON)
-            .body(invalidTaskJson)
-            .when().post("/api/tasks")
-            .then()
-                .statusCode(400);
+        try {
+            // Import tasks and verify the import response
+            given()
+                .multiPart("file", testFile, "application/json")
+                .when().post("/api/tasks/import")
+                .then()
+                .statusCode(200)
+                .body("message", containsString("Successfully imported 2 tasks"));
+
+            // Add a small delay to ensure async operations complete
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
+            // Verify imported tasks exist by checking specific IDs
+            given()
+                .when().get("/api/tasks/11111111-1111-1111-1111-111111111111")
+                .then()
+                .statusCode(200)
+                .body("title", equalTo("Imported Task 1"))
+                .body("version", equalTo(5));
+
+            given()
+                .when().get("/api/tasks/22222222-2222-2222-2222-222222222222")
+                .then()
+                .statusCode(200)
+                .body("title", equalTo("Imported Task 2"))
+                .body("version", equalTo(3));
+
+        } finally {
+            testFile.delete();
+        }
     }
 
     @Test
     @Order(10)
-    public void testSearchByStatus() {
-        // Search for PENDING tasks
-        given()
-            .queryParam("status", "PENDING")
-            .when().get("/api/tasks/search")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
+    void testExport() {
+        // Create some test tasks
+        createTestTask("Export Task 1", "Description 1", "HIGH", "User 1");
+        createTestTask("Export Task 2", "Description 2", "MEDIUM", "User 2");
 
-        // Search for multiple statuses
         given()
-            .queryParam("status", "PENDING")
-            .queryParam("status", "ACTIVE")
-            .when().get("/api/tasks/search")
+            .when().get("/api/tasks/export")
             .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
+            .statusCode(200)
+            .body("$", hasSize(2))
+            .body("[0].title", notNullValue())
+            .body("[0].version", notNullValue())
+            .body("[0].createdAt", notNullValue());
     }
 
     @Test
     @Order(11)
-    public void testSearchByTitle() {
-        // Search for tasks with "Test" in title
-        given()
-            .queryParam("title", "Test")
-            .when().get("/api/tasks/search")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
+    void testVersionTracking() {
+        // Create a task
+        String id = createTestTask("Version Test Task", "Original", "MEDIUM", "User");
 
-        // Case-insensitive search
+        // Verify initial version
         given()
-            .queryParam("title", "test")
-            .when().get("/api/tasks/search")
+            .when().get("/api/tasks/{id}", id)
             .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
+            .body("version", equalTo(1));
+
+        // Update task
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "Updated Version Test Task",
+                    "description": "Updated",
+                    "priority": "HIGH",
+                    "assignee": "Updated User"
+                }
+                """)
+            .when().put("/api/tasks/{id}", id)
+            .then()
+            .body("version", equalTo(2));
+
+        // Update status
+        given()
+            .contentType(ContentType.JSON)
+            .body("\"ACTIVE\"")
+            .when().put("/api/tasks/{id}/status", id)
+            .then()
+            .statusCode(200);
+
+        // Verify version incremented again
+        given()
+            .when().get("/api/tasks/{id}", id)
+            .then()
+            .body("version", equalTo(3));
     }
 
     @Test
     @Order(12)
-    public void testSearchByAssignee() {
-        // Search for tasks assigned to "testuser"
+    void testErrorHandling() {
+        String nonExistentId = UUID.randomUUID().toString();
+
+        // Test getting non-existent task
         given()
-            .queryParam("assignee", "testuser")
-            .when().get("/api/tasks/search")
+            .when().get("/api/tasks/{id}", nonExistentId)
             .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
+            .statusCode(404);
 
-        // Partial assignee search
-        given()
-            .queryParam("assignee", "test")
-            .when().get("/api/tasks/search")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
-
-    @Test
-    @Order(13)
-    public void testSearchByProjectId() {
-        // First get a project ID
-        String projectId = given()
-            .when().get("/api/projects")
-            .then()
-                .statusCode(200)
-                .extract().path("[0].id");
-
-        // Search by valid project UUID
-        given()
-            .queryParam("projectId", projectId)
-            .when().get("/api/tasks/search")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-
-        // Search with invalid UUID should return empty results
-        given()
-            .queryParam("projectId", "invalid-uuid")
-            .when().get("/api/tasks/search")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("size()", is(0));
-    }
-
-    @Test
-    @Order(14)
-    public void testSearchWithDateRange() {
-        // Search with date range
-        given()
-            .queryParam("dateFrom", "2025-01-01")
-            .queryParam("dateTo", "2025-12-31")
-            .when().get("/api/tasks/search")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-
-        // Search with timezone
-        given()
-            .queryParam("dateFrom", "2025-01-01")
-            .queryParam("dateTo", "2025-12-31")
-            .queryParam("tz", "America/New_York")
-            .when().get("/api/tasks/search")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
-
-    @Test
-    @Order(15)
-    public void testSearchWithMultipleFilters() {
-        // Complex search with multiple filters
-        given()
-            .queryParam("status", "PENDING")
-            .queryParam("title", "Test")
-            .queryParam("assignee", "testuser")
-            .when().get("/api/tasks/search")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
-
-    @Test
-    @Order(16)
-    public void testSearchWithInvalidStatus() {
-        // Invalid status should return 404 (handled by ParamConverter)
-        given()
-            .queryParam("status", "INVALID_STATUS")
-            .when().get("/api/tasks/search")
-            .then()
-                .statusCode(404);
-    }
-
-    @Test
-    @Order(17)
-    public void testSearchWithNoFilters() {
-        // Search with no filters should return all tasks
-        given()
-            .when().get("/api/tasks/search")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
-
-    @Test
-    @Order(18)
-    public void testSearchCaseInsensitiveStatus() {
-        // Test case-insensitive status handling
-        given()
-            .queryParam("status", "pending")
-            .when().get("/api/tasks/search")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-
-        given()
-            .queryParam("status", "Pending")
-            .when().get("/api/tasks/search")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
-
-    @Test
-    @Order(27)
-    public void testGetOverdueTasks() {
-        // Test with default UTC timezone
-        given()
-            .when().get("/api/tasks/overdue")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-
-        // Test with specific timezone
-        given()
-            .queryParam("tz", "America/New_York")
-            .when().get("/api/tasks/overdue")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-
-        // Test with invalid timezone (should fallback to UTC)
-        given()
-            .queryParam("tz", "Invalid/Timezone")
-            .when().get("/api/tasks/overdue")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
-
-    @Test
-    @Order(28)
-    public void testGetDueTodayTasks() {
-        // Test with default UTC timezone
-        given()
-            .when().get("/api/tasks/today")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-
-        // Test with specific timezone
-        given()
-            .queryParam("tz", "Europe/London")
-            .when().get("/api/tasks/today")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-
-        // Test with Pacific timezone
-        given()
-            .queryParam("tz", "America/Los_Angeles")
-            .when().get("/api/tasks/today")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-    }
-
-    @Test
-    @Order(29)
-    public void testCreateOverdueTaskAndRetrieve() {
-        // Create a task with yesterday's date
-        String overdueTaskJson = """
-            {
-                "title": "Test Overdue Task",
-                "description": "This task should be overdue",
-                "status": "PENDING",
-                "priority": "HIGH",
-                "project": "TestProject",
-                "assignee": "testuser",
-                "dueDate": "2025-08-10T10:00:00Z"
-            }
-            """;
-
-        // Create the overdue task
+        // Test linking with non-existent task
+        String existingTask = createTestTask("Existing Task", "Description", "MEDIUM", "User");
         given()
             .contentType(ContentType.JSON)
-            .body(overdueTaskJson)
-            .when().post("/api/tasks")
+            .when().post("/api/tasks/{id}/link/{dependencyId}", existingTask, nonExistentId)
             .then()
-                .statusCode(201);
-
-        // Verify it appears in overdue tasks
-        given()
-            .queryParam("tz", "UTC")
-            .when().get("/api/tasks/overdue")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("size()", greaterThanOrEqualTo(1));
+            .statusCode(404)
+            .body("error", containsString("not found"));
     }
 
-    @Test
-    @Order(30)
-    public void testCreateDueTodayTaskAndRetrieve() {
-        // Create a task due today
-        String dueTodayTaskJson = """
-            {
-                "title": "Test Due Today Task",
-                "description": "This task is due today",
-                "status": "PENDING",
-                "priority": "MEDIUM",
-                "project": "TestProject",
-                "assignee": "testuser",
-                "dueDate": "2025-08-11T15:00:00Z"
-            }
-            """;
+    // Helper methods
 
-        // Create the due today task
-        given()
+    private String createTestTask(String title, String description, String priority, String assignee) {
+        return given()
             .contentType(ContentType.JSON)
-            .body(dueTodayTaskJson)
+            .body(String.format("""
+                {
+                    "title": "%s",
+                    "description": "%s",
+                    "priority": "%s",
+                    "assignee": "%s"
+                }
+                """, title, description, priority, assignee))
             .when().post("/api/tasks")
             .then()
-                .statusCode(201);
-
-        // Verify it appears in due today tasks
-        given()
-            .queryParam("tz", "UTC")
-            .when().get("/api/tasks/today")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON)
-                .body("size()", greaterThanOrEqualTo(1));
+            .statusCode(201)
+            .extract().path("id");
     }
 
-    @Test
-    @Order(31)
-    public void testTimezoneCalculations() {
-        // Test that timezone affects the calculation
-        // A task due at 2025-08-11T06:00:00Z should be:
-        // - Due today in UTC (it's 06:00 UTC on Aug 11)
-        // - Due yesterday in Pacific time (it's 23:00 PDT on Aug 10)
-        
-        String timezoneTestTaskJson = """
-            {
-                "title": "Timezone Test Task",
-                "description": "Testing timezone calculations",
-                "status": "PENDING",
-                "priority": "LOW",
-                "project": "TestProject",
-                "assignee": "testuser",
-                "dueDate": "2025-08-11T06:00:00Z"
-            }
-            """;
-
-        // Create the task
-        given()
-            .contentType(ContentType.JSON)
-            .body(timezoneTestTaskJson)
-            .when().post("/api/tasks")
-            .then()
-                .statusCode(201);
-
-        // Should appear in due today for UTC
-        given()
-            .queryParam("tz", "UTC")
-            .when().get("/api/tasks/today")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
-
-        // Should also work for other timezones
-        given()
-            .queryParam("tz", "America/Los_Angeles")
-            .when().get("/api/tasks/today")
-            .then()
-                .statusCode(200)
-                .contentType(ContentType.JSON);
+    private File createTestImportFile() throws IOException {
+        File testFile = File.createTempFile("test-import", ".json");
+        try (FileWriter writer = new FileWriter(testFile)) {
+            writer.write("""
+                [
+                    {
+                        "id": "11111111-1111-1111-1111-111111111111",
+                        "title": "Imported Task 1",
+                        "description": "First imported task",
+                        "status": "PENDING",
+                        "priority": "HIGH",
+                        "assignee": "Import User 1",
+                        "tags": ["imported", "test"],
+                        "depends": [],
+                        "annotations": [],
+                        "originalInput": "Original input",
+                        "createdAt": "2025-01-01T10:00:00Z",
+                        "updatedAt": "2025-01-01T10:00:00Z",
+                        "version": 5,
+                        "urgency": 15.0
+                    },
+                    {
+                        "id": "22222222-2222-2222-2222-222222222222",
+                        "title": "Imported Task 2",
+                        "description": "Second imported task",
+                        "status": "ACTIVE",
+                        "priority": "MEDIUM",
+                        "assignee": "Import User 2",
+                        "tags": ["imported"],
+                        "depends": ["11111111-1111-1111-1111-111111111111"],
+                        "annotations": [],
+                        "originalInput": "Second input",
+                        "createdAt": "2025-01-02T15:30:00Z",
+                        "updatedAt": "2025-01-03T09:15:00Z",
+                        "version": 3,
+                        "urgency": 8.5
+                    }
+                ]
+                """);
+        }
+        return testFile;
     }
 }

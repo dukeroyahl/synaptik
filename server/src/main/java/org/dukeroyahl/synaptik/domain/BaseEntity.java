@@ -19,6 +19,9 @@ public abstract class BaseEntity extends ReactivePanacheMongoEntityBase {
     public String createdAt;
     public String updatedAt;
     
+    // Entity version for tracking changes and imports
+    public Long version = 1L;
+    
     public BaseEntity() {
         this.id = UUID.randomUUID();
     }
@@ -30,6 +33,18 @@ public abstract class BaseEntity extends ReactivePanacheMongoEntityBase {
             createdAt = now;
         }
         updatedAt = now;
+        if (version == null) {
+            version = 1L;
+        }
+    }
+    
+    public void preUpdate() {
+        updatedAt = ZonedDateTime.now(ZoneId.of("UTC")).format(java.time.format.DateTimeFormatter.ISO_INSTANT);
+        if (version != null) {
+            version++;
+        } else {
+            version = 1L;
+        }
     }
     
     @Override
@@ -42,7 +57,12 @@ public abstract class BaseEntity extends ReactivePanacheMongoEntityBase {
     @Override
     @SuppressWarnings("unchecked") 
     public <T extends ReactivePanacheMongoEntityBase> Uni<T> persistOrUpdate() {
-        prePersist();
+        // Check if this is an update (entity already has an ID and exists)
+        if (this.id != null) {
+            preUpdate();
+        } else {
+            prePersist();
+        }
         return (Uni<T>) super.persistOrUpdate();
     }
 }

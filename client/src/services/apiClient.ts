@@ -33,14 +33,24 @@ export class ApiClient {
     const url = `${this.baseURL}${endpoint}`
     console.log('ApiClient making request to:', url, 'with options:', options);
     
+    const isFormData = options.body instanceof FormData;
+    
     const config: RequestInit = {
       headers: {
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }), // Always set for non-FormData
         ...getTimezoneHeaders(), // Include timezone in all requests
         ...options.headers,
       },
       ...options,
     }
+
+    console.log('Final request config:', {
+      url,
+      method: config.method,
+      headers: config.headers,
+      body: config.body,
+      bodyType: typeof config.body
+    });
 
     try {
       console.log('Making fetch request with config:', config);
@@ -101,10 +111,18 @@ export class ApiClient {
     return this.request<T>(url, { method: 'GET' })
   }
 
-  async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async post<T>(endpoint: string, data?: any, customHeaders?: Record<string, string>): Promise<ApiResponse<T>> {
+    const isFormData = data instanceof FormData;
+    
+    console.log('ApiClient.post - endpoint:', endpoint);
+    console.log('ApiClient.post - data:', data);
+    console.log('ApiClient.post - isFormData:', isFormData);
+    console.log('ApiClient.post - customHeaders:', customHeaders);
+    
     return this.request<T>(endpoint, {
       method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
+      body: isFormData ? data : (data ? JSON.stringify(data) : undefined),
+      headers: customHeaders || {}, // Don't override Content-Type, let request() method handle it
     })
   }
 

@@ -50,6 +50,7 @@ export interface TaskRequest {
   dueDate?: string
   waitUntil?: string
   tags?: string[]
+  depends?: string[] // Keep as string array for client-side, will be converted to UUIDs on server
 }
 
 export interface TaskSearchParams {
