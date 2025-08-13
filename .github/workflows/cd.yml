@@ -405,7 +405,6 @@ jobs:
     needs: [validate-tag, create-release]
     runs-on: ${{ matrix.runner }}
     if: needs.validate-tag.outputs.should_create_release == 'true'
-    continue-on-error: true  # Don't fail the entire release if native builds fail
     strategy:
       matrix:
         include:
@@ -444,72 +443,49 @@ jobs:
           distribution: 'graalvm'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run tests first
-        run: |
-          cd mcp
-          ./gradlew test --continue
-
       - name: Build MCP native binary
-        continue-on-error: true
         run: |
           cd mcp
-          
-          echo "🔨 Building native binary for ${{ matrix.platform }}..."
           
           if [ "${{ matrix.use-native }}" = "true" ]; then
-            echo "📱 macOS: Using native GraalVM installation"
-            ./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=false -x test \
-              -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g" \
-              -Dquarkus.native.additional-build-args="--initialize-at-run-time=org.eclipse.jgit"
+            # macOS: Use native GraalVM installation
+            ./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=false
           else
-            echo "🐧 Linux: Using containerized Mandrel builder"
-            ./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=true \
-              -Dquarkus.native.builder-image=${{ matrix.builder-image }} -x test \
-              -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g" \
-              -Dquarkus.native.additional-build-args="--initialize-at-run-time=org.eclipse.jgit"
+            # Linux: Use containerized Mandrel builder
+            ./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=${{ matrix.builder-image }}
           fi
 
       - name: Prepare binary for release
-        continue-on-error: true
         run: |
           cd mcp/build
-          
-          echo "🔍 Looking for generated native binary..."
           
           # Find the generated native binary
           BINARY_NAME=$(find . -name "*-runner" -type f | head -n 1)
           if [ -z "$BINARY_NAME" ]; then
-            echo "❌ No native binary found, skipping upload"
-            exit 0
+            echo "❌ No native binary found!"
+            find . -type f -name "*" | head -20
+            exit 1
           fi
-          
-          echo "✅ Found binary: $BINARY_NAME"
           
           # Rename to standard format
           mv "$BINARY_NAME" "synaptik-mcp-${{ matrix.platform }}"
           chmod +x "synaptik-mcp-${{ matrix.platform }}"
-          
-          # Verify the binary
-          ls -la "synaptik-mcp-${{ matrix.platform }}"
-          file "synaptik-mcp-${{ matrix.platform }}" || true
           
           # Verify binary
           file "synaptik-mcp-${{ matrix.platform }}"
           ls -la "synaptik-mcp-${{ matrix.platform }}"
 
       - name: Upload binary to release
-        continue-on-error: true
         run: |
           TAG_NAME="${{ needs.validate-tag.outputs.tag_name }}"
-          cd mcp/build
+          BINARY_PATH="mcp/build/synaptik-mcp-${{ matrix.platform }}"
           
-          if [ -f "synaptik-mcp-${{ matrix.platform }}" ]; then
-            echo "📤 Uploading binary to release $TAG_NAME"
-            gh release upload "$TAG_NAME" "synaptik-mcp-${{ matrix.platform }}" --clobber --repo dukeroyahl/synaptik
-            echo "✅ Successfully uploaded synaptik-mcp-${{ matrix.platform }}"
-          else
-            echo "⚠️ No binary found to upload for ${{ matrix.platform }}"
-          fi
+          echo "📦 Uploading ${{ matrix.platform }} binary to release $TAG_NAME"
+          
+          # Upload to release (with --clobber to replace if exists)
+          gh release upload "$TAG_NAME" "$BINARY_PATH" --clobber --repo dukeroyahl/synaptik
+          
+          echo "✅ Successfully uploaded synaptik-mcp-${{ matrix.platform }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

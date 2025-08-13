@@ -153,7 +153,7 @@ public class SynaptikMcpServer {
         
         // Execute all link operations and combine results
         return Uni.combine().all().unis(linkOperations)
-                .combinedWith(results -> {
+                .with(results -> {
                     StringBuilder result = new StringBuilder();
                     result.append("🔗 Task linking results:\n\n");
                     result.append("**Task ID:** ").append(taskId).append("\n");
@@ -869,7 +869,7 @@ public class SynaptikMcpServer {
                         }
                         
                         return Uni.combine().all().unis(unlinkOperations)
-                                .combinedWith(results -> {
+                                .with(results -> {
                                     StringBuilder result = new StringBuilder();
                                     result.append("🔓 Removed all dependencies:\n\n");
                                     result.append("**Task ID:** ").append(taskId).append("\n");
@@ -904,7 +904,7 @@ public class SynaptikMcpServer {
             }
             
             return Uni.combine().all().unis(unlinkOperations)
-                    .combinedWith(results -> {
+                    .with(results -> {
                         StringBuilder result = new StringBuilder();
                         result.append("🔓 Task unlinking results:\n\n");
                         result.append("**Task ID:** ").append(taskId).append("\n");
