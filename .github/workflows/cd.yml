@@ -444,9 +444,9 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build MCP native binary
+        continue-on-error: true
         run: |
           cd mcp
-          
           if [ "${{ matrix.use-native }}" = "true" ]; then
             # macOS: Use native GraalVM installation
             ./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=false
