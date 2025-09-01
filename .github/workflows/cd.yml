@@ -85,7 +85,7 @@ jobs:
       release_notes: ${{ steps.notes.outputs.release_notes }}
       previous_tag: ${{ steps.previous.outputs.previous_tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -312,7 +312,7 @@ jobs:
     outputs:
       release_id: ${{ steps.create.outputs.release_id }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Create GitHub Release
         id: create
@@ -368,7 +368,7 @@ jobs:
       matrix:
         component: [frontend, backend]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -417,7 +417,7 @@ jobs:
             use-native: true
             builder-image: ""
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Docker (Linux only)
         if: matrix.use-native == false
